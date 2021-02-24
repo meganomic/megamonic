@@ -14,25 +14,14 @@ pub struct Process {
 
     // /proc/stat
     pub pid: u32,        // 1
-    pub name: String, // 2
-    pub state: String,   // 3
     pub utime: u64,      // 14
     pub stime: u64,      // 15
     pub cutime: u64,     // 16
     pub cstime: u64,     // 17
-    pub num_threads: u32, // 20
-    pub starttime: u64,
-
-    pub old_utime: u64,      // 14
-    pub old_stime: u64,      // 15
-    pub old_cutime: u64,     // 16
-    pub old_cstime: u64,     // 17
 
     // /proc/smaps_rollup
     pub rss: i64,
     pub pss: i64,
-    pub swap: i64,
-    pub swappss: i64,
 
     // /proc/task
     //pub tasks : std::collections::HashSet<u32>,
@@ -70,13 +59,15 @@ impl Process {
                 self.executable = buffer[buffer.find("(").unwrap()..buffer.find(")").unwrap()+1].to_string();
             }
 
+            let old_total = self.utime + self.stime + self.cutime + self.cstime;
+
             for (i, s) in buffer[buffer.find(")").unwrap()..buffer.len()].split_whitespace().enumerate() {
                 match i {
                     //0 => self.state = s.to_string(),
-                    12 => self.utime = s.parse::<u64>().map(|i|{self.old_utime=self.utime;i}).unwrap_or_else(|_| {  self.error = true; 0 }),
-                    13 => self.stime = s.parse::<u64>().map(|i|{self.old_stime=self.stime;i}).unwrap_or_else(|_| {  self.error = true; 0 }),
-                    14 => self.cutime = s.parse::<u64>().map(|i|{self.old_cutime=self.cutime;i}).unwrap_or_else(|_| {  self.error = true; 0 }),
-                    15 => self.cstime = s.parse::<u64>().map(|i|{self.old_cstime=self.cstime;i}).unwrap_or_else(|_| {  self.error = true; 0 }),
+                    12 => self.utime = s.parse::<u64>().unwrap_or_else(|_| {  self.error = true; 0 }),
+                    13 => self.stime = s.parse::<u64>().unwrap_or_else(|_| {  self.error = true; 0 }),
+                    14 => self.cutime = s.parse::<u64>().unwrap_or_else(|_| {  self.error = true; 0 }),
+                    15 => self.cstime = s.parse::<u64>().unwrap_or_else(|_| {  self.error = true; 0 }),
                     22 => self.rss = s.parse::<i64>().map_or(-1,|v| v * 4096),
                     23 => break,
                     //18 => self.num_threads = s.parse::<u32>().unwrap_or_else(|_| {  self.error = true; 0 }),
@@ -86,7 +77,6 @@ impl Process {
 
             if !self.error {
                 let total = self.utime + self.stime + self.cutime + self.cstime;
-                let old_total = self.old_utime + self.old_stime + self.old_cutime + self.old_cstime;
 
                 // If old_total is 0 it means we don't have anything to compare to. So work is 0.
                 let work = if old_total == 0 {
@@ -102,6 +92,8 @@ impl Process {
                         self.cpu_avg = (work as f32 / val.totald as f32) * 100.0;
                     }
                 }
+            } else {
+                self.cpu_avg = -1.0;
             }
 
             if config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
