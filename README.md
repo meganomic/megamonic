@@ -1,4 +1,4 @@
 # megamonic
-A badly designed system monitor for linux for my personal use.
+A badly designed multithreaded system monitor for linux for my personal use.
 
 ![Screenshot](screenshot.png)
