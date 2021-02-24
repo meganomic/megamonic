@@ -144,6 +144,7 @@ impl Processes {
                 _ => pidlen = 10, // This should never happen?
             }
 
+            // Multiply it so it can be sorted
             sorted.push(((val.cpu_avg * 1000.0) as u32, val));
         }
 
