@@ -18,6 +18,7 @@ pub struct Config {
     pub smaps: atomic::AtomicBool,
     pub topmode: atomic::AtomicBool,
     pub all: atomic::AtomicBool,
+    pub frequency: atomic::AtomicU64,
     pub strftime_format: String,
 }
 
@@ -61,14 +62,14 @@ impl System {
     // This function starts all the monitoring threads
     pub fn start(&mut self, mtx: std::sync::mpsc::Sender<u8>) {
         // Update frequency
-        let sleepy = std::time::Duration::from_millis(1000);
+        let sleepy = std::time::Duration::from_millis(self.config.frequency.load(atomic::Ordering::Relaxed));
 
         // Stagger the threads so they don't all run at the same time
         let stagger = std::time::Duration::from_millis(250);
 
+
         // Time loop
         let internal = Arc::clone(&self.time);
-        //let internal_updated = Arc::clone(&self.updated);
         let tx = mtx.clone();
 
         // Used for strftime_format
@@ -77,6 +78,10 @@ impl System {
         self.threads.push(thread::spawn(move || {
             // Set locale to whatever the environment is
             libc_strftime::set_locale();
+
+            // Override frequency setting. We always want to update the time
+            let sleepy = std::time::Duration::from_millis(1000);
+
             loop {
                 let current_time = std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap();
 

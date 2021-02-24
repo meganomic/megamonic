@@ -95,6 +95,13 @@ fn main() -> Result<()> {
                 .long("enable-all-processes")
                 .help("Shows all processes, including kernel threads and other stuff (slow)")
         )
+        .arg(
+            clap::Arg::with_name("frequency")
+                .short("f")
+                .long("frequency")
+                .help("Update frequency in milliseconds. Min: 1000, Max: 5000")
+                .default_value("1000")
+        )
         .after_help("\x1b[91mEnabling both smaps and all processes is ultra slow.\nEspecially if running as root.\x1b[0m\n\nYou can toggle some things by pressing these buttons:\nPress 'a' to toggle all processes.\nPress 's' to toggle smaps.\nPress 't' to toggle \"Top mode\"\nPress 'r' to rebuild the UI incase it's broken\nPress [space] to pause the UI.")
         .get_matches();
 
@@ -107,7 +114,8 @@ fn main() -> Result<()> {
             smaps: atomic::AtomicBool::new(options.is_present("smaps")),
             topmode: atomic::AtomicBool::new(options.is_present("topmode")),
             all: atomic::AtomicBool::new(options.is_present("all")),
-            strftime_format: options.value_of("strftime").unwrap().to_string(),
+            frequency: atomic::AtomicU64::new(options.value_of("frequency").unwrap_or("1000").parse::<u64>().map_or(1000, |v| if v > 5000 { 5000 } else if v < 1000 { 1000 } else { v })),
+            strftime_format: options.value_of("strftime").unwrap_or("%c").to_string(),
         }),
         ..Default::default()
     };
