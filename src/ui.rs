@@ -153,7 +153,7 @@ pub struct CachedCursor {
     pub load3: String,
 
     pub processes_title: bool,
-    pub processes_len: usize,
+    pub processes_pidlen: usize,
     pub processes0: String,
     pub processes1: Vec::<String>,
     pub processes2: std::collections::HashMap<u32, String>,
@@ -210,7 +210,7 @@ impl CachedCursor {
         self.load3.clear();
 
         self.processes_title = false;
-        self.processes_len = 0;
+        self.processes_pidlen = 0;
         self.processes0.clear();
         self.processes1.clear();
         self.processes2.clear();
@@ -688,7 +688,7 @@ macro_rules! draw_processes {
         if let Ok(processinfo) = $system.processinfo.read() {
         //for (idx, (_, val)) in processinfo.cpu_sort_combined($system.cpuinfo.read().unwrap().totald, $system.cpuinfo.read().unwrap().cpu_count).iter().enumerate() {
             //let now = std::time::Instant::now();
-            let (len, vector) = processinfo.cpu_sort();
+            let (pidlen, vector) = processinfo.cpu_sort();
 
             //draw_benchmark!($stdout, now, $tsizex, $tsizey);
             //for (idx, (_, val)) in processinfo.cpu_sort().iter().enumerate() {
@@ -743,7 +743,7 @@ macro_rules! draw_processes {
                 }
 
                 // Update cache if the length of PID increases
-                if len > $cache.processes_len {
+                if pidlen > $cache.processes_pidlen {
                     $cache.processes2.clear();
                 }
 
@@ -751,18 +751,18 @@ macro_rules! draw_processes {
                     let mut maxchars = String::new();
 
                     if val.not_executable {
-                        maxchars.push_str(&format!("\x1b[91m ] \x1b[0m\x1b[37m{:>pad$}\x1b[0m \x1b[96m", val.pid, pad=len));
+                        maxchars.push_str(&format!("\x1b[91m ] \x1b[0m\x1b[37m{:>pad$}\x1b[0m \x1b[96m", val.pid, pad=pidlen));
                         maxchars.push_str(val.executable.as_str());
 
                     } else {
-                        maxchars.push_str(&format!("\x1b[91m ] \x1b[0m\x1b[37m{:>pad$}\x1b[0m \x1b[92m", val.pid, pad=len));
+                        maxchars.push_str(&format!("\x1b[91m ] \x1b[0m\x1b[37m{:>pad$}\x1b[0m \x1b[92m", val.pid, pad=pidlen));
                         maxchars.push_str(val.executable.as_str());
 
                         maxchars.push_str("\x1b[38;5;244m");
                         maxchars.push_str(val.cmdline.as_str());
                     }
 
-                    maxchars.truncate(($cache.tsizex - $x + 21) as usize);
+                    maxchars.truncate(($cache.tsizex - $x + 15) as usize);
                     maxchars.push_str("\x1b[0m");
 
                     $cache.processes2.insert(val.pid, maxchars);
@@ -781,7 +781,7 @@ macro_rules! draw_processes {
             }
             // Save the length of the longest PID in the cache so we can check if it changes
             // In which case we need to rebuild the cache
-            $cache.processes_len = len;
+            $cache.processes_pidlen = pidlen;
         }
     }
 }

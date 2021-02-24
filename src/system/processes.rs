@@ -114,7 +114,8 @@ impl Processes {
 
     pub fn cpu_sort(&self) -> (usize, Vec::<(u32,&process::Process)>) {
         let mut sorted = Vec::new();
-        let mut len = 0;
+        let mut pidlen = 0;
+
         for val in self.processes.values() {
             /*
             1 = 10
@@ -130,38 +131,34 @@ impl Processes {
             */
             // What is the longest PID when converted to a string?
             match val.pid.leading_zeros() {
-                0..=1 => if len < 10 { len = 10 },
-                2..=4 => if len < 9 { len = 9 },
-                5..=7 => if len < 8 { len = 8 },
-                8..=11 => if len < 7 { len = 7 },
-                12..=14 => if len < 6 { len = 6 },
-                15..=17 => if len < 5 { len = 5 },
-                18..=21 => if len < 4 { len = 4 },
-                22..=24 => if len < 3 { len = 3 },
-                25..=27 => if len < 2 { len = 2 },
-                28..=31 => if len < 1 { len = 1 },
-                _ => len = 10, // This should never happen?
+                0..=1 => if pidlen < 10 { pidlen = 10 },
+                2..=4 => if pidlen < 9 { pidlen = 9 },
+                5..=7 => if pidlen < 8 { pidlen = 8 },
+                8..=11 => if pidlen < 7 { pidlen = 7 },
+                12..=14 => if pidlen < 6 { pidlen = 6 },
+                15..=17 => if pidlen < 5 { pidlen = 5 },
+                18..=21 => if pidlen < 4 { pidlen = 4 },
+                22..=24 => if pidlen < 3 { pidlen = 3 },
+                25..=27 => if pidlen < 2 { pidlen = 2 },
+                28..=32 => if pidlen < 1 { pidlen = 1 },
+                _ => pidlen = 10, // This should never happen?
             }
+
             sorted.push(((val.cpu_avg * 1000.0) as u32, val));
-            //sorted.push(val);
         }
-        //sorted.sort_by(|(i,_), (z,_)| z.cmp(i));
 
         // Sort by CPU% if the process did work, otherwise sort by Total CPU time
         sorted.sort_by(|(i,a), (z,b)| {
-            let at = a.utime + a.stime + a.cutime + a.cstime;
-            let bt = b.utime + b.stime + b.cutime + b.cstime;
-            let order = if z.cmp(i) == std::cmp::Ordering::Equal {
+            if z.cmp(i) == std::cmp::Ordering::Equal {
+                let at = a.utime + a.stime + a.cutime + a.cstime;
+                let bt = b.utime + b.stime + b.cutime + b.cstime;
                 bt.cmp(&at)
             } else {
                 z.cmp(i)
-            };
-
-            order
+            }
         });
-        //sorted.sort_by(|i, z| ((z.cpu_avg * 1000.0) as u32).cmp(&((i.cpu_avg * 1000.0) as u32)));
 
-        (len, sorted)
+        (pidlen, sorted)
     }
 
     // This function is cancer
