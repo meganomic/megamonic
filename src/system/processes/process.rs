@@ -52,16 +52,16 @@ impl Process {
 
     pub fn update(&mut self, buffer: &mut String, cpuinfo: &Arc<RwLock<cpu::Cpuinfo>>, config: &Arc<Config>) {
         if let Ok(mut file) = std::fs::File::open(&self.stat_file) {
-            file.read_to_string(buffer).unwrap();
+            file.read_to_string(buffer).unwrap_or_default();
 
             if self.executable.is_empty() {
                 self.not_executable = true;
-                self.executable = buffer[buffer.find("(").unwrap()..buffer.find(")").unwrap()+1].to_string();
+                self.executable = buffer[buffer.find("(").unwrap_or_default()..buffer.find(")").unwrap_or_default()+1].to_string();
             }
 
             let old_total = self.utime + self.stime + self.cutime + self.cstime;
 
-            for (i, s) in buffer[buffer.find(")").unwrap()..buffer.len()].split_whitespace().enumerate() {
+            for (i, s) in buffer[buffer.find(")").unwrap_or_default()..buffer.len()].split_whitespace().enumerate() {
                 match i {
                     //0 => self.state = s.to_string(),
                     12 => self.utime = s.parse::<u64>().unwrap_or_else(|_| {  self.error = true; 0 }),
