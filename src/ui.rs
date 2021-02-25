@@ -709,15 +709,15 @@ macro_rules! draw_processes {
 
                 if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
                     queue!($stdout,
-                        Print(&format!("\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m", val.cpu_avg)),
+                        Print(&format!("\x1b[91m[ \x1b[92m{:>5.1}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m", val.cpu_avg)),
                     )?;
                 } else if val.cpu_avg >= 99.5 {
                     queue!($stdout,
-                        Print(&format!("\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m", val.cpu_avg)),
+                        Print(&format!("\x1b[91m[ \x1b[92m{:>5.0}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m", val.cpu_avg)),
                     )?;
                 } else {
                     queue!($stdout,
-                        Print(&format!("\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ \x1b[92m", val.cpu_avg)),
+                        Print(&format!("\x1b[38;5;244m[ \x1b[37m{:>5.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ \x1b[92m", val.cpu_avg)),
                     )?;
                 }
 
