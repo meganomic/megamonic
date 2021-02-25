@@ -62,6 +62,42 @@ fn draw_full_ui(stdout: &mut std::io::StdoutLock, system: &system::System, cache
         }
     }
 
+    if system.config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
+        queue!(stdout,
+            cursor::MoveTo(36, 5),
+            Print("\x1b[38;5;244mt\x1b[0m")
+        )?;
+    } else {
+        queue!(stdout,
+            cursor::MoveTo(36, 5),
+            Print(" ")
+        )?;
+    }
+
+    if system.config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
+        queue!(stdout,
+            cursor::MoveTo(37, 5),
+            Print("\x1b[38;5;244ms\x1b[0m")
+        )?;
+    } else {
+        queue!(stdout,
+            cursor::MoveTo(37, 5),
+            Print(" ")
+        )?;
+    }
+
+    if system.config.all.load(std::sync::atomic::Ordering::Relaxed) {
+        queue!(stdout,
+            cursor::MoveTo(38, 5),
+            Print("\x1b[38;5;244ma\x1b[0m")
+        )?;
+    } else {
+        queue!(stdout,
+            cursor::MoveTo(38, 5),
+            Print(" ")
+        )?;
+    }
+
     stdout.flush()?;
 
     Ok(())
@@ -267,11 +303,47 @@ fn main() -> Result<()> {
                 }
             },
             // topmode
-            102 => (),
+            102 => {
+                if system.config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
+                    queue!(stdout,
+                        cursor::MoveTo(36, 5),
+                        Print("\x1b[38;5;244mt\x1b[0m")
+                    )?;
+                } else {
+                    queue!(stdout,
+                        cursor::MoveTo(36, 5),
+                        Print(" ")
+                    )?;
+                }
+            },
             // smaps
-            103 => (),
+            103 => {
+                if system.config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
+                    queue!(stdout,
+                        cursor::MoveTo(37, 5),
+                        Print("\x1b[38;5;244ms\x1b[0m")
+                    )?;
+                } else {
+                    queue!(stdout,
+                        cursor::MoveTo(37, 5),
+                        Print(" ")
+                    )?;
+                }
+            },
             //all_processes
-            104 => (),
+            104 => {
+                if system.config.all.load(std::sync::atomic::Ordering::Relaxed) {
+                    queue!(stdout,
+                        cursor::MoveTo(38, 5),
+                        Print("\x1b[38;5;244ma\x1b[0m")
+                    )?;
+                } else {
+                    queue!(stdout,
+                        cursor::MoveTo(38, 5),
+                        Print(" ")
+                    )?;
+                }
+            },
             // resize
             105 => {
                 if let Ok(val) = system.events.read() {
