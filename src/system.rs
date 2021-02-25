@@ -52,6 +52,8 @@ pub struct System {
     pub time: Arc<RwLock<Time>>,
     pub events: Arc<RwLock<Events>>,
 
+    pub exit: std::sync::Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>,
+
     // Options
     pub config: Arc<Config>,
 
@@ -70,6 +72,7 @@ impl System {
 
         // Time loop
         let internal = Arc::clone(&self.time);
+        let exit = Arc::clone(&self.exit);
         let tx = mtx.clone();
 
         // Used for strftime_format
@@ -82,7 +85,7 @@ impl System {
             // Override frequency setting. We always want to update the time
             let sleepy = std::time::Duration::from_millis(1000);
 
-            loop {
+            'outer: loop {
                 let current_time = std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap();
 
                 // Used to synchronize the update frequency to system time
@@ -105,10 +108,42 @@ impl System {
                 // It will be about 0.01s out of phase with actual time.
                 // Should be accurate enough.
                 if st_subsec > 10000 {
+                    let (lock, cvar) = &*exit;
+                    let mut exitvar = lock.lock().unwrap();
+
+                    loop {
+                        let result = cvar.wait_timeout(exitvar, sleepy - (std::time::Duration::from_micros(st_subsec as u64) / 10)).unwrap();
+
+                        exitvar = result.0;
+
+                        if *exitvar == true {
+                            break 'outer;
+                        }
+
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    }
+
                     // Slowly work your way towards ~10000 microseconds after the last Second
-                    thread::sleep(sleepy - (std::time::Duration::from_micros(st_subsec as u64) / 10));
+                    //thread::sleep(sleepy - (std::time::Duration::from_micros(st_subsec as u64) / 10));
                 } else {
-                    thread::sleep(sleepy);
+                    let (lock, cvar) = &*exit;
+                    let mut exitvar = lock.lock().unwrap();
+
+                    loop {
+                        let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+
+                        exitvar = result.0;
+
+                        if *exitvar == true {
+                            break 'outer;
+                        }
+
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    }
                 }
             }
         }));
@@ -192,9 +227,10 @@ impl System {
 
         // Read /proc/loadavg
         let internal = Arc::clone(&self.loadavg);
+        let exit = Arc::clone(&self.exit);
         let tx = mtx.clone();
 
-        self.threads.push(thread::spawn(move || loop {
+        self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
                     if val.exit == true {
@@ -208,38 +244,72 @@ impl System {
                 Ok(_) => (),
                 Err(_) => break,
             };
-            thread::sleep(sleepy);
+                        let (lock, cvar) = &*exit;
+            let mut exitvar = lock.lock().unwrap();
+
+            loop {
+                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+
+                exitvar = result.0;
+
+                if *exitvar == true {
+                    break 'outer;
+                }
+
+                if result.1.timed_out() == true {
+                    break;
+                }
+            }
         }));
 
 
         // Read /proc/stat
         thread::sleep(stagger);  // Stagger the threads
         let internal = Arc::clone(&self.cpuinfo);
+        let exit = Arc::clone(&self.exit);
         let tx = mtx.clone();
 
-        self.threads.push(thread::spawn(move || loop {
+        self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
-                    if val.exit == true {
+                    /*if val.exit == true {
                         break;
-                    }
+                    }*/
                     val.update();
                 },
-                Err(_) => break,
-            };
+                Err(_) => break
+            }
+
             match tx.send(3) {
                 Ok(_) => (),
-                Err(_) => break,
-            };
-            thread::sleep(sleepy);
+                Err(_) => break
+            }
+
+            let (lock, cvar) = &*exit;
+            let mut exitvar = lock.lock().unwrap();
+
+            loop {
+                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+
+                exitvar = result.0;
+
+                if *exitvar == true {
+                    break 'outer;
+                }
+
+                if result.1.timed_out() == true {
+                    break;
+                }
+            }
         }));
 
         // Read /proc/meminfo
         thread::sleep(stagger);  // Stagger the threads
         let internal = Arc::clone(&self.memoryinfo);
+        let exit = Arc::clone(&self.exit);
         let tx = mtx.clone();
 
-        self.threads.push(thread::spawn(move || loop {
+        self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
                     if val.exit == true {
@@ -253,15 +323,31 @@ impl System {
                 Ok(_) => (),
                 Err(_) => break,
             };
-            thread::sleep(sleepy);
+                        let (lock, cvar) = &*exit;
+            let mut exitvar = lock.lock().unwrap();
+
+            loop {
+                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+
+                exitvar = result.0;
+
+                if *exitvar == true {
+                    break 'outer;
+                }
+
+                if result.1.timed_out() == true {
+                    break;
+                }
+            }
         }));
 
         // Read /proc/swaps
         thread::sleep(stagger);  // Stagger the threads
         let internal = Arc::clone(&self.swapinfo);
+        let exit = Arc::clone(&self.exit);
         let tx = mtx.clone();
 
-        self.threads.push(thread::spawn(move || loop {
+        self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
                     if val.exit == true {
@@ -275,15 +361,31 @@ impl System {
                 Ok(_) => (),
                 Err(_) => break,
             };
-            thread::sleep(sleepy);
+                        let (lock, cvar) = &*exit;
+            let mut exitvar = lock.lock().unwrap();
+
+            loop {
+                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+
+                exitvar = result.0;
+
+                if *exitvar == true {
+                    break 'outer;
+                }
+
+                if result.1.timed_out() == true {
+                    break;
+                }
+            }
         }));
 
         // Sensors
         thread::sleep(stagger);  // Stagger the threads
         let internal = Arc::clone(&self.sensorinfo);
+        let exit = Arc::clone(&self.exit);
         let tx = mtx.clone();
 
-        self.threads.push(thread::spawn(move || loop {
+        self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
                     if val.exit == true {
@@ -297,15 +399,31 @@ impl System {
                 Ok(_) => (),
                 Err(_) => break,
             };
-            thread::sleep(sleepy);
+                        let (lock, cvar) = &*exit;
+            let mut exitvar = lock.lock().unwrap();
+
+            loop {
+                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+
+                exitvar = result.0;
+
+                if *exitvar == true {
+                    break 'outer;
+                }
+
+                if result.1.timed_out() == true {
+                    break;
+                }
+            }
         }));
 
         // Network
         thread::sleep(stagger);  // Stagger the threads
         let internal = Arc::clone(&self.networkinfo);
+        let exit = Arc::clone(&self.exit);
         let tx = mtx.clone();
 
-        self.threads.push(thread::spawn(move || loop {
+        self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
                     if val.exit == true {
@@ -319,17 +437,33 @@ impl System {
                 Ok(_) => (),
                 Err(_) => break,
             };
-            thread::sleep(sleepy);
+                        let (lock, cvar) = &*exit;
+            let mut exitvar = lock.lock().unwrap();
+
+            loop {
+                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+
+                exitvar = result.0;
+
+                if *exitvar == true {
+                    break 'outer;
+                }
+
+                if result.1.timed_out() == true {
+                    break;
+                }
+            }
         }));
 
         // Processes
         thread::sleep(stagger);  // Stagger the threads
         let internal_cpuinfo = Arc::clone(&self.cpuinfo);
         let internal = Arc::clone(&self.processinfo);
+        let exit = Arc::clone(&self.exit);
         let tx = mtx.clone();
         let config = Arc::clone(&self.config);
 
-        self.threads.push(thread::spawn(move || loop {
+        self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
                     if val.exit == true {
@@ -345,19 +479,35 @@ impl System {
                 Ok(_) => (),
                 Err(_) => break,
             };
-            thread::sleep(sleepy);
+                        let (lock, cvar) = &*exit;
+            let mut exitvar = lock.lock().unwrap();
+
+            loop {
+                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+
+                exitvar = result.0;
+
+                if *exitvar == true {
+                    break 'outer;
+                }
+
+                if result.1.timed_out() == true {
+                    break;
+                }
+            }
         }));
 
         // GPU, the nvidia wrapper is weird so I put the code here.
         thread::sleep(stagger);  // Stagger the threads
         let internal = Arc::clone(&self.gpuinfo);
+        let exit = Arc::clone(&self.exit);
         let tx = mtx.clone();
 
         self.threads.push(thread::spawn(move || {
             // Setup device
             if let Ok(nvml) = nvml_wrapper::NVML::init() {
                 if let Ok(device) = nvml.device_by_index(0) {
-                    loop {
+                    'outer: loop {
                         match internal.write() {
                             Ok(mut val) => {
                                 if val.exit == true {
@@ -380,7 +530,22 @@ impl System {
                             Ok(_) => (),
                             Err(_) => break,
                         };
-                        thread::sleep(sleepy);
+                                    let (lock, cvar) = &*exit;
+            let mut exitvar = lock.lock().unwrap();
+
+            loop {
+                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+
+                exitvar = result.0;
+
+                if *exitvar == true {
+                    break 'outer;
+                }
+
+                if result.1.timed_out() == true {
+                    break;
+                }
+            }
                     }
                 }
             }
@@ -389,42 +554,12 @@ impl System {
 
     // This function stops all the monitoring threads
     pub fn stop(&mut self) {
-        // The event loop doesn't need this because it exits on a key press
-
-        if let Ok(mut val) = self.loadavg.write() {
-            val.exit = true;
-        }
-
-        if let Ok(mut val) = self.cpuinfo.write() {
-            val.exit = true;
-        }
-
-        if let Ok(mut val) = self.memoryinfo.write() {
-            val.exit = true;
-        }
-
-        if let Ok(mut val) = self.swapinfo.write() {
-            val.exit = true;
-        }
-
-        if let Ok(mut val) = self.sensorinfo.write() {
-            val.exit = true;
-        }
-
-        if let Ok(mut val) = self.networkinfo.write() {
-            val.exit = true;
-        }
-
-        if let Ok(mut val) = self.processinfo.write() {
-            val.exit = true;
-        }
-
-        if let Ok(mut val) = self.gpuinfo.write() {
-            val.exit = true;
-        }
-
-        if let Ok(mut val) = self.time.write() {
-            val.exit = true;
+        // Notify all threads that they should exit
+        {
+            let (lock, cvar) = &*self.exit;
+            let mut exitvar = lock.lock().unwrap();
+            *exitvar = true;
+            cvar.notify_all();
         }
 
         while !self.threads.is_empty() {
