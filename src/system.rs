@@ -109,40 +109,51 @@ impl System {
                 // Should be accurate enough.
                 if st_subsec > 10000 {
                     let (lock, cvar) = &*exit;
-                    let mut exitvar = lock.lock().unwrap();
+                    if let Ok(mut exitvar) = lock.lock() {
 
-                    loop {
-                        let result = cvar.wait_timeout(exitvar, sleepy - (std::time::Duration::from_micros(st_subsec as u64) / 10)).unwrap();
+                    //let mut exitvar = lock.lock().unwrap();
 
-                        exitvar = result.0;
+                        loop {
+                            if let Ok(result) = cvar.wait_timeout(exitvar, sleepy - (std::time::Duration::from_micros(st_subsec as u64) / 10)) {
+                                exitvar = result.0;
 
-                        if *exitvar == true {
-                            break 'outer;
+                                if *exitvar == true {
+                                    break 'outer;
+                                }
+
+                                if result.1.timed_out() == true {
+                                    break;
+                                }
+                            } else {
+                                break 'outer;
+                            }
                         }
-
-                        if result.1.timed_out() == true {
-                            break;
-                        }
+                    } else {
+                        break;
                     }
 
                     // Slowly work your way towards ~10000 microseconds after the last Second
                     //thread::sleep(sleepy - (std::time::Duration::from_micros(st_subsec as u64) / 10));
                 } else {
                     let (lock, cvar) = &*exit;
-                    let mut exitvar = lock.lock().unwrap();
+                    if let Ok(mut exitvar) = lock.lock() {
+                        loop {
+                            if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                                exitvar = result.0;
 
-                    loop {
-                        let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+                                if *exitvar == true {
+                                    break 'outer;
+                                }
 
-                        exitvar = result.0;
-
-                        if *exitvar == true {
-                            break 'outer;
+                                if result.1.timed_out() == true {
+                                    break;
+                                }
+                            } else {
+                                break 'outer;
+                            }
                         }
-
-                        if result.1.timed_out() == true {
-                            break;
-                        }
+                    } else {
+                        break;
                     }
                 }
             }
@@ -245,20 +256,24 @@ impl System {
                 Err(_) => break,
             };
                         let (lock, cvar) = &*exit;
-            let mut exitvar = lock.lock().unwrap();
+            if let Ok(mut exitvar) = lock.lock() {
+                loop {
+                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                        exitvar = result.0;
 
-            loop {
-                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+                        if *exitvar == true {
+                            break 'outer;
+                        }
 
-                exitvar = result.0;
-
-                if *exitvar == true {
-                    break 'outer;
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    } else {
+                        break 'outer;
+                    }
                 }
-
-                if result.1.timed_out() == true {
-                    break;
-                }
+            } else {
+                break;
             }
         }));
 
@@ -286,20 +301,24 @@ impl System {
             }
 
             let (lock, cvar) = &*exit;
-            let mut exitvar = lock.lock().unwrap();
+            if let Ok(mut exitvar) = lock.lock() {
+                loop {
+                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                        exitvar = result.0;
 
-            loop {
-                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+                        if *exitvar == true {
+                            break 'outer;
+                        }
 
-                exitvar = result.0;
-
-                if *exitvar == true {
-                    break 'outer;
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    } else {
+                        break 'outer;
+                    }
                 }
-
-                if result.1.timed_out() == true {
-                    break;
-                }
+            } else {
+                break;
             }
         }));
 
@@ -324,20 +343,24 @@ impl System {
                 Err(_) => break,
             };
                         let (lock, cvar) = &*exit;
-            let mut exitvar = lock.lock().unwrap();
+            if let Ok(mut exitvar) = lock.lock() {
+                loop {
+                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                        exitvar = result.0;
 
-            loop {
-                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+                        if *exitvar == true {
+                            break 'outer;
+                        }
 
-                exitvar = result.0;
-
-                if *exitvar == true {
-                    break 'outer;
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    } else {
+                        break 'outer;
+                    }
                 }
-
-                if result.1.timed_out() == true {
-                    break;
-                }
+            } else {
+                break;
             }
         }));
 
@@ -362,20 +385,24 @@ impl System {
                 Err(_) => break,
             };
                         let (lock, cvar) = &*exit;
-            let mut exitvar = lock.lock().unwrap();
+            if let Ok(mut exitvar) = lock.lock() {
+                loop {
+                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                        exitvar = result.0;
 
-            loop {
-                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+                        if *exitvar == true {
+                            break 'outer;
+                        }
 
-                exitvar = result.0;
-
-                if *exitvar == true {
-                    break 'outer;
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    } else {
+                        break 'outer;
+                    }
                 }
-
-                if result.1.timed_out() == true {
-                    break;
-                }
+            } else {
+                break;
             }
         }));
 
@@ -400,20 +427,24 @@ impl System {
                 Err(_) => break,
             };
                         let (lock, cvar) = &*exit;
-            let mut exitvar = lock.lock().unwrap();
+            if let Ok(mut exitvar) = lock.lock() {
+                loop {
+                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                        exitvar = result.0;
 
-            loop {
-                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+                        if *exitvar == true {
+                            break 'outer;
+                        }
 
-                exitvar = result.0;
-
-                if *exitvar == true {
-                    break 'outer;
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    } else {
+                        break 'outer;
+                    }
                 }
-
-                if result.1.timed_out() == true {
-                    break;
-                }
+            } else {
+                break;
             }
         }));
 
@@ -438,20 +469,24 @@ impl System {
                 Err(_) => break,
             };
                         let (lock, cvar) = &*exit;
-            let mut exitvar = lock.lock().unwrap();
+            if let Ok(mut exitvar) = lock.lock() {
+                loop {
+                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                        exitvar = result.0;
 
-            loop {
-                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+                        if *exitvar == true {
+                            break 'outer;
+                        }
 
-                exitvar = result.0;
-
-                if *exitvar == true {
-                    break 'outer;
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    } else {
+                        break 'outer;
+                    }
                 }
-
-                if result.1.timed_out() == true {
-                    break;
-                }
+            } else {
+                break;
             }
         }));
 
@@ -480,20 +515,24 @@ impl System {
                 Err(_) => break,
             };
                         let (lock, cvar) = &*exit;
-            let mut exitvar = lock.lock().unwrap();
+            if let Ok(mut exitvar) = lock.lock() {
+                loop {
+                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                        exitvar = result.0;
 
-            loop {
-                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+                        if *exitvar == true {
+                            break 'outer;
+                        }
 
-                exitvar = result.0;
-
-                if *exitvar == true {
-                    break 'outer;
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    } else {
+                        break 'outer;
+                    }
                 }
-
-                if result.1.timed_out() == true {
-                    break;
-                }
+            } else {
+                break;
             }
         }));
 
@@ -530,22 +569,27 @@ impl System {
                             Ok(_) => (),
                             Err(_) => break,
                         };
-                                    let (lock, cvar) = &*exit;
-            let mut exitvar = lock.lock().unwrap();
 
-            loop {
-                let result = cvar.wait_timeout(exitvar, sleepy).unwrap();
+                        let (lock, cvar) = &*exit;
+                        if let Ok(mut exitvar) = lock.lock() {
+                            loop {
+                                if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                                    exitvar = result.0;
 
-                exitvar = result.0;
+                                    if *exitvar == true {
+                                        break 'outer;
+                                    }
 
-                if *exitvar == true {
-                    break 'outer;
-                }
-
-                if result.1.timed_out() == true {
-                    break;
-                }
-            }
+                                    if result.1.timed_out() == true {
+                                        break;
+                                    }
+                                } else {
+                                    break 'outer;
+                                }
+                            }
+                        } else {
+                            break;
+                        }
                     }
                 }
             }
@@ -557,9 +601,10 @@ impl System {
         // Notify all threads that they should exit
         {
             let (lock, cvar) = &*self.exit;
-            let mut exitvar = lock.lock().unwrap();
-            *exitvar = true;
-            cvar.notify_all();
+            if let Ok(mut exitvar) = lock.lock() {
+                *exitvar = true;
+                cvar.notify_all();
+            }
         }
 
         while !self.threads.is_empty() {
