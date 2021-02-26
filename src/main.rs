@@ -330,7 +330,7 @@ fn main() -> Result<()> {
                     )?;
                 }
             },
-            //all_processes
+            // all_processes
             104 => {
                 if system.config.all.load(std::sync::atomic::Ordering::Relaxed) {
                     queue!(stdout,
@@ -352,7 +352,6 @@ fn main() -> Result<()> {
                 }
 
                 draw_full_ui(&mut stdout, &system, &mut cache)?;
-
             },
 
             // Redraw UI if user pressed 'r'
