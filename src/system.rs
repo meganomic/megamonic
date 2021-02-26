@@ -66,7 +66,8 @@ impl System {
         // Update frequency
         let sleepy = std::time::Duration::from_millis(self.config.frequency.load(atomic::Ordering::Relaxed));
 
-        // Stagger the threads so they don't all run at the same time
+        // Stagger the threads so they don't all start at the same time
+        // They will drift around but it shouldn't matter.
         let stagger = std::time::Duration::from_millis(250);
 
 
