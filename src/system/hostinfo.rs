@@ -1,11 +1,9 @@
-use etc_passwd::Passwd;
 use crossterm::style::{Colored, Color};
 
 pub struct Hostinfo {
     pub distname: String,
     pub kernel: String,
     pub hostname: String,
-    pub username: String,
     pub ansi_color: Colored,
 }
 
@@ -32,17 +30,10 @@ impl Default for Hostinfo {
 
         let hostname = std::fs::read_to_string("/proc/sys/kernel/hostname").unwrap_or(String::new()).trim().to_string();
 
-        let username = if let Ok(Some(passwd)) = Passwd::current_user() {
-            passwd.name.to_str().unwrap_or_default().trim().to_string()
-        } else {
-            Default::default()
-        };
-
         Hostinfo {
             distname,
             kernel,
             hostname,
-            username,
             ansi_color,
         }
     }
