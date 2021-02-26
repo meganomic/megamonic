@@ -13,7 +13,7 @@ pub struct Processes {
 impl Processes {
     pub fn update_pids(&mut self, config: &Arc<Config>) {
         // Trigger rebuild if 'show all processes' option is changed
-        let all_processes = config.all.load(std::sync::atomic::Ordering::Acquire);
+        let all_processes = config.all.load(std::sync::atomic::Ordering::Relaxed);
         if all_processes != self.rebuild {
             self.rebuild = all_processes;
             self.processes.clear();
