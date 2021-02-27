@@ -87,9 +87,19 @@ impl Process {
 
                 if let Ok(val) = cpuinfo.read() {
                     if config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
-                        self.cpu_avg = (work as f32 / val.totald as f32) * 100.0 *  val.cpu_count as f32;
+                        // This is a fix for sampling timing errors between "work" and "totald"
+                        if work > val.totald {
+                            self.cpu_avg = 100.0 * val.cpu_count as f32;
+                        } else {
+                            self.cpu_avg = (work as f32 / val.totald as f32) * 100.0 *  val.cpu_count as f32;
+                        }
                     } else {
-                        self.cpu_avg = (work as f32 / val.totald as f32) * 100.0;
+                        // This is a fix for sampling timing errors between "work" and "totald"
+                        if work > val.totald {
+                            self.cpu_avg = 100.0;
+                        } else {
+                            self.cpu_avg = (work as f32 / val.totald as f32) * 100.0;
+                        }
                     }
                 }
             } else {

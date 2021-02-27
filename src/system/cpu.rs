@@ -59,7 +59,8 @@ impl Cpuinfo {
                     + self.stats.nice
                     + self.stats.system
                     + self.stats.irq
-                    + self.stats.softirq;
+                    + self.stats.softirq
+                    + self.stats.steal;
                 let prev_total = prev_idle + prev_non_idle;
 
                 let mut error = false;
@@ -89,7 +90,7 @@ impl Cpuinfo {
 
                     self.totald = (self.idle + self.non_idle) - prev_total;
 
-                    self.cpu_avg = (self.non_idle - prev_non_idle) as f32 / self.totald as f32 * 100.0;
+                    self.cpu_avg = ((self.non_idle - prev_non_idle) as f32 / self.totald as f32) * 100.0;
 
                 } else {
                     self.cpu_avg = -1.0;
