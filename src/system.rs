@@ -72,8 +72,7 @@ impl System {
             events::start_thread(
                 Arc::clone(&self.events),
                 Arc::clone(&self.config),
-                mtx.clone(),
-                Arc::clone(&self.exit)
+                mtx.clone()
             )
         );
         /*let internal = Arc::clone(&self.events);

@@ -8,7 +8,7 @@ pub struct Events {
     pub tsizey: u16,
 }
 
-pub fn start_thread(internal: Arc<RwLock<Events>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
+pub fn start_thread(internal: Arc<RwLock<Events>>, config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || loop {
         if let Ok(ev) = read() {
             match ev {
@@ -78,7 +78,9 @@ pub fn start_thread(internal: Arc<RwLock<Events>>, config: Arc<Config>, tx: mpsc
                 _ => (),
             }
         } else {
-            break;
+            match tx.send(255) {
+                _ => break,
+            };
         }
     })
 }
