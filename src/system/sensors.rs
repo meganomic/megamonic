@@ -1,7 +1,6 @@
 //#[derive(Default)]
 pub struct Sensors {
     pub chips: std::collections::BTreeMap<String, u8>,
-    pub exit: bool,
     pub sensors: sensors::Sensors,
 }
 
@@ -9,7 +8,6 @@ impl Default for Sensors {
     fn default() -> Self {
         Sensors {
             chips: std::collections::BTreeMap::new(),
-            exit: false,
             sensors: sensors::Sensors::new(),
         }
     }

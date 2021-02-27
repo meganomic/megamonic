@@ -5,7 +5,6 @@ use std::sync::{Arc, RwLock};
 #[derive(Default)]
 pub struct Processes {
     pub processes: std::collections::HashMap<u32, process::Process>,
-    pub exit: bool,
     pub rebuild: bool,
     ignored: std::collections::HashSet<u32>,
 }

@@ -8,5 +8,5 @@ pub struct Gpu {
     pub gpu_load: u32,
     pub mem_load: u32,
     pub mem_used: f32,
-    pub exit: bool,
+
 }

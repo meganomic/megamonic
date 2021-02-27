@@ -13,7 +13,6 @@ struct Cpustats {
 #[derive(Default)]
 pub struct Cpuinfo {
     pub cpu_avg: f32,
-    pub exit: bool,
     pub totald: u64,
     pub cpu_count: u8,
     idle: u64,

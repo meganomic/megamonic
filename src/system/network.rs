@@ -9,7 +9,6 @@ pub struct Bandwidth {
 #[derive(Default)]
 pub struct Network {
     pub stats: std::collections::BTreeMap<String, Bandwidth>,
-    pub exit: bool,
 }
 
 impl Network {

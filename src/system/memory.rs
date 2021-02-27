@@ -3,7 +3,6 @@ pub struct Memory {
     pub total: i64,
     pub free: i64,
     pub used: i64,
-    pub exit: bool,
 }
 
 impl Memory {

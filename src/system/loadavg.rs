@@ -3,7 +3,6 @@ pub struct Loadavg {
     pub min1: String,
     pub min5: String,
     pub min15: String,
-    pub exit: bool
 }
 
 impl Loadavg {
