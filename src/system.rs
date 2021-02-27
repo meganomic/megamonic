@@ -1,6 +1,5 @@
 use std::sync::{Arc, RwLock, atomic};
 use std::thread;
-use crossterm::event::{read, Event, KeyCode, KeyModifiers};
 
 pub mod cpu;
 mod loadavg;
@@ -12,6 +11,7 @@ mod processes;
 mod gpu;
 mod hostinfo;
 mod time;
+mod events;
 
 // Holds all the commandline options.
 #[derive(Default)]
@@ -21,13 +21,6 @@ pub struct Config {
     pub all: atomic::AtomicBool,
     pub frequency: atomic::AtomicU64,
     pub strftime_format: String,
-}
-
-// Used in the Event thread.
-#[derive(Default)]
-pub struct Events {
-    pub tsizex: u16,
-    pub tsizey: u16,
 }
 
 #[derive(Default)]
@@ -44,7 +37,7 @@ pub struct System {
     pub hostinfo: hostinfo::Hostinfo,
 
     pub time: Arc<RwLock<time::Time>>,
-    pub events: Arc<RwLock<Events>>,
+    pub events: Arc<RwLock<events::Events>>,
 
     pub exit: std::sync::Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>,
 
@@ -64,7 +57,6 @@ impl System {
         // They will drift around but it shouldn't matter.
         let stagger = std::time::Duration::from_millis(250);
 
-
         // Time loop
         self.threads.push(
             time::start_thread(
@@ -74,88 +66,17 @@ impl System {
                 Arc::clone(&self.exit)
             )
         );
-        /*let internal = Arc::clone(&self.time);
-        let exit = Arc::clone(&self.exit);
-        let tx = mtx.clone();
-
-        // Used for strftime_format
-        let config = Arc::clone(&self.config);
-
-        self.threads.push(thread::spawn(move || {
-            // Set locale to whatever the environment is
-            libc_strftime::set_locale();
-
-            // Override frequency setting. We always want to update the time
-            let sleepy = std::time::Duration::from_millis(1000);
-
-            'outer: loop {
-                let current_time = std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap();
-
-                // Used to synchronize the update frequency to system time
-                let st_subsec = current_time.subsec_micros();
-
-                match internal.write() {
-                    Ok(mut val) => {
-                        val.time_string = libc_strftime::strftime_local(config.strftime_format.as_str(), current_time.as_secs() as i64);
-                    },
-                    Err(_) => break,
-                };
-                match tx.send(1) {
-                    Ok(_) => (),
-                    Err(_) => break,
-                };
-                // Synchronize with actual time
-                // It will be about 0.01s out of phase with actual time.
-                // Should be accurate enough.
-                if st_subsec > 10000 {
-                    let (lock, cvar) = &*exit;
-                    if let Ok(mut exitvar) = lock.lock() {
-                        loop {
-                            // Slowly work your way towards ~10000 microseconds after the last Second
-                            if let Ok(result) = cvar.wait_timeout(exitvar, sleepy - (std::time::Duration::from_micros(st_subsec as u64) / 10)) {
-                                exitvar = result.0;
-
-                                if *exitvar == true {
-                                    break 'outer;
-                                }
-
-                                if result.1.timed_out() == true {
-                                    break;
-                                }
-                            } else {
-                                break 'outer;
-                            }
-                        }
-                    } else {
-                        break;
-                    }
-                } else {
-                    let (lock, cvar) = &*exit;
-                    if let Ok(mut exitvar) = lock.lock() {
-                        loop {
-                            if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                                exitvar = result.0;
-
-                                if *exitvar == true {
-                                    break 'outer;
-                                }
-
-                                if result.1.timed_out() == true {
-                                    break;
-                                }
-                            } else {
-                                break 'outer;
-                            }
-                        }
-                    } else {
-                        break;
-                    }
-                }
-            }
-        }));*/
 
         // Event loop
-        let internal = Arc::clone(&self.events);
+        self.threads.push(
+            events::start_thread(
+                Arc::clone(&self.events),
+                Arc::clone(&self.config),
+                mtx.clone(),
+                Arc::clone(&self.exit)
+            )
+        );
+        /*let internal = Arc::clone(&self.events);
         //let internal_updated = Arc::clone(&self.updated);
         let tx = mtx.clone();
         let config = Arc::clone(&self.config);
@@ -229,7 +150,7 @@ impl System {
                     _ => (),
                 }
             }
-        }));
+        }));*/
 
         // Read /proc/loadavg
         thread::sleep(stagger);  // Stagger the threads
