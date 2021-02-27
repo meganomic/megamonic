@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock, mpsc};
+
 //use nvml_wrapper::NVML;
 
 //mod nvidia;
@@ -9,4 +11,56 @@ pub struct Gpu {
     pub mem_load: u32,
     pub mem_used: f32,
 
+}
+
+pub fn start_thread(internal: Arc<RwLock<Gpu>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        // Setup device
+        if let Ok(nvml) = nvml_wrapper::NVML::init() {
+            if let Ok(device) = nvml.device_by_index(0) {
+                'outer: loop {
+                    match internal.write() {
+                        Ok(mut val) => {
+                            if let Ok(temp) = device.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu) {
+                                val.temp = temp;
+                            }
+                            if let Ok(util) = device.utilization_rates() {
+                                val.gpu_load = util.gpu;
+                                val.mem_load = util.memory;
+                            }
+                            if let Ok(mem) = device.memory_info() {
+                                val.mem_used = (mem.used as f32 / mem.total as f32) * 100.0;
+                            }
+                        },
+                        Err(_) => break,
+                    };
+                    match tx.send(9) {
+                        Ok(_) => (),
+                        Err(_) => break,
+                    };
+
+                    let (lock, cvar) = &*exit;
+                    if let Ok(mut exitvar) = lock.lock() {
+                        loop {
+                            if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                                exitvar = result.0;
+
+                                if *exitvar == true {
+                                    break 'outer;
+                                }
+
+                                if result.1.timed_out() == true {
+                                    break;
+                                }
+                            } else {
+                                break 'outer;
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+    })
 }

@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock, mpsc};
+
 #[derive(Default, Clone)]
 pub struct Memory {
     pub total: i64,
@@ -39,4 +41,39 @@ impl Memory {
             self.used = -1;
         }
     }
+}
+
+pub fn start_thread(internal: Arc<RwLock<Memory>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || 'outer: loop {
+        match internal.write() {
+            Ok(mut val) => {
+                val.update();
+            },
+            Err(_) => break,
+        };
+        match tx.send(4) {
+            Ok(_) => (),
+            Err(_) => break,
+        };
+                    let (lock, cvar) = &*exit;
+        if let Ok(mut exitvar) = lock.lock() {
+            loop {
+                if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                    exitvar = result.0;
+
+                    if *exitvar == true {
+                        break 'outer;
+                    }
+
+                    if result.1.timed_out() == true {
+                        break;
+                    }
+                } else {
+                    break 'outer;
+                }
+            }
+        } else {
+            break;
+        }
+    })
 }

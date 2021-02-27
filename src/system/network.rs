@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock, mpsc};
+
 #[derive(Default)]
 pub struct Bandwidth {
     pub recv: i64,
@@ -52,4 +54,39 @@ impl Network {
             self.stats.insert(String::from("Error"), Bandwidth{recv: -1, sent: -1, total_recv: -1, total_sent: -1});
         }
     }
+}
+
+pub fn start_thread(internal: Arc<RwLock<Network>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || 'outer: loop {
+        match internal.write() {
+            Ok(mut val) => {
+                val.update();
+            },
+            Err(_) => break,
+        };
+        match tx.send(7) {
+            Ok(_) => (),
+            Err(_) => break,
+        };
+                    let (lock, cvar) = &*exit;
+        if let Ok(mut exitvar) = lock.lock() {
+            loop {
+                if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                    exitvar = result.0;
+
+                    if *exitvar == true {
+                        break 'outer;
+                    }
+
+                    if result.1.timed_out() == true {
+                        break;
+                    }
+                } else {
+                    break 'outer;
+                }
+            }
+        } else {
+            break;
+        }
+    })
 }

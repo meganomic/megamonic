@@ -11,6 +11,7 @@ mod network;
 mod processes;
 mod gpu;
 mod hostinfo;
+mod time;
 
 // Holds all the commandline options.
 #[derive(Default)]
@@ -29,12 +30,6 @@ pub struct Events {
     pub tsizey: u16,
 }
 
-// Used for the Time thread.
-#[derive(Default)]
-pub struct Time {
-    pub time_string: String,
-}
-
 #[derive(Default)]
 pub struct System {
     // Info gathering structs
@@ -48,7 +43,7 @@ pub struct System {
     pub gpuinfo: Arc<RwLock<gpu::Gpu>>,
     pub hostinfo: hostinfo::Hostinfo,
 
-    pub time: Arc<RwLock<Time>>,
+    pub time: Arc<RwLock<time::Time>>,
     pub events: Arc<RwLock<Events>>,
 
     pub exit: std::sync::Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>,
@@ -71,7 +66,15 @@ impl System {
 
 
         // Time loop
-        let internal = Arc::clone(&self.time);
+        self.threads.push(
+            time::start_thread(
+                Arc::clone(&self.time),
+                Arc::clone(&self.config),
+                mtx.clone(),
+                Arc::clone(&self.exit)
+            )
+        );
+        /*let internal = Arc::clone(&self.time);
         let exit = Arc::clone(&self.exit);
         let tx = mtx.clone();
 
@@ -149,7 +152,7 @@ impl System {
                     }
                 }
             }
-        }));
+        }));*/
 
         // Event loop
         let internal = Arc::clone(&self.events);
@@ -229,339 +232,94 @@ impl System {
         }));
 
         // Read /proc/loadavg
-        let internal = Arc::clone(&self.loadavg);
-        let exit = Arc::clone(&self.exit);
-        let tx = mtx.clone();
-
-        self.threads.push(thread::spawn(move || 'outer: loop {
-            match internal.write() {
-                Ok(mut val) => {
-                    val.update();
-                },
-                Err(_) => break,
-            };
-            match tx.send(2) {
-                Ok(_) => (),
-                Err(_) => break,
-            };
-                        let (lock, cvar) = &*exit;
-            if let Ok(mut exitvar) = lock.lock() {
-                loop {
-                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                        exitvar = result.0;
-
-                        if *exitvar == true {
-                            break 'outer;
-                        }
-
-                        if result.1.timed_out() == true {
-                            break;
-                        }
-                    } else {
-                        break 'outer;
-                    }
-                }
-            } else {
-                break;
-            }
-        }));
-
+        thread::sleep(stagger);  // Stagger the threads
+        self.threads.push(
+            loadavg::start_thread(
+                Arc::clone(&self.loadavg),
+                mtx.clone(),
+                Arc::clone(&self.exit),
+                sleepy
+            )
+        );
 
         // Read /proc/stat
         thread::sleep(stagger);  // Stagger the threads
-        let internal = Arc::clone(&self.cpuinfo);
-        let exit = Arc::clone(&self.exit);
-        let tx = mtx.clone();
-
-        self.threads.push(thread::spawn(move || 'outer: loop {
-            match internal.write() {
-                Ok(mut val) => {
-                    val.update();
-                },
-                Err(_) => break
-            }
-
-            match tx.send(3) {
-                Ok(_) => (),
-                Err(_) => break
-            }
-
-            let (lock, cvar) = &*exit;
-            if let Ok(mut exitvar) = lock.lock() {
-                loop {
-                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                        exitvar = result.0;
-
-                        if *exitvar == true {
-                            break 'outer;
-                        }
-
-                        if result.1.timed_out() == true {
-                            break;
-                        }
-                    } else {
-                        break 'outer;
-                    }
-                }
-            } else {
-                break;
-            }
-        }));
+        self.threads.push(
+            cpu::start_thread(
+                Arc::clone(&self.cpuinfo),
+                mtx.clone(),
+                Arc::clone(&self.exit),
+                sleepy
+            )
+        );
 
         // Read /proc/meminfo
         thread::sleep(stagger);  // Stagger the threads
-        let internal = Arc::clone(&self.memoryinfo);
-        let exit = Arc::clone(&self.exit);
-        let tx = mtx.clone();
-
-        self.threads.push(thread::spawn(move || 'outer: loop {
-            match internal.write() {
-                Ok(mut val) => {
-                    val.update();
-                },
-                Err(_) => break,
-            };
-            match tx.send(4) {
-                Ok(_) => (),
-                Err(_) => break,
-            };
-                        let (lock, cvar) = &*exit;
-            if let Ok(mut exitvar) = lock.lock() {
-                loop {
-                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                        exitvar = result.0;
-
-                        if *exitvar == true {
-                            break 'outer;
-                        }
-
-                        if result.1.timed_out() == true {
-                            break;
-                        }
-                    } else {
-                        break 'outer;
-                    }
-                }
-            } else {
-                break;
-            }
-        }));
+        self.threads.push(
+            memory::start_thread(
+                Arc::clone(&self.memoryinfo),
+                mtx.clone(),
+                Arc::clone(&self.exit),
+                sleepy
+            )
+        );
 
         // Read /proc/swaps
         thread::sleep(stagger);  // Stagger the threads
-        let internal = Arc::clone(&self.swapinfo);
-        let exit = Arc::clone(&self.exit);
-        let tx = mtx.clone();
-
-        self.threads.push(thread::spawn(move || 'outer: loop {
-            match internal.write() {
-                Ok(mut val) => {
-                    val.update();
-                },
-                Err(_) => break,
-            };
-            match tx.send(5) {
-                Ok(_) => (),
-                Err(_) => break,
-            };
-                        let (lock, cvar) = &*exit;
-            if let Ok(mut exitvar) = lock.lock() {
-                loop {
-                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                        exitvar = result.0;
-
-                        if *exitvar == true {
-                            break 'outer;
-                        }
-
-                        if result.1.timed_out() == true {
-                            break;
-                        }
-                    } else {
-                        break 'outer;
-                    }
-                }
-            } else {
-                break;
-            }
-        }));
+        self.threads.push(
+            swap::start_thread(
+                Arc::clone(&self.swapinfo),
+                mtx.clone(),
+                Arc::clone(&self.exit),
+                sleepy
+            )
+        );
 
         // Sensors
         thread::sleep(stagger);  // Stagger the threads
-        let internal = Arc::clone(&self.sensorinfo);
-        let exit = Arc::clone(&self.exit);
-        let tx = mtx.clone();
-
-        self.threads.push(thread::spawn(move || 'outer: loop {
-            match internal.write() {
-                Ok(mut val) => {
-                    val.update();
-                },
-                Err(_) => break,
-            };
-            match tx.send(6) {
-                Ok(_) => (),
-                Err(_) => break,
-            };
-                        let (lock, cvar) = &*exit;
-            if let Ok(mut exitvar) = lock.lock() {
-                loop {
-                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                        exitvar = result.0;
-
-                        if *exitvar == true {
-                            break 'outer;
-                        }
-
-                        if result.1.timed_out() == true {
-                            break;
-                        }
-                    } else {
-                        break 'outer;
-                    }
-                }
-            } else {
-                break;
-            }
-        }));
+        self.threads.push(
+            sensors::start_thread(
+                Arc::clone(&self.sensorinfo),
+                mtx.clone(),
+                Arc::clone(&self.exit),
+                sleepy
+            )
+        );
 
         // Network
         thread::sleep(stagger);  // Stagger the threads
-        let internal = Arc::clone(&self.networkinfo);
-        let exit = Arc::clone(&self.exit);
-        let tx = mtx.clone();
-
-        self.threads.push(thread::spawn(move || 'outer: loop {
-            match internal.write() {
-                Ok(mut val) => {
-                    val.update();
-                },
-                Err(_) => break,
-            };
-            match tx.send(7) {
-                Ok(_) => (),
-                Err(_) => break,
-            };
-                        let (lock, cvar) = &*exit;
-            if let Ok(mut exitvar) = lock.lock() {
-                loop {
-                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                        exitvar = result.0;
-
-                        if *exitvar == true {
-                            break 'outer;
-                        }
-
-                        if result.1.timed_out() == true {
-                            break;
-                        }
-                    } else {
-                        break 'outer;
-                    }
-                }
-            } else {
-                break;
-            }
-        }));
+        self.threads.push(
+            network::start_thread(
+                Arc::clone(&self.networkinfo),
+                mtx.clone(),
+                Arc::clone(&self.exit),
+                sleepy
+            )
+        );
 
         // Processes
         thread::sleep(stagger);  // Stagger the threads
-        let internal_cpuinfo = Arc::clone(&self.cpuinfo);
-        let internal = Arc::clone(&self.processinfo);
-        let exit = Arc::clone(&self.exit);
-        let tx = mtx.clone();
-        let config = Arc::clone(&self.config);
+        self.threads.push(
+            processes::start_thread(
+                Arc::clone(&self.processinfo),
+                Arc::clone(&self.cpuinfo),
+                Arc::clone(&self.config),
+                mtx.clone(),
+                Arc::clone(&self.exit),
+                sleepy
+            )
+        );
 
-        self.threads.push(thread::spawn(move || 'outer: loop {
-            match internal.write() {
-                Ok(mut val) => {
-                    //let now = std::time::Instant::now();
-                    val.update(&internal_cpuinfo, &config);
-                    //eprintln!("{}", now.elapsed().as_micros());
-                },
-                Err(_) => break,
-            };
-            match tx.send(8) {
-                Ok(_) => (),
-                Err(_) => break,
-            };
-                        let (lock, cvar) = &*exit;
-            if let Ok(mut exitvar) = lock.lock() {
-                loop {
-                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                        exitvar = result.0;
-
-                        if *exitvar == true {
-                            break 'outer;
-                        }
-
-                        if result.1.timed_out() == true {
-                            break;
-                        }
-                    } else {
-                        break 'outer;
-                    }
-                }
-            } else {
-                break;
-            }
-        }));
-
-        // GPU, the nvidia wrapper is weird so I put the code here.
+        // GPU
         thread::sleep(stagger);  // Stagger the threads
-        let internal = Arc::clone(&self.gpuinfo);
-        let exit = Arc::clone(&self.exit);
-        let tx = mtx.clone();
-
-        self.threads.push(thread::spawn(move || {
-            // Setup device
-            if let Ok(nvml) = nvml_wrapper::NVML::init() {
-                if let Ok(device) = nvml.device_by_index(0) {
-                    'outer: loop {
-                        match internal.write() {
-                            Ok(mut val) => {
-                                if let Ok(temp) = device.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu) {
-                                    val.temp = temp;
-                                }
-                                if let Ok(util) = device.utilization_rates() {
-                                    val.gpu_load = util.gpu;
-                                    val.mem_load = util.memory;
-                                }
-                                if let Ok(mem) = device.memory_info() {
-                                    val.mem_used = (mem.used as f32 / mem.total as f32) * 100.0;
-                                }
-                            },
-                            Err(_) => break,
-                        };
-                        match tx.send(9) {
-                            Ok(_) => (),
-                            Err(_) => break,
-                        };
-
-                        let (lock, cvar) = &*exit;
-                        if let Ok(mut exitvar) = lock.lock() {
-                            loop {
-                                if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                                    exitvar = result.0;
-
-                                    if *exitvar == true {
-                                        break 'outer;
-                                    }
-
-                                    if result.1.timed_out() == true {
-                                        break;
-                                    }
-                                } else {
-                                    break 'outer;
-                                }
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            }
-        }));
+        self.threads.push(
+            gpu::start_thread(
+                Arc::clone(&self.gpuinfo),
+                mtx.clone(),
+                Arc::clone(&self.exit),
+                sleepy
+            )
+        );
     }
 
     // This function stops all the monitoring threads

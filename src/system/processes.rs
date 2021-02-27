@@ -1,6 +1,6 @@
 mod process;
-use crate::system::{cpu, Config};
-use std::sync::{Arc, RwLock};
+use super::{cpu, Config};
+use std::sync::{Arc, RwLock, mpsc};
 
 #[derive(Default)]
 pub struct Processes {
@@ -205,4 +205,41 @@ impl Processes {
         }
         sorted
     }*/
+}
+
+pub fn start_thread(internal: Arc<RwLock<Processes>>, cpuinfo: Arc<RwLock<cpu::Cpuinfo>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || 'outer: loop {
+        match internal.write() {
+            Ok(mut val) => {
+                //let now = std::time::Instant::now();
+                val.update(&cpuinfo, &config);
+                //eprintln!("{}", now.elapsed().as_micros());
+            },
+            Err(_) => break,
+        };
+        match tx.send(8) {
+            Ok(_) => (),
+            Err(_) => break,
+        };
+                    let (lock, cvar) = &*exit;
+        if let Ok(mut exitvar) = lock.lock() {
+            loop {
+                if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                    exitvar = result.0;
+
+                    if *exitvar == true {
+                        break 'outer;
+                    }
+
+                    if result.1.timed_out() == true {
+                        break;
+                    }
+                } else {
+                    break 'outer;
+                }
+            }
+        } else {
+            break;
+        }
+    })
 }
