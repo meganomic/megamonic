@@ -94,9 +94,6 @@ impl System {
 
                 match internal.write() {
                     Ok(mut val) => {
-                        if val.exit == true {
-                            break;
-                        }
                         val.time_string = libc_strftime::strftime_local(config.strftime_format.as_str(), current_time.as_secs() as i64);
                     },
                     Err(_) => break,
@@ -245,9 +242,6 @@ impl System {
         self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
-                    if val.exit == true {
-                        break;
-                    }
                     val.update();
                 },
                 Err(_) => break,
@@ -288,9 +282,6 @@ impl System {
         self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
-                    /*if val.exit == true {
-                        break;
-                    }*/
                     val.update();
                 },
                 Err(_) => break
@@ -332,9 +323,6 @@ impl System {
         self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
-                    if val.exit == true {
-                        break;
-                    }
                     val.update();
                 },
                 Err(_) => break,
@@ -374,9 +362,6 @@ impl System {
         self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
-                    if val.exit == true {
-                        break;
-                    }
                     val.update();
                 },
                 Err(_) => break,
@@ -416,9 +401,6 @@ impl System {
         self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
-                    if val.exit == true {
-                        break;
-                    }
                     val.update();
                 },
                 Err(_) => break,
@@ -458,9 +440,6 @@ impl System {
         self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
-                    if val.exit == true {
-                        break;
-                    }
                     val.update();
                 },
                 Err(_) => break,
@@ -502,9 +481,6 @@ impl System {
         self.threads.push(thread::spawn(move || 'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
-                    if val.exit == true {
-                        break;
-                    }
                     //let now = std::time::Instant::now();
                     val.update(&internal_cpuinfo, &config);
                     //eprintln!("{}", now.elapsed().as_micros());
@@ -550,9 +526,6 @@ impl System {
                     'outer: loop {
                         match internal.write() {
                             Ok(mut val) => {
-                                if val.exit == true {
-                                    break;
-                                }
                                 if let Ok(temp) = device.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu) {
                                     val.temp = temp;
                                 }
