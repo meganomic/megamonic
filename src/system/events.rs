@@ -77,6 +77,8 @@ pub fn start_thread(internal: Arc<RwLock<Events>>, config: Arc<Config>, tx: mpsc
                 },
                 _ => (),
             }
+        } else {
+            break;
         }
     })
 }
