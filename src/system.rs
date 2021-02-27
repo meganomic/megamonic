@@ -107,10 +107,8 @@ impl System {
                 if st_subsec > 10000 {
                     let (lock, cvar) = &*exit;
                     if let Ok(mut exitvar) = lock.lock() {
-
-                    //let mut exitvar = lock.lock().unwrap();
-
                         loop {
+                            // Slowly work your way towards ~10000 microseconds after the last Second
                             if let Ok(result) = cvar.wait_timeout(exitvar, sleepy - (std::time::Duration::from_micros(st_subsec as u64) / 10)) {
                                 exitvar = result.0;
 
@@ -128,9 +126,6 @@ impl System {
                     } else {
                         break;
                     }
-
-                    // Slowly work your way towards ~10000 microseconds after the last Second
-                    //thread::sleep(sleepy - (std::time::Duration::from_micros(st_subsec as u64) / 10));
                 } else {
                     let (lock, cvar) = &*exit;
                     if let Ok(mut exitvar) = lock.lock() {
