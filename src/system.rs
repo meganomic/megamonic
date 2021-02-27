@@ -32,7 +32,6 @@ pub struct Events {
 // Used for the Time thread.
 #[derive(Default)]
 pub struct Time {
-    pub exit: bool,
     pub time_string: String,
 }
 
