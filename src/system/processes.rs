@@ -95,7 +95,7 @@ impl Processes {
         self.processes.retain(|_,v| v.alive);
     }
 
-    pub fn update(&mut self, cpuinfo: &Arc<RwLock<cpu::Cpuinfo>>, config: &Arc<Config>) {
+    pub fn update(&mut self, cpuinfo: &Arc<RwLock<cpu::Cpuinfo>>, config: &Arc<Config>, barrier: &Arc<std::sync::Barrier>) {
         //let now = std::time::Instant::now();
         self.update_pids(config);
         //eprintln!("{}", now.elapsed().as_micros());
@@ -105,9 +105,35 @@ impl Processes {
 
         for val in self.processes.values_mut() {
             //let now = std::time::Instant::now();
-            val.update(&mut buffer, cpuinfo, config);
+            val.update(&mut buffer, config);
             //eprintln!("{}", now.elapsed().as_nanos());
             buffer.clear();
+        }
+
+        // Wait here until cpuinfo is updated
+        barrier.wait();
+        if let Ok(cpu) = cpuinfo.read() {
+            if config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
+                for val in self.processes.values_mut() {
+                        // process.work can be higher than total amount of work done for some reason.
+                        // For now just set the value to 100% usage.
+                        // If I figure out why it's like this maybe I can fix it later
+                        if val.work > cpu.totald {
+                            val.cpu_avg = 100.0 * cpu.cpu_count as f32;
+                        } else {
+                            val.cpu_avg = (val.work as f32 / cpu.totald as f32) * 100.0 *  cpu.cpu_count as f32;
+                        }
+                }
+            } else {
+                for val in self.processes.values_mut() {
+                    // process.work can be higher than total amount of work done for some reason.
+                    if val.work > cpu.totald {
+                        val.cpu_avg = 100.0;
+                    } else {
+                        val.cpu_avg = (val.work as f32 / cpu.totald as f32) * 100.0;
+                    }
+                }
+            }
         }
     }
 
@@ -207,12 +233,12 @@ impl Processes {
     }*/
 }
 
-pub fn start_thread(internal: Arc<RwLock<Processes>>, cpuinfo: Arc<RwLock<cpu::Cpuinfo>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+pub fn start_thread(internal: Arc<RwLock<Processes>>, cpuinfo: Arc<RwLock<cpu::Cpuinfo>>, barrier: Arc<std::sync::Barrier>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || 'outer: loop {
         match internal.write() {
             Ok(mut val) => {
                 //let now = std::time::Instant::now();
-                val.update(&cpuinfo, &config);
+                val.update(&cpuinfo, &config, &barrier);
                 //eprintln!("{}", now.elapsed().as_micros());
             },
             Err(_) => break,
@@ -221,7 +247,8 @@ pub fn start_thread(internal: Arc<RwLock<Processes>>, cpuinfo: Arc<RwLock<cpu::C
             Ok(_) => (),
             Err(_) => break,
         };
-                    let (lock, cvar) = &*exit;
+
+        let (lock, cvar) = &*exit;
         if let Ok(mut exitvar) = lock.lock() {
             loop {
                 if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {

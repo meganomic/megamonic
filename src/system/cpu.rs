@@ -104,15 +104,15 @@ impl Cpuinfo {
     }
 }
 
-pub fn start_thread(internal: Arc<RwLock<Cpuinfo>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+pub fn start_thread(internal: Arc<RwLock<Cpuinfo>>, barrier: Arc<std::sync::Barrier>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || 'outer: loop {
         match internal.write() {
             Ok(mut val) => {
+                barrier.wait();
                 val.update();
             },
             Err(_) => break
         }
-
         match tx.send(3) {
             Ok(_) => (),
             Err(_) => break

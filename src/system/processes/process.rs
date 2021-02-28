@@ -1,5 +1,5 @@
-use crate::system::{cpu, Config};
-use std::sync::{Arc, RwLock};
+use super::Config;
+use std::sync::Arc;
 use std::io::prelude::*;
 
 #[derive(Default)]
@@ -23,6 +23,7 @@ pub struct Process {
     pub rss: i64,
     pub pss: i64,
 
+    pub work: u64,
     // /proc/task
     //pub tasks : std::collections::HashSet<u32>,
 
@@ -50,7 +51,7 @@ impl Process {
         }
     }*/
 
-    pub fn update(&mut self, buffer: &mut String, cpuinfo: &Arc<RwLock<cpu::Cpuinfo>>, config: &Arc<Config>) {
+    pub fn update(&mut self, buffer: &mut String, config: &Arc<Config>) {
         if let Ok(mut file) = std::fs::File::open(&self.stat_file) {
             file.read_to_string(buffer).unwrap_or_default();
 
@@ -79,13 +80,13 @@ impl Process {
                 let total = self.utime + self.stime + self.cutime + self.cstime;
 
                 // If old_total is 0 it means we don't have anything to compare to. So work is 0.
-                let work = if old_total == 0 {
+                self.work = if old_total == 0 {
                     0
                 } else {
                     total - old_total
                 };
 
-                if let Ok(val) = cpuinfo.read() {
+                /*if let Ok(val) = cpuinfo.read() {
                     if config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
                         // This is a fix for sampling timing errors between "work" and "totald"
                         if work > val.totald {
@@ -101,7 +102,7 @@ impl Process {
                             self.cpu_avg = (work as f32 / val.totald as f32) * 100.0;
                         }
                     }
-                }
+                }*/
             } else {
                 self.cpu_avg = -1.0;
             }
@@ -118,6 +119,26 @@ impl Process {
             self.alive = false;
         }
     }
+
+    /*pub fn update_cpu_usage(&mut self, cpuinfo: &Arc<RwLock<cpu::Cpuinfo>>, config: &Arc<Config>) {
+        if let Ok(val) = cpuinfo.read() {
+            if config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
+                // This is a fix for sampling timing errors between "work" and "totald"
+                if self.work > val.totald {
+                    self.cpu_avg = 100.0 * val.cpu_count as f32;
+                } else {
+                    self.cpu_avg = (self.work as f32 / val.totald as f32) * 100.0 *  val.cpu_count as f32;
+                }
+            } else {
+                // This is a fix for sampling timing errors between "work" and "totald"
+                if self.work > val.totald {
+                    self.cpu_avg = 100.0;
+                } else {
+                    self.cpu_avg = (self.work as f32 / val.totald as f32) * 100.0;
+                }
+            }
+        }
+    }*/
 
     pub fn update_smaps(&mut self) {
         if let Ok(smaps) = std::fs::read_to_string(format!("/proc/{}/smaps_rollup", self.pid)) {
