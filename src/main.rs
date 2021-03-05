@@ -6,7 +6,6 @@ use crossterm::{
 use std::io::{stdout, Write};
 
 use std::sync::atomic;
-use numtoa::NumToA;
 mod system;
 
 #[macro_use]

@@ -551,7 +551,6 @@ macro_rules! draw_sensors {
         }
 
         let mut count = 0;
-        let mut buffer = [0u8; 20];
         if let Ok(sensorinfo) = $system.sensorinfo.read() {
             for (idx, (key, val)) in sensorinfo.chips.iter().enumerate() {
                 if (y + 1 + idx as u16) < (y + 8) {
@@ -571,7 +570,7 @@ macro_rules! draw_sensors {
                             queue!(
                                 $stdout,
                                 Print(&$cache.sensors.get_unchecked(idx)),
-                                Print((*val).numtoa_str(10, &mut buffer)),
+                                Print(&format!("{}", val)),
                                 Print(" C\x1b[91m ]\x1b[0m"),
                             )?;
                             $cache.sensors2[idx] = *val;
