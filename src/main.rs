@@ -134,7 +134,7 @@ fn main() -> Result<()> {
             clap::Arg::with_name("frequency")
                 .short("f")
                 .long("frequency")
-                .help("Update frequency in milliseconds. Min: 1000, Max: 5000")
+                .help("Sample frequency in milliseconds. Min: 1000, Max: 5000")
                 .default_value("1000")
         )
         .after_help("\x1b[91mEnabling both smaps and all processes is ultra slow.\nEspecially if running as root.\x1b[0m\n\nYou can toggle some things by pressing these buttons:\nPress 'q' to exit.\nPress 'a' to toggle all processes.\nPress 's' to toggle smaps.\nPress 't' to toggle \"Top mode\"\nPress 'r' to rebuild the UI incase it's broken\nPress [space] to pause the UI.")

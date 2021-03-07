@@ -307,7 +307,7 @@ pub fn convert_with_padding(num: i64, padding: usize) -> String {
 }
 
 // Convert function for network with special handling
-pub fn convert_speed(num: i64) -> String {
+pub fn convert_speed(num: i64, freq: u64) -> String {
     if num == -1 {
         return format!("Error");
     }
@@ -315,7 +315,7 @@ pub fn convert_speed(num: i64) -> String {
         return format!("{:>5.0} b/s\x1b[38;5;244m ]\x1b[37m Rx\x1b[0m", num);
     }
     // convert it to a f64 type to we can use ln() and stuff on it.
-    let num = num as f64;
+    let num = num as f64 / (freq as f64 / 1000.0);
 
     let units = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
 
@@ -598,7 +598,9 @@ macro_rules! draw_network {
         }
 
         if let Ok(networkinfo) = $system.networkinfo.read() {
+            let freq = $system.config.frequency.load(atomic::Ordering::Relaxed);
             let mut count = 0;
+
             for (key, val) in networkinfo.stats.iter() {
                 if $cache.network1.len() <= count / 2 {
                     $cache.network1.push(format!(
@@ -639,14 +641,14 @@ macro_rules! draw_network {
                     if val.recv != 0 {
                         queue!($stdout,
                             Print(&$cache.network1.get_unchecked(count / 2)),
-                            Print(&ui::convert_speed(val.recv)),
+                            Print(&ui::convert_speed(val.recv, freq)),
 
                         )?;
 
                     } else {
                         queue!($stdout,
                             Print(&$cache.network2.get_unchecked(count / 2)),
-                            Print(&ui::convert_speed(val.recv))
+                            Print(&ui::convert_speed(val.recv, freq))
 
                         )?;
                     }
@@ -654,13 +656,13 @@ macro_rules! draw_network {
                     if val.sent != 0 {
                         queue!($stdout,
                             Print(&$cache.network3.get_unchecked(count / 2)),
-                            Print(&ui::convert_speed(val.sent)),
+                            Print(&ui::convert_speed(val.sent, freq)),
 
                         )?;
                     } else {
                         queue!($stdout,
                             Print(&$cache.network4.get_unchecked(count / 2)),
-                            Print(&ui::convert_speed(val.sent))
+                            Print(&ui::convert_speed(val.sent, freq))
 
                         )?;
                     }
