@@ -17,6 +17,7 @@ pub struct Cpuinfo {
     pub cpu_avg: f32,
     pub totald: u64,
     pub cpu_count: u8,
+    pub governor: String,
     idle: u64,
     non_idle: u64,
     stats: Cpustats,
@@ -24,6 +25,14 @@ pub struct Cpuinfo {
 
 impl Cpuinfo {
     pub fn update(&mut self) {
+        if let Ok(scaling_governor) = std::fs::read_to_string("/sys/devices/system/cpu/cpufreq/policy0/scaling_governor") {
+            self.governor.clear();
+            self.governor.push_str(&scaling_governor);
+        } else {
+            self.governor.clear();
+            self.governor.push_str("Not available");
+        }
+
         //     prev_idle = previdle + previowait
         //     Idle = idle + iowait
         //

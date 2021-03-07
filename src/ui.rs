@@ -853,6 +853,11 @@ macro_rules! draw_overview {
                     Print(&format!("{:4.0}%\x1b[91m ]\x1b[0m", cpuinfo.cpu_avg)),
                 )?;
             }
+
+            queue!($stdout,
+                //cursor::MoveTo(40, 5),
+                Print(&format!("\x1b[6;41H               \x1b[6;41H\x1b[38;5;244m{}\x1b[0m", &cpuinfo.governor))
+            )?;
         }
 
 
