@@ -104,7 +104,7 @@ fn draw_full_ui(stdout: &mut std::io::StdoutLock, system: &system::System, cache
 
 fn main() -> Result<()> {
     let options = clap::App::new("Megamonic")
-        .about("A silly system monitor")
+        .about("A badly designed multithreaded system monitor")
         .version("0.1.0")
         .arg(
             clap::Arg::with_name("smaps")
@@ -122,7 +122,7 @@ fn main() -> Result<()> {
             clap::Arg::with_name("topmode")
                 .short("t")
                 .long("enable-top-mode")
-                .help("Report CPU % the same way 'top' does")
+                .help("Report CPU % the same way top does")
         )
         .arg(
             clap::Arg::with_name("all")
@@ -137,7 +137,7 @@ fn main() -> Result<()> {
                 .help("Sample frequency in milliseconds. Min: 1000, Max: 5000")
                 .default_value("1000")
         )
-        .after_help("\x1b[91mEnabling both smaps and all processes is ultra slow.\nEspecially if running as root.\x1b[0m\n\nYou can toggle some things by pressing these buttons:\nPress 'q' to exit.\nPress 'a' to toggle all processes.\nPress 's' to toggle smaps.\nPress 't' to toggle \"Top mode\"\nPress 'r' to rebuild the UI incase it's broken\nPress [space] to pause the UI.")
+        .after_help("\x1b[91mEnabling both smaps and all processes is ultra slow.\nEspecially if running as root.\x1b[0m\n\nThese buttons do things:\nq => exit.\na => toggle all processes.\ns => toggle smaps.\nt => toggle \"Top mode\"\nr => rebuild the UI incase its broken\n[space] => pause the UI.")
         .get_matches();
 
     let stdout_l = stdout();
@@ -158,7 +158,7 @@ fn main() -> Result<()> {
     // Size of the terminal window
     let (tsizex, tsizey) = terminal::size()?;
 
-    // Disable all hotkeys and stuff. ctrl+c won't work.
+    // Disable all hotkeys and stuff. ctrl+c wont work.
     terminal::enable_raw_mode()?;
 
     // Setup the terminal screen and display a loading message
@@ -177,7 +177,7 @@ fn main() -> Result<()> {
     // Start monitoring threads
     system.start(tx.clone());
 
-    // Show some info so the user knows what's going on
+    // Show some info so the user knows whats going on
     execute!(
         stdout,
         cursor::MoveTo(tsizex / 2 - 9, tsizey / 2),
@@ -353,13 +353,13 @@ fn main() -> Result<()> {
                 draw_full_ui(&mut stdout, &system, &mut cache)?;
             },
 
-            // Redraw UI if user pressed 'r'
+            // Redraw UI if user pressed r
             106 => draw_full_ui(&mut stdout, &system, &mut cache)?,
 
             // Exit - Someone pressed Q or ctrl+c
             255 => break,
 
-            // If it's something else we better exit just in case!
+            // If its something else we better exit just in case!
             _ => break,
         }
 
