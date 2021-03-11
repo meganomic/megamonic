@@ -104,6 +104,7 @@ fn draw_full_ui(stdout: &mut std::io::StdoutLock, system: &system::System, cache
 
 fn main() -> Result<()> {
     let options = clap::App::new("Megamonic")
+        .setting(clap::AppSettings::ColoredHelp)
         .about("A badly designed multithreaded system monitor")
         .version("0.1.0")
         .arg(
