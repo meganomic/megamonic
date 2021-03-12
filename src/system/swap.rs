@@ -10,14 +10,14 @@ pub struct Swap {
 
 impl Swap {
     pub fn update(&mut self) -> Result<()> {
-        let swapinfo = std::fs::read_to_string("/proc/swaps").context("Can't open /proc/swaps")?;
+        let swapinfo = std::fs::read_to_string("/proc/swaps").context("Can't read /proc/swaps")?;
         self.total = 0;
         self.used = 0;
 
         for line in swapinfo.lines().skip(1) {
                 let mut split = line.split_whitespace();
-                self.total += split.nth(2).ok_or(anyhow!("Can't parse /proc/swap")).map(|s|s.parse::<i64>())?? * 1024;
-                self.used += split.next().ok_or(anyhow!("Can't parse /proc/swap")).map(|s|s.parse::<i64>())?? * 1024;
+                self.total += split.nth(2).ok_or(anyhow!("Can't parse /proc/swap"))?.parse::<i64>()? * 1024;
+                self.used += split.next().ok_or(anyhow!("Can't parse /proc/swap"))?.parse::<i64>()? * 1024;
         }
         self.free = self.total - self.used;
 

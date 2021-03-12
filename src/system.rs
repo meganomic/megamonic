@@ -143,6 +143,7 @@ impl System {
                 Arc::clone(&self.networkinfo),
                 mtx.clone(),
                 Arc::clone(&self.exit),
+                Arc::clone(&self.error),
                 sleepy
             )
         );

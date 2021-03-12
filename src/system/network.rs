@@ -1,11 +1,12 @@
-use std::sync::{Arc, RwLock, mpsc};
+use anyhow::{anyhow, Context, Result};
+use std::sync::{Arc, RwLock, Mutex, mpsc};
 
 #[derive(Default)]
 pub struct Bandwidth {
-    pub recv: i64,
-    pub sent: i64,
-    pub total_recv: i64,
-    pub total_sent: i64,
+    pub recv: u64,
+    pub sent: u64,
+    pub total_recv: u64,
+    pub total_sent: u64,
 }
 
 #[derive(Default)]
@@ -14,77 +15,83 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn update(&mut self) {
-        if let Ok(networkinfo) = std::fs::read_to_string("/proc/net/dev") {
-            for line in networkinfo.lines().skip(2) {
-                let mut bandwidth = Bandwidth::default();
-                let mut name = String::default();
+    pub fn update(&mut self) -> Result<()> {
+        let networkinfo = std::fs::read_to_string("/proc/net/dev").context("Can't read /proc/net/dev")?;
+        for line in networkinfo.lines().skip(2) {
+            let mut bandwidth = Bandwidth::default();
 
-                for (i, s) in line.split_whitespace().enumerate() {
-                    match i {
-                        0 => name = s.to_string(),
-                        1 => bandwidth.total_recv = s.parse::<i64>().unwrap_or(-1),
-                        9 => { bandwidth.total_sent = s.parse::<i64>().unwrap_or(-1); break; },
-                        _ => (),
-                    }
-                }
+            let mut split = line.split_whitespace();
 
-                // If it hasn't sent or recieved anything it's probably off so don't add it.
-                if bandwidth.total_recv != 0 || bandwidth.total_sent != 0 {
-                    match self.stats.get_mut(name.as_str()) {
-                        Some(bw) => {
-                            // It already exists. Update the values.
-                            bw.recv = bandwidth.total_recv - bw.total_recv;
-                            bw.sent = bandwidth.total_sent - bw.total_sent;
-                            bw.total_recv = bandwidth.total_recv;
-                            bw.total_sent = bandwidth.total_sent;
-                        },
-                        None => {
-                            // If it didn't already exist add it
-                            self.stats.insert(name, bandwidth);
-                        }
+            let name = split.next().ok_or(anyhow!("Can't parse name from /proc/net/dev"))?;
+            bandwidth.total_recv = split.next().ok_or(anyhow!("Can't parse total_recv from /proc/net/dev"))?.parse::<u64>().context("Can't parse total_recv from /proc/net/dev")?;
+            bandwidth.total_sent = split.nth(7).ok_or(anyhow!("Can't parse total_sent from /proc/net/dev"))?.parse::<u64>().context("Can't parse total_sent from /proc/net/dev")?;
+
+            // If it hasn't sent and recieved anything it's probably off so don't add it.
+            if bandwidth.total_recv != 0 && bandwidth.total_sent != 0 {
+                match self.stats.get_mut(name) {
+                    Some(bw) => {
+                        // It already exists. Update the values.
+                        bw.recv = bandwidth.total_recv - bw.total_recv;
+                        bw.sent = bandwidth.total_sent - bw.total_sent;
+                        bw.total_recv = bandwidth.total_recv;
+                        bw.total_sent = bandwidth.total_sent;
+                    },
+                    None => {
+                        // If it didn't already exist add it
+                        self.stats.insert(name.to_string(), bandwidth);
                     }
                 }
             }
-        } else {
-            // Can't read the proc file. Notify user.
-            self.stats.clear();
-            self.stats.insert(String::from("Error"), Bandwidth{recv: -1, sent: -1, total_recv: -1, total_sent: -1});
         }
+
+        Ok(())
     }
 }
 
-pub fn start_thread(internal: Arc<RwLock<Network>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
-    std::thread::spawn(move || 'outer: loop {
-        match internal.write() {
-            Ok(mut val) => {
-                val.update();
-            },
-            Err(_) => break,
-        };
-        match tx.send(7) {
-            Ok(_) => (),
-            Err(_) => break,
-        };
-                    let (lock, cvar) = &*exit;
-        if let Ok(mut exitvar) = lock.lock() {
-            loop {
-                if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                    exitvar = result.0;
+pub fn start_thread(internal: Arc<RwLock<Network>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        let (lock, cvar) = &*exit;
+        'outer: loop {
+            match internal.write() {
+                Ok(mut val) => {
+                    if let Err(err) = val.update() {
+                        let mut shoe = error.lock().expect("Error lock couldn't be aquired!");
+                        shoe.push(err);
 
-                    if *exitvar == true {
-                        break 'outer;
-                    }
+                        match tx.send(99) {
+                            Ok(_) => (),
+                            Err(_) => break,
+                        }
 
-                    if result.1.timed_out() == true {
                         break;
                     }
-                } else {
-                    break 'outer;
+                },
+                Err(_) => break,
+            };
+            match tx.send(7) {
+                Ok(_) => (),
+                Err(_) => break,
+            };
+
+            if let Ok(mut exitvar) = lock.lock() {
+                loop {
+                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                        exitvar = result.0;
+
+                        if *exitvar == true {
+                            break 'outer;
+                        }
+
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    } else {
+                        break 'outer;
+                    }
                 }
+            } else {
+                break;
             }
-        } else {
-            break;
         }
     })
 }

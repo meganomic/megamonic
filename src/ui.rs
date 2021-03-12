@@ -307,10 +307,7 @@ pub fn convert_with_padding(num: i64, padding: usize) -> String {
 }
 
 // Convert function for network with special handling
-pub fn convert_speed(num: i64, freq: u64) -> String {
-    if num == -1 {
-        return format!("Error");
-    }
+pub fn convert_speed(num: u64, freq: u64) -> String {
     if num == 0 {
         return format!("{:>5.0} b/s\x1b[38;5;244m ]\x1b[37m Rx\x1b[0m", num);
     }
