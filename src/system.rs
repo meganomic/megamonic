@@ -110,6 +110,7 @@ impl System {
                 Arc::clone(&self.memoryinfo),
                 mtx.clone(),
                 Arc::clone(&self.exit),
+                Arc::clone(&self.error),
                 sleepy
             )
         );

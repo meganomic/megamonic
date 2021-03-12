@@ -107,8 +107,8 @@ pub fn start_thread(internal: Arc<RwLock<Cpuinfo>>, barrier: Arc<std::sync::Barr
                 Ok(mut val) => {
                     barrier.wait();
                     if let Err(err) = val.update() {
-                        let mut shoe = error.lock().expect("Error lock couldn't be aquired!");
-                        shoe.push(err);
+                        let mut errvec = error.lock().expect("Error lock couldn't be aquired!");
+                        errvec.push(err);
 
                         match tx.send(99) {
                             Ok(_) => (),

@@ -16,17 +16,15 @@ impl Default for Sensors {
 
 impl Sensors {
     pub fn update(&mut self) {
-        // Replace with manual parsing
+        // Don't handle any errors, just skip that sensor.
         for chip in self.sensors {
             if let Ok(c_name) = chip.get_name() {
                 for feature in chip {
                     if let Ok(f_name) = feature.get_label() {
                         for subfeature in feature {
-                            let sf_name = subfeature.name(); // Format: tempX_Y, we want tempX_input
-
                             if let Ok(val) = subfeature.get_value() {
                                 // We only want tempX_input
-                                if sf_name.ends_with("input") {
+                                if subfeature.name().ends_with("input") {
                                     // If the name is temp1 that means it doesn't have a f_name
                                     // So use the chip name instead
                                     if f_name == "temp1" {

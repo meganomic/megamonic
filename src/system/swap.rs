@@ -32,8 +32,8 @@ pub fn start_thread(internal: Arc<RwLock<Swap>>, tx: mpsc::Sender::<u8>, exit: A
             match internal.write() {
                 Ok(mut val) => {
                     if let Err(err) = val.update() {
-                        let mut shoe = error.lock().expect("Error lock couldn't be aquired!");
-                        shoe.push(err);
+                        let mut errvec = error.lock().expect("Error lock couldn't be aquired!");
+                        errvec.push(err);
 
                         match tx.send(99) {
                             Ok(_) => (),
