@@ -98,6 +98,7 @@ impl System {
                 Arc::clone(&cpu_barrier),
                 mtx.clone(),
                 Arc::clone(&self.exit),
+                Arc::clone(&self.error),
                 sleepy
             )
         );

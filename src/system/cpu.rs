@@ -1,4 +1,6 @@
-use std::sync::{Arc, RwLock, mpsc};
+use anyhow::{anyhow, Context, Result};
+use std::sync::{Arc, RwLock, Mutex, mpsc};
+use std::io::prelude::*;
 
 #[derive(Default)]
 struct Cpustats {
@@ -12,7 +14,6 @@ struct Cpustats {
     steal: u64,
 }
 
-#[derive(Default)]
 pub struct Cpuinfo {
     pub cpu_avg: f32,
     pub totald: u64,
@@ -23,129 +24,126 @@ pub struct Cpuinfo {
     stats: Cpustats,
 }
 
-impl Cpuinfo {
-    pub fn update(&mut self) {
-        if let Ok(scaling_governor) = std::fs::read_to_string("/sys/devices/system/cpu/cpufreq/policy0/scaling_governor") {
-            self.governor.clear();
-            self.governor.push_str(&scaling_governor);
-        } else {
-            self.governor.clear();
-            self.governor.push_str("Not available");
+impl Default for Cpuinfo {
+    fn default() -> Self {
+        let procstat = std::fs::read_to_string("/proc/stat").expect("Can't read /proc/stat");
+
+        let mut cpu_count = 0;
+        for line in procstat.lines().skip(1) {
+                if line.starts_with("cpu") {
+                    cpu_count += 1;
+                } else {
+                    break;
+                }
         }
 
-        //     prev_idle = previdle + previowait
-        //     Idle = idle + iowait
-        //
-        //     prev_non_idle = prevuser + prevnice + prevsystem + previrq + prevsoftirq + prevsteal
-        //     non_idle = user + nice + system + irq + softirq + steal
-        //
-        //     prev_total = prev_idle + prev_non_idle
-        //     Total = Idle + non_idle
-        //
-        //     # differentiate: actual value minus the previous one
-        //     totald = Total - prev_total
-        //     idled = Idle - prev_idle
-        //
-        //     CPU_Percentage = (totald - idled)/totald
-        if let Ok(procstat) = std::fs::read_to_string("/proc/stat") {
-            if self.cpu_count == 0 {
-                for (idx, line) in procstat.lines().enumerate() {
-                    if idx > 0 {
-                        if line.starts_with("cpu") {
-                            self.cpu_count += 1;
-                        } else {
-                            break;
-                        }
-                    }
-                }
-            }
-            if let Some(line) = procstat.lines().nth(0) {
-                //let cpu0stats = String::from(line);
-
-                // Save previous stats
-                let prev_idle = self.stats.idle + self.stats.iowait;
-                let prev_non_idle = self.stats.user
-                    + self.stats.nice
-                    + self.stats.system
-                    + self.stats.irq
-                    + self.stats.softirq
-                    + self.stats.steal;
-                let prev_total = prev_idle + prev_non_idle;
-
-                let mut error = false;
-
-                for (i, s) in line.split_whitespace().enumerate() {
-                    match i {
-                        1 => self.stats.user = s.parse::<u64>().unwrap_or_else(|_| {  error = true; 0 }),
-                        2 => self.stats.nice = s.parse::<u64>().unwrap_or_else(|_| {  error = true; 0 }),
-                        3 => self.stats.system = s.parse::<u64>().unwrap_or_else(|_| {  error = true; 0 }),
-                        4 => self.stats.idle = s.parse::<u64>().unwrap_or_else(|_| {  error = true; 0 }),
-                        5 => self.stats.iowait = s.parse::<u64>().unwrap_or_else(|_| {  error = true; 0 }),
-                        6 => self.stats.irq = s.parse::<u64>().unwrap_or_else(|_| {  error = true; 0 }),
-                        7 => self.stats.softirq = s.parse::<u64>().unwrap_or_else(|_| {  error = true; 0 }),
-                        8 => { self.stats.steal = s.parse::<u64>().unwrap_or_else(|_| {  error = true; 0 }); break; },
-                        _ => (),
-                    }
-                }
-
-                if !error {
-                    self.idle = self.stats.idle + self.stats.iowait;
-                    self.non_idle = self.stats.user
-                        + self.stats.nice
-                        + self.stats.system
-                        + self.stats.irq
-                        + self.stats.softirq
-                        + self.stats.steal;
-
-                    self.totald = (self.idle + self.non_idle) - prev_total;
-
-                    self.cpu_avg = ((self.non_idle - prev_non_idle) as f32 / self.totald as f32) * 100.0;
-
-                } else {
-                    self.cpu_avg = -1.0;
-                }
-            } else {
-                self.cpu_avg = -1.0;
-            }
-        } else {
-            self.cpu_avg = -1.0;
+        Cpuinfo {
+            cpu_avg: 0.0,
+            totald: 0,
+            cpu_count,
+            governor: String::new(),
+            idle: 0,
+            non_idle: 0,
+            stats: Cpustats::default(),
         }
     }
 }
 
-pub fn start_thread(internal: Arc<RwLock<Cpuinfo>>, barrier: Arc<std::sync::Barrier>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
-    std::thread::spawn(move || 'outer: loop {
-        match internal.write() {
-            Ok(mut val) => {
-                barrier.wait();
-                val.update();
-            },
-            Err(_) => break
-        }
-        match tx.send(3) {
-            Ok(_) => (),
-            Err(_) => break
+impl Cpuinfo {
+    pub fn update(&mut self) -> Result<()> {
+        self.governor.clear();
+        std::fs::File::open("/sys/devices/system/cpu/cpufreq/policy0/scaling_governor").context("Can't open /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?.read_to_string(&mut self.governor).context("Can't read /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?;
+
+        let procstat = std::fs::read_to_string("/proc/stat").context("Can't read /proc/stat")?;
+
+        let line = procstat.lines().nth(0).ok_or(anyhow!("Can't parse /proc/stat"))?;
+
+        // Save previous stats
+        let prev_idle = self.stats.idle + self.stats.iowait;
+        let prev_non_idle = self.stats.user
+            + self.stats.nice
+            + self.stats.system
+            + self.stats.irq
+            + self.stats.softirq
+            + self.stats.steal;
+        //let prev_total = prev_idle + prev_non_idle;
+
+        for (i, s) in line.split_whitespace().skip(1).enumerate() {
+            match i {
+                0 => self.stats.user = s.parse::<u64>().context("Can't parse 'user'")?,
+                1 => self.stats.nice = s.parse::<u64>().context("Can't parse 'nice'")?,
+                2 => self.stats.system = s.parse::<u64>().context("Can't parse 'system'")?,
+                3 => self.stats.idle = s.parse::<u64>().context("Can't parse 'idle'")?,
+                4 => self.stats.iowait = s.parse::<u64>().context("Can't parse 'iowait'")?,
+                5 => self.stats.irq = s.parse::<u64>().context("Can't parse 'irq'")?,
+                6 => self.stats.softirq = s.parse::<u64>().context("Can't parse 'softirq'")?,
+                7 => self.stats.steal = s.parse::<u64>().context("Can't parse 'steal'")?,
+                _ => break,
+            }
         }
 
+        self.idle = self.stats.idle + self.stats.iowait;
+        self.non_idle = self.stats.user
+            + self.stats.nice
+            + self.stats.system
+            + self.stats.irq
+            + self.stats.softirq
+            + self.stats.steal;
+
+        // This is saved for use in process.rs to calculate cpu usage
+        self.totald = self.idle + self.non_idle - prev_idle - prev_non_idle;
+
+        self.cpu_avg = ((self.non_idle - prev_non_idle) as f32 / self.totald as f32) * 100.0;
+
+        Ok(())
+    }
+}
+
+pub fn start_thread(internal: Arc<RwLock<Cpuinfo>>, barrier: Arc<std::sync::Barrier>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
         let (lock, cvar) = &*exit;
-        if let Ok(mut exitvar) = lock.lock() {
-            loop {
-                if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                    exitvar = result.0;
+        'outer: loop {
+            match internal.write() {
+                Ok(mut val) => {
+                    barrier.wait();
+                    if let Err(err) = val.update() {
+                        let mut shoe = error.lock().expect("Error lock couldn't be aquired!");
+                        shoe.push(err);
 
-                    if *exitvar == true {
-                        break 'outer;
-                    }
+                        match tx.send(99) {
+                            Ok(_) => (),
+                            Err(_) => break,
+                        }
 
-                    if result.1.timed_out() == true {
                         break;
                     }
-                } else {
-                    break 'outer;
-                }
+                },
+                Err(_) => break
             }
-        } else {
-            break;
+            match tx.send(3) {
+                Ok(_) => (),
+                Err(_) => break
+            }
+
+            if let Ok(mut exitvar) = lock.lock() {
+                loop {
+                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                        exitvar = result.0;
+
+                        if *exitvar == true {
+                            break 'outer;
+                        }
+
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    } else {
+                        break 'outer;
+                    }
+                }
+            } else {
+                break;
+            }
         }
     })
 }
