@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock, atomic};
+use std::sync::{Arc, RwLock, Mutex, atomic, Condvar};
 use std::thread;
 
 pub mod cpu;
@@ -39,12 +39,13 @@ pub struct System {
     pub time: Arc<RwLock<time::Time>>,
     pub events: Arc<RwLock<events::Events>>,
 
-    pub exit: std::sync::Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>,
+    pub exit: Arc<(Mutex<bool>, Condvar)>,
 
     // Options
     pub config: Arc<Config>,
 
     pub threads: Vec<thread::JoinHandle<()>>,
+    pub error: Arc<Mutex<Vec::<anyhow::Error>>>,
 }
 
 impl System {
@@ -55,7 +56,7 @@ impl System {
 
         // Stagger the threads so they don't all start at the same time
         // They will drift around but it shouldn't matter.
-        let stagger = std::time::Duration::from_millis(250);
+        //let stagger = std::time::Duration::from_millis(250);
 
         // Time loop
         self.threads.push(
@@ -72,12 +73,13 @@ impl System {
             events::start_thread(
                 Arc::clone(&self.events),
                 Arc::clone(&self.config),
-                mtx.clone()
+                mtx.clone(),
+                Arc::clone(&self.exit)
             )
         );
 
         // Read /proc/loadavg
-        thread::sleep(stagger);  // Stagger the threads
+        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             loadavg::start_thread(
                 Arc::clone(&self.loadavg),
@@ -89,7 +91,7 @@ impl System {
 
         // Read /proc/stat
         let cpu_barrier = Arc::new(std::sync::Barrier::new(2));
-        thread::sleep(stagger);  // Stagger the threads
+        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             cpu::start_thread(
                 Arc::clone(&self.cpuinfo),
@@ -101,7 +103,7 @@ impl System {
         );
 
         // Read /proc/meminfo
-        thread::sleep(stagger);  // Stagger the threads
+        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             memory::start_thread(
                 Arc::clone(&self.memoryinfo),
@@ -112,18 +114,19 @@ impl System {
         );
 
         // Read /proc/swaps
-        thread::sleep(stagger);  // Stagger the threads
+        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             swap::start_thread(
                 Arc::clone(&self.swapinfo),
                 mtx.clone(),
                 Arc::clone(&self.exit),
+                Arc::clone(&self.error),
                 sleepy
             )
         );
 
         // Sensors
-        thread::sleep(stagger);  // Stagger the threads
+        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             sensors::start_thread(
                 Arc::clone(&self.sensorinfo),
@@ -134,7 +137,7 @@ impl System {
         );
 
         // Network
-        thread::sleep(stagger);  // Stagger the threads
+        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             network::start_thread(
                 Arc::clone(&self.networkinfo),
@@ -145,7 +148,7 @@ impl System {
         );
 
         // Processes
-        thread::sleep(stagger);  // Stagger the threads
+        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             processes::start_thread(
                 Arc::clone(&self.processinfo),
@@ -159,7 +162,7 @@ impl System {
         );
 
         // GPU
-        thread::sleep(stagger);  // Stagger the threads
+        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             gpu::start_thread(
                 Arc::clone(&self.gpuinfo),

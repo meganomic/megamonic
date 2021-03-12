@@ -159,31 +159,23 @@ fn main() -> Result<()> {
     // Size of the terminal window
     let (tsizex, tsizey) = terminal::size()?;
 
-    // Disable all hotkeys and stuff. ctrl+c wont work.
-    terminal::enable_raw_mode()?;
-
-    // Setup the terminal screen and display a loading message
-    execute!(
-        stdout,
-        terminal::EnterAlternateScreen,
-        terminal::DisableLineWrap,
-        cursor::Hide,
-        cursor::MoveTo(tsizex / 2 - 16, tsizey / 2 - 1),
-        Print("Launching monitoring threads...")
-    )?;
-
     // Event channel
     let (tx, rx) = std::sync::mpsc::channel();
 
     // Start monitoring threads
     system.start(tx.clone());
 
-    // Show some info so the user knows whats going on
-    execute!(
-        stdout,
-        cursor::MoveTo(tsizex / 2 - 9, tsizey / 2),
-        Print("Gathering data...")
-    )?;
+    // Check if there was any errors starting up
+    if !system.error.lock().unwrap().is_empty() {
+        system.stop();
+        execute!(stdout, terminal::LeaveAlternateScreen, terminal::EnableLineWrap, cursor::Show)?;
+        terminal::disable_raw_mode()?;
+        for err in system.error.lock().unwrap().iter() {
+            eprintln!("{:?}", err);
+        }
+
+        return Ok(());
+    }
 
     // UI cache
     let mut cache = ui::CachedCursor { tsizex, tsizey, ..Default::default() };
@@ -191,11 +183,16 @@ fn main() -> Result<()> {
     // Used to pause the UI
     let mut paused = false;
 
-    // No point in drawing the UI before we have any data.
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    // Disable all hotkeys and stuff. ctrl+c wont work.
+    terminal::enable_raw_mode()?;
 
-    //let mut shoe = ui::Layout::new(&mut stdout, &system);
-    //let shoe = ui::Time::new(&system);
+    // Setup the terminal screen
+    execute!(
+        stdout,
+        terminal::EnterAlternateScreen,
+        terminal::DisableLineWrap,
+        cursor::Hide,
+    )?;
 
     draw_full_ui(&mut stdout, &system, &mut cache)?;
 
@@ -293,7 +290,23 @@ fn main() -> Result<()> {
                         }
                     }
                 }
-            }
+            },
+            99 => {
+                system.stop();
+                execute!(
+                    stdout,
+                    terminal::Clear(terminal::ClearType::All),
+                    cursor::MoveTo(cache.tsizex / 2 - 16, cache.tsizey / 2 - 1),
+                    Print("Stopping monitoring threads...")
+                )?;
+                execute!(stdout, terminal::LeaveAlternateScreen, terminal::EnableLineWrap, cursor::Show)?;
+                terminal::disable_raw_mode()?;
+                for err in system.error.lock().unwrap().iter() {
+                    eprintln!("{:?}", err);
+                }
+
+                return Ok(());
+            },
             // Pause
             101 => {
                 if paused {
@@ -367,14 +380,6 @@ fn main() -> Result<()> {
         stdout.flush()?;
         //_draw_benchmark!(stdout, now, tsizex, tsizey);
     }
-
-    // Show exit message
-    execute!(
-        stdout,
-        terminal::Clear(terminal::ClearType::All),
-        cursor::MoveTo(cache.tsizex / 2 - 16, cache.tsizey / 2 - 1),
-        Print("Stopping monitoring threads...")
-    )?;
 
     // Stop monitoring threads
     system.stop();

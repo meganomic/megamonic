@@ -43,7 +43,7 @@ pub fn start_thread(internal: Arc<RwLock<Loadavg>>, tx: mpsc::Sender::<u8>, exit
             Ok(_) => (),
             Err(_) => break,
         };
-                    let (lock, cvar) = &*exit;
+        let (lock, cvar) = &*exit;
         if let Ok(mut exitvar) = lock.lock() {
             loop {
                 if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {

@@ -32,6 +32,10 @@ impl Memory {
                         }
                     }
                 }
+
+                if idx == 3 {
+                    break 'outer;
+                }
             }
             self.used = self.total - self.free;
 
