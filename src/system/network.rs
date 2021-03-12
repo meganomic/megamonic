@@ -23,8 +23,16 @@ impl Network {
             let mut split = line.split_whitespace();
 
             let name = split.next().ok_or(anyhow!("Can't parse name from /proc/net/dev"))?;
-            bandwidth.total_recv = split.next().ok_or(anyhow!("Can't parse total_recv from /proc/net/dev"))?.parse::<u64>().context("Can't parse total_recv from /proc/net/dev")?;
-            bandwidth.total_sent = split.nth(7).ok_or(anyhow!("Can't parse total_sent from /proc/net/dev"))?.parse::<u64>().context("Can't parse total_sent from /proc/net/dev")?;
+
+            bandwidth.total_recv = split.next()
+                .ok_or(anyhow!("Can't parse total_recv from /proc/net/dev"))?
+                .parse::<u64>()
+                .context("Can't parse total_recv from /proc/net/dev")?;
+
+            bandwidth.total_sent = split.nth(7)
+                .ok_or(anyhow!("Can't parse total_sent from /proc/net/dev"))?
+                .parse::<u64>()
+                .context("Can't parse total_sent from /proc/net/dev")?;
 
             // If it hasn't sent and recieved anything it's probably off so don't add it.
             if bandwidth.total_recv != 0 && bandwidth.total_sent != 0 {
