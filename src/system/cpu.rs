@@ -51,8 +51,15 @@ impl Default for Cpuinfo {
 
 impl Cpuinfo {
     pub fn update(&mut self) -> Result<()> {
+        let path = "/sys/devices/system/cpu/cpufreq/policy0/scaling_governor";
+
         self.governor.clear();
-        std::fs::File::open("/sys/devices/system/cpu/cpufreq/policy0/scaling_governor").context("Can't open /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?.read_to_string(&mut self.governor).context("Can't read /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?;
+
+        std::fs::File::open(path)
+            .with_context(|| format!("Can't open {}", path))?
+            .read_to_string(&mut self.governor)
+            .with_context(|| format!("Can't read {}", path))?;
+
 
         let procstat = std::fs::read_to_string("/proc/stat").context("Can't read /proc/stat")?;
 
