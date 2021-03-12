@@ -85,6 +85,7 @@ impl System {
                 Arc::clone(&self.loadavg),
                 mtx.clone(),
                 Arc::clone(&self.exit),
+                Arc::clone(&self.error),
                 sleepy
             )
         );
