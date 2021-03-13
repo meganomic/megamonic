@@ -24,32 +24,47 @@ impl Processes {
 
         for entry in entries {
             // Only directory names made up of numbers will pass
-            if let Ok(pid) = entry?.file_name().to_str().ok_or(anyhow!("Entry in /proc/ has no filename?"))?.parse::<u32>() {
+            if let Ok(pid) = entry
+                .context("IO error while reading /proc/")?
+                .file_name()
+                .to_str()
+                .ok_or(anyhow!("Entry in /proc/ contains illegal unicode"))?
+                .parse::<u32>()
+            {
                 if !self.ignored.contains(&pid) {
                     // Don't add it if we already have it
                     if !self.processes.contains_key(&pid) {
-                        let commandline = std::fs::read_to_string(format!("/proc/{}/cmdline", pid))?;
+                        // If cmdline can't be opened it probably means that the process has terminated.
+                        // A rare but possible scenario
+                        let commandline = if let Ok(res) = std::fs::read_to_string(&format!("/proc/{}/cmdline", pid)) {
+                            res
+                        } else {
+                            continue;
+                        };
 
                         // Limit the results to actual programs unless 'all-processes' is enabled
                         // pid == 1 is weird so make an extra check
                         if !commandline.is_empty() && pid != 1 {
-                            let mut executable = String::new();
-                            let mut cmdline = String::new();
-
                             // Cancer code that is very hacky and don't work for all cases
-                            // For instance, if a directory name has spaces in it, it breaks.
-                            for (idx, val) in commandline.split(&['\0', ' '][..]).enumerate() {
-                                if idx == 0 {
-                                    if let Some(last) = val.rsplit("/").nth(0) {
-                                        executable.push_str(last);
-                                    } else {
-                                        executable.push_str(val);
+                            // For instance, if a directory name has spaces or slashes in it, it breaks.
+                            let mut split = commandline.split(&['\0', ' '][..]);
+                            let executable = split.next()
+                                .ok_or(anyhow!("Parsing error in /proc/[pid]/cmdline"))?
+                                .rsplit("/")
+                                .next()
+                                .ok_or(anyhow!("Parsing error in /proc/[pid]/cmdline"))?
+                                .to_string();
+
+                            let cmdline = split
+                                .fold(
+                                    String::new(),
+                                    |mut o, i|
+                                    {
+                                        o.push(' ');
+                                        o.push_str(i);
+                                        o
                                     }
-                                } else {
-                                    cmdline.push_str(" ");
-                                    cmdline.push_str(val);
-                                }
-                            }
+                                );
 
                             self.processes.insert(
                                 pid,
