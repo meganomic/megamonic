@@ -14,6 +14,8 @@ pub fn start_thread(internal: Arc<RwLock<Time>>, config: Arc<Config>, tx: mpsc::
         // Override frequency setting. We always want to update the time
         let sleepy = std::time::Duration::from_millis(1000);
 
+        let (lock, cvar) = &*exit;
+
         'outer: loop {
             let current_time = std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap();
 
@@ -25,16 +27,17 @@ pub fn start_thread(internal: Arc<RwLock<Time>>, config: Arc<Config>, tx: mpsc::
                     val.time_string = libc_strftime::strftime_local(config.strftime_format.as_str(), current_time.as_secs() as i64);
                 },
                 Err(_) => break,
-            };
+            }
+
             match tx.send(1) {
                 Ok(_) => (),
                 Err(_) => break,
-            };
+            }
+
             // Synchronize with actual time
             // It will be about 0.01s out of phase with actual time.
             // Should be accurate enough.
             if st_subsec > 10000 {
-                let (lock, cvar) = &*exit;
                 if let Ok(mut exitvar) = lock.lock() {
                     loop {
                         // Slowly work your way towards ~10000 microseconds after the last Second
@@ -56,7 +59,6 @@ pub fn start_thread(internal: Arc<RwLock<Time>>, config: Arc<Config>, tx: mpsc::
                     break;
                 }
             } else {
-                let (lock, cvar) = &*exit;
                 if let Ok(mut exitvar) = lock.lock() {
                     loop {
                         if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {

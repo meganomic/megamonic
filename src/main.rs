@@ -168,8 +168,7 @@ fn main() -> Result<()> {
     // Check if there was any errors starting up
     if !system.error.lock().unwrap().is_empty() {
         system.stop();
-        execute!(stdout, terminal::LeaveAlternateScreen, terminal::EnableLineWrap, cursor::Show)?;
-        terminal::disable_raw_mode()?;
+
         for err in system.error.lock().unwrap().iter() {
             eprintln!("{:?}", err);
         }

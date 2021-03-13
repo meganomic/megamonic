@@ -106,13 +106,12 @@ impl Cpuinfo {
     }
 }
 
-pub fn start_thread(internal: Arc<RwLock<Cpuinfo>>, barrier: Arc<std::sync::Barrier>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+pub fn start_thread(internal: Arc<RwLock<Cpuinfo>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
         let (lock, cvar) = &*exit;
         'outer: loop {
             match internal.write() {
                 Ok(mut val) => {
-                    barrier.wait();
                     if let Err(err) = val.update() {
                         let mut errvec = error.lock().expect("Error lock couldn't be aquired!");
                         errvec.push(err);

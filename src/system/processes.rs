@@ -1,6 +1,7 @@
 mod process;
 use super::{cpu, Config};
-use std::sync::{Arc, RwLock, mpsc};
+use anyhow::{bail, anyhow, Context, Result};
+use std::sync::{Arc, RwLock, Mutex, mpsc};
 
 #[derive(Default)]
 pub struct Processes {
@@ -10,7 +11,7 @@ pub struct Processes {
 }
 
 impl Processes {
-    pub fn update_pids(&mut self, config: &Arc<Config>) {
+    pub fn update_pids(&mut self, config: &Arc<Config>) -> Result<()> {
         // Trigger rebuild if 'show all processes' option is changed
         let all_processes = config.all.load(std::sync::atomic::Ordering::Relaxed);
         if all_processes != self.rebuild {
@@ -19,72 +20,67 @@ impl Processes {
             self.ignored.clear();
         }
 
-        // Can we even read /proc?
-        if let Ok(entries) = std::fs::read_dir("/proc/") {
-            for entry in entries {
-                if let Ok(entry) = &entry {
-                    if let Some(dir_name) = &entry.file_name().to_str() {
-                        // Only directory names made up of numbers will pass
-                        if let Ok(pid) = &dir_name.parse::<u32>() {
-                            if !self.ignored.contains(pid) {
-                                // Don't add it if we already have it
-                                if !self.processes.contains_key(pid) {
-                                    if let Ok(cmdline) = std::fs::read_to_string(format!("/proc/{}/cmdline", pid)) {
-                                        // Limit the results to actual programs unless 'all-processes' is enabled
-                                        // pid == 1 is weird so make an extra check
-                                        if !cmdline.is_empty() && *pid != 1 {
-                                            let mut executable = String::new();
-                                            let mut commandline = String::new();
+        let entries = std::fs::read_dir("/proc/").context("Can't read /proc/")?;
 
-                                            // Cancer code that is very hacky and don't work for all cases
-                                            // For instance, if a directory name has spaces in it, it breaks.
-                                            for (idx, val) in cmdline.split(&['\0', ' '][..]).enumerate() {
-                                                if idx == 0 {
-                                                    if let Some(last) = val.rsplit("/").nth(0) {
-                                                        executable.push_str(last);
-                                                    } else {
-                                                        executable.push_str(val);
-                                                    }
-                                                } else {
-                                                    commandline.push_str(" ");
-                                                    commandline.push_str(val);
-                                                }
-                                            }
+        for entry in entries {
+            // Only directory names made up of numbers will pass
+            if let Ok(pid) = entry?.file_name().to_str().ok_or(anyhow!("Entry in /proc/ has no filename?"))?.parse::<u32>() {
+                if !self.ignored.contains(&pid) {
+                    // Don't add it if we already have it
+                    if !self.processes.contains_key(&pid) {
+                        let commandline = std::fs::read_to_string(format!("/proc/{}/cmdline", pid))?;
 
-                                            self.processes.insert(
-                                                *pid,
-                                                process::Process {
-                                                    pid: *pid,
-                                                    executable: executable,
-                                                    cmdline: commandline,
-                                                    stat_file: format!("/proc/{}/stat", pid),
-                                                    statm_file: format!("/proc/{}/statm", pid),
-                                                    alive: true,
-                                                    ..Default::default()
-                                                },
-                                            );
-                                        } else {
-                                            // If 'all-processes' is enabled add everything
-                                            if all_processes {
-                                                self.processes.insert(
-                                                    *pid,
-                                                    process::Process {
-                                                        pid: *pid,
-                                                        executable: String::new(),
-                                                        cmdline: String::new(),
-                                                        stat_file: format!("/proc/{}/stat", pid),
-                                                        statm_file: format!("/proc/{}/statm", pid),
-                                                        alive: true,
-                                                        ..Default::default()
-                                                    },
-                                                );
-                                            } else {
-                                                // Otherwise add it to the ignore list
-                                                self.ignored.insert(*pid);
-                                            }
-                                        }
+                        // Limit the results to actual programs unless 'all-processes' is enabled
+                        // pid == 1 is weird so make an extra check
+                        if !commandline.is_empty() && pid != 1 {
+                            let mut executable = String::new();
+                            let mut cmdline = String::new();
+
+                            // Cancer code that is very hacky and don't work for all cases
+                            // For instance, if a directory name has spaces in it, it breaks.
+                            for (idx, val) in commandline.split(&['\0', ' '][..]).enumerate() {
+                                if idx == 0 {
+                                    if let Some(last) = val.rsplit("/").nth(0) {
+                                        executable.push_str(last);
+                                    } else {
+                                        executable.push_str(val);
                                     }
+                                } else {
+                                    cmdline.push_str(" ");
+                                    cmdline.push_str(val);
                                 }
+                            }
+
+                            self.processes.insert(
+                                pid,
+                                process::Process {
+                                    pid,
+                                    executable,
+                                    cmdline,
+                                    stat_file: format!("/proc/{}/stat", pid),
+                                    statm_file: format!("/proc/{}/statm", pid),
+                                    alive: true,
+                                    ..Default::default()
+                                },
+                            );
+                        } else {
+                            // If 'all-processes' is enabled add everything
+                            if all_processes {
+                                self.processes.insert(
+                                    pid,
+                                    process::Process {
+                                        pid,
+                                        executable: String::new(),
+                                        cmdline: String::new(),
+                                        stat_file: format!("/proc/{}/stat", pid),
+                                        statm_file: format!("/proc/{}/statm", pid),
+                                        alive: true,
+                                        ..Default::default()
+                                    },
+                                );
+                            } else {
+                                // Otherwise add it to the ignore list
+                                self.ignored.insert(pid);
                             }
                         }
                     }
@@ -93,11 +89,13 @@ impl Processes {
         }
 
         self.processes.retain(|_,v| v.alive);
+
+        Ok(())
     }
 
-    pub fn update(&mut self, cpuinfo: &Arc<RwLock<cpu::Cpuinfo>>, config: &Arc<Config>, barrier: &Arc<std::sync::Barrier>) {
+    pub fn update(&mut self, cpuinfo: &Arc<RwLock<cpu::Cpuinfo>>, config: &Arc<Config>) -> Result<()> {
         //let now = std::time::Instant::now();
-        self.update_pids(config);
+        self.update_pids(config)?;
         //eprintln!("{}", now.elapsed().as_micros());
 
         // Make a buffer here so it doesn't have to allocated over and over again.
@@ -105,19 +103,21 @@ impl Processes {
 
         for val in self.processes.values_mut() {
             //let now = std::time::Instant::now();
-            val.update(&mut buffer, config);
+            val.update(&mut buffer, config)?;
             //eprintln!("{}", now.elapsed().as_nanos());
             buffer.clear();
         }
 
         // Wait here until cpuinfo is updated
-        barrier.wait();
+        // The barrier exists to reduce the sampling error
+        // It doens't actually result in any significant reduction
+        // Should probably be removed
+        //barrier.wait();
         if let Ok(cpu) = cpuinfo.read() {
             if config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
                 for val in self.processes.values_mut() {
-                        // process.work can be higher than total amount of work done for some reason.
-                        // For now just set the value to 100% usage.
-                        // If I figure out why it's like this maybe I can fix it later
+                        // process.work can be higher than cpu.totald because of sampling error.
+                        // If that is the case, set usage to 100%
                         if val.work > cpu.totald {
                             val.cpu_avg = 100.0 * cpu.cpu_count as f32;
                         } else {
@@ -126,7 +126,6 @@ impl Processes {
                 }
             } else {
                 for val in self.processes.values_mut() {
-                    // process.work can be higher than total amount of work done for some reason.
                     if val.work > cpu.totald {
                         val.cpu_avg = 100.0;
                     } else {
@@ -134,7 +133,11 @@ impl Processes {
                     }
                 }
             }
+        } else {
+            bail!("Cpuinfo lock is poisoned!");
         }
+
+        Ok(())
     }
 
     pub fn cpu_sort(&self) -> (usize, Vec::<(u32,&process::Process)>) {
@@ -233,40 +236,50 @@ impl Processes {
     }*/
 }
 
-pub fn start_thread(internal: Arc<RwLock<Processes>>, cpuinfo: Arc<RwLock<cpu::Cpuinfo>>, barrier: Arc<std::sync::Barrier>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
-    std::thread::spawn(move || 'outer: loop {
-        match internal.write() {
-            Ok(mut val) => {
-                //let now = std::time::Instant::now();
-                val.update(&cpuinfo, &config, &barrier);
-                //eprintln!("{}", now.elapsed().as_micros());
-            },
-            Err(_) => break,
-        };
-        match tx.send(8) {
-            Ok(_) => (),
-            Err(_) => break,
-        };
-
+pub fn start_thread(internal: Arc<RwLock<Processes>>, cpuinfo: Arc<RwLock<cpu::Cpuinfo>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
         let (lock, cvar) = &*exit;
-        if let Ok(mut exitvar) = lock.lock() {
-            loop {
-                if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                    exitvar = result.0;
+        'outer: loop {
+            match internal.write() {
+                Ok(mut val) => {
+                    if let Err(err) = val.update(&cpuinfo, &config) {
+                        let mut errvec = error.lock().expect("Error lock couldn't be aquired!");
+                        errvec.push(err);
 
-                    if *exitvar == true {
-                        break 'outer;
-                    }
+                        match tx.send(99) {
+                            Ok(_) => (),
+                            Err(_) => break,
+                        }
 
-                    if result.1.timed_out() == true {
                         break;
                     }
-                } else {
-                    break 'outer;
-                }
+                },
+                Err(_) => break,
             }
-        } else {
-            break;
+            match tx.send(8) {
+                Ok(_) => (),
+                Err(_) => break,
+            }
+
+            if let Ok(mut exitvar) = lock.lock() {
+                loop {
+                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                        exitvar = result.0;
+
+                        if *exitvar == true {
+                            break 'outer;
+                        }
+
+                        if result.1.timed_out() == true {
+                            break;
+                        }
+                    } else {
+                        break 'outer;
+                    }
+                }
+            } else {
+                break;
+            }
         }
     })
 }

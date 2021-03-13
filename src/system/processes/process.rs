@@ -1,4 +1,5 @@
 use super::Config;
+use anyhow::{anyhow, Context, Result};
 use std::sync::Arc;
 use std::io::prelude::*;
 
@@ -51,30 +52,60 @@ impl Process {
         }
     }*/
 
-    pub fn update(&mut self, buffer: &mut String, config: &Arc<Config>) {
+    pub fn update(&mut self, buffer: &mut String, config: &Arc<Config>) -> Result<()> {
         if let Ok(mut file) = std::fs::File::open(&self.stat_file) {
-            file.read_to_string(buffer).unwrap_or_default();
+            file.read_to_string(buffer)?;
 
             if self.executable.is_empty() {
                 self.not_executable = true;
-                self.executable = buffer[buffer.find("(").unwrap_or_default()..buffer.find(")").unwrap_or_default()+1].to_string();
+                self.executable =
+                    buffer[
+                        buffer.find("(")
+                        .ok_or(
+                            anyhow!("Can't find '('")
+                            .context("Can't parse /proc/[pid]/stat"))?
+                        ..buffer.find(")")
+                        .ok_or(
+                            anyhow!("Can't find ')'")
+                            .context("Can't parse /proc/[pid]/stat"))?+1
+                    ].to_string();
             }
 
             let old_total = self.utime + self.stime + self.cutime + self.cstime;
 
-            for (i, s) in buffer[buffer.find(")").unwrap_or_default()..buffer.len()].split_whitespace().enumerate() {
-                match i {
-                    //0 => self.state = s.to_string(),
-                    12 => self.utime = s.parse::<u64>().unwrap_or_else(|_| {  self.error = true; 0 }),
-                    13 => self.stime = s.parse::<u64>().unwrap_or_else(|_| {  self.error = true; 0 }),
-                    14 => self.cutime = s.parse::<u64>().unwrap_or_else(|_| {  self.error = true; 0 }),
-                    15 => self.cstime = s.parse::<u64>().unwrap_or_else(|_| {  self.error = true; 0 }),
-                    22 => self.rss = s.parse::<i64>().map_or(-1,|v| v * 4096),
-                    23 => break,
-                    //18 => self.num_threads = s.parse::<u32>().unwrap_or_else(|_| {  self.error = true; 0 }),
-                    _ => (),
-                }
-            }
+            let mut split = buffer[
+                    buffer.find(")")
+                    .ok_or(
+                        anyhow!("Can't find ')' in for loop")
+                        .context("Can't parse /proc/[pid]/stat"))?
+                    ..buffer.len()
+                ].split_whitespace();
+
+            self.utime = split.nth(11)
+                .ok_or(anyhow!("Can't parse 'utime' from /proc/[pid]/stat"))?
+                .parse::<u64>()
+                .context("Can't parse 'utime' from /proc/[pid]/stat")?;
+
+            self.stime = split.next()
+                .ok_or(anyhow!("Can't parse 'stime' from /proc/[pid]/stat"))?
+                .parse::<u64>()
+                .context("Can't parse 'stime' from /proc/[pid]/stat")?;
+
+            self.cutime = split.next()
+                .ok_or(anyhow!("Can't parse 'cutime' from /proc/[pid]/stat"))?
+                .parse::<u64>()
+                .context("Can't parse 'cutime' from /proc/[pid]/stat")?;
+
+            self.cstime = split.next()
+                .ok_or(anyhow!("Can't parse 'cstime' from /proc/[pid]/stat"))?
+                .parse::<u64>()
+                .context("Can't parse 'cstime' from /proc/[pid]/stat")?;
+
+            self.rss = split.nth(7)
+                .ok_or(anyhow!("Can't parse 'rss' from /proc/[pid]/stat"))?
+                .parse::<i64>()
+                .context("Can't parse 'rss' from /proc/[pid]/stat")?
+                * 4096;
 
             if !self.error {
                 let total = self.utime + self.stime + self.cutime + self.cstime;
@@ -86,95 +117,39 @@ impl Process {
                     total - old_total
                 };
 
-                /*if let Ok(val) = cpuinfo.read() {
-                    if config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
-                        // This is a fix for sampling timing errors between "work" and "totald"
-                        if work > val.totald {
-                            self.cpu_avg = 100.0 * val.cpu_count as f32;
-                        } else {
-                            self.cpu_avg = (work as f32 / val.totald as f32) * 100.0 *  val.cpu_count as f32;
-                        }
-                    } else {
-                        // This is a fix for sampling timing errors between "work" and "totald"
-                        if work > val.totald {
-                            self.cpu_avg = 100.0;
-                        } else {
-                            self.cpu_avg = (work as f32 / val.totald as f32) * 100.0;
-                        }
-                    }
-                }*/
             } else {
                 self.cpu_avg = -1.0;
             }
 
             if config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
-                self.update_smaps();
-            } /*else {
-                buffer.clear();
-                self.update_rss(buffer);
-            }*/
+                self.update_smaps()?;
+            }
 
             //self.update_tasks();
         } else {
             self.alive = false;
         }
+
+        Ok(())
     }
 
-    /*pub fn update_cpu_usage(&mut self, cpuinfo: &Arc<RwLock<cpu::Cpuinfo>>, config: &Arc<Config>) {
-        if let Ok(val) = cpuinfo.read() {
-            if config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
-                // This is a fix for sampling timing errors between "work" and "totald"
-                if self.work > val.totald {
-                    self.cpu_avg = 100.0 * val.cpu_count as f32;
-                } else {
-                    self.cpu_avg = (self.work as f32 / val.totald as f32) * 100.0 *  val.cpu_count as f32;
-                }
-            } else {
-                // This is a fix for sampling timing errors between "work" and "totald"
-                if self.work > val.totald {
-                    self.cpu_avg = 100.0;
-                } else {
-                    self.cpu_avg = (self.work as f32 / val.totald as f32) * 100.0;
-                }
-            }
-        }
-    }*/
-
-    pub fn update_smaps(&mut self) {
+    pub fn update_smaps(&mut self) -> Result<()> {
         if let Ok(smaps) = std::fs::read_to_string(format!("/proc/{}/smaps_rollup", self.pid)) {
-            // RSS
-            /*if let Some(line) = smaps.lines().nth(1) {
-                if let Some(val) = line.split_whitespace().nth(1) {
-                    self.rss = val.parse::<i64>().map_or(-1,|v| v * 1024);
-                }
-            }*/
+            self.pss = smaps.lines()
+                .nth(2)
+                .ok_or(anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
+                .split_whitespace()
+                .nth(1)
+                .ok_or(anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
+                .parse::<i64>()
+                .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup")?
+                * 1024;
 
-            // PSS
-            if let Some(line) = smaps.lines().nth(2) {
-                if let Some(val) = line.split_whitespace().nth(1) {
-                    self.pss = val.parse::<i64>().map_or(-1,|v| v * 1024);
-                }
-            }
         } else {
             //self.rss = -1;
             self.pss = -1;
         }
-    }
 
-    /*pub fn update_rss(&mut self, buffer: &mut String) {
-        if let Ok(mut file) = std::fs::File::open(&self.statm_file) {
-            file.read_to_string(buffer).unwrap();
-        //if let Ok(rss) = std::fs::read_to_string(format!("/proc/{}/status", self.pid)) {
-            /*if let Some(line) = buffer.lines().nth(0) {
-                self.name = line.split(':').nth(1).unwrap_or("").trim_start().to_string();
-            }*/
-            if let Some(val) = buffer.split_whitespace().nth(1) {
-                //if let Some(val) = line.split_whitespace().nth(1) {
-                    self.rss = val.parse::<i64>().map_or(-1,|v| v * 4096);
-                //}
-            }
-        } else {
-            self.rss = -1;
-        }
-    }*/
+        Ok(())
+    }
 }

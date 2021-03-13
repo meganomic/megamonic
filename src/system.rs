@@ -58,6 +58,32 @@ impl System {
         // They will drift around but it shouldn't matter.
         //let stagger = std::time::Duration::from_millis(250);
 
+        // Read /proc/stat
+        //thread::sleep(stagger);  // Stagger the threads
+        self.threads.push(
+            cpu::start_thread(
+                Arc::clone(&self.cpuinfo),
+                 mtx.clone(),
+                Arc::clone(&self.exit),
+                Arc::clone(&self.error),
+                sleepy
+            )
+        );
+
+        // Processes
+        //thread::sleep(stagger);  // Stagger the threads
+        self.threads.push(
+            processes::start_thread(
+                Arc::clone(&self.processinfo),
+                Arc::clone(&self.cpuinfo),
+                Arc::clone(&self.config),
+                mtx.clone(),
+                Arc::clone(&self.exit),
+                Arc::clone(&self.error),
+                sleepy
+            )
+        );
+
         // Time loop
         self.threads.push(
             time::start_thread(
@@ -83,20 +109,6 @@ impl System {
         self.threads.push(
             loadavg::start_thread(
                 Arc::clone(&self.loadavg),
-                mtx.clone(),
-                Arc::clone(&self.exit),
-                Arc::clone(&self.error),
-                sleepy
-            )
-        );
-
-        // Read /proc/stat
-        let cpu_barrier = Arc::new(std::sync::Barrier::new(2));
-        //thread::sleep(stagger);  // Stagger the threads
-        self.threads.push(
-            cpu::start_thread(
-                Arc::clone(&self.cpuinfo),
-                Arc::clone(&cpu_barrier),
                 mtx.clone(),
                 Arc::clone(&self.exit),
                 Arc::clone(&self.error),
@@ -147,20 +159,6 @@ impl System {
                 mtx.clone(),
                 Arc::clone(&self.exit),
                 Arc::clone(&self.error),
-                sleepy
-            )
-        );
-
-        // Processes
-        //thread::sleep(stagger);  // Stagger the threads
-        self.threads.push(
-            processes::start_thread(
-                Arc::clone(&self.processinfo),
-                Arc::clone(&self.cpuinfo),
-                Arc::clone(&cpu_barrier),
-                Arc::clone(&self.config),
-                mtx.clone(),
-                Arc::clone(&self.exit),
                 sleepy
             )
         );
