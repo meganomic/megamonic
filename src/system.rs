@@ -27,17 +27,17 @@ pub struct Config {
 pub struct System {
     // Info gathering structs
     pub cpuinfo: Arc<RwLock<cpu::Cpuinfo>>,
-    pub loadavg: Arc<RwLock<loadavg::Loadavg>>,
-    pub memoryinfo: Arc<RwLock<memory::Memory>>,
-    pub swapinfo: Arc<RwLock<swap::Swap>>,
-    pub sensorinfo: Arc<RwLock<sensors::Sensors>>,
-    pub networkinfo: Arc<RwLock<network::Network>>,
+    pub loadavg: Arc<Mutex<loadavg::Loadavg>>,
+    pub memoryinfo: Arc<Mutex<memory::Memory>>,
+    pub swapinfo: Arc<Mutex<swap::Swap>>,
+    pub sensorinfo: Arc<Mutex<sensors::Sensors>>,
+    pub networkinfo: Arc<Mutex<network::Network>>,
     pub processinfo: Arc<RwLock<processes::Processes>>,
-    pub gpuinfo: Arc<RwLock<gpu::Gpu>>,
+    pub gpuinfo: Arc<Mutex<gpu::Gpu>>,
     pub hostinfo: hostinfo::Hostinfo,
 
     pub time: Arc<RwLock<time::Time>>,
-    pub events: Arc<RwLock<events::Events>>,
+    pub events: Arc<Mutex<events::Events>>,
 
     pub exit: Arc<(Mutex<bool>, Condvar)>,
 

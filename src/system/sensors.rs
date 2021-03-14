@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock, mpsc};
+use std::sync::{Arc, Mutex, mpsc};
 
 pub struct Sensors {
     pub chips: std::collections::BTreeMap<String, u8>,
@@ -43,9 +43,9 @@ impl Sensors {
     }
 }
 
-pub fn start_thread(internal: Arc<RwLock<Sensors>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+pub fn start_thread(internal: Arc<Mutex<Sensors>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || 'outer: loop {
-        match internal.write() {
+        match internal.lock() {
             Ok(mut val) => {
                 val.update();
             },

@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock, mpsc, atomic};
+use std::sync::{Arc, Mutex, mpsc, atomic};
 use super::Config;
 use crossterm::event::{read, poll, Event, KeyCode, KeyModifiers};
 
@@ -8,7 +8,7 @@ pub struct Events {
     pub tsizey: u16,
 }
 
-pub fn start_thread(internal: Arc<RwLock<Events>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
+pub fn start_thread(internal: Arc<Mutex<Events>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || loop {
         if let Ok(polling) = poll(std::time::Duration::from_millis(100)) {
             if polling {
@@ -67,7 +67,7 @@ pub fn start_thread(internal: Arc<RwLock<Events>>, config: Arc<Config>, tx: mpsc
                             }
                         },
                         Event::Resize(width, height) => {
-                            if let Ok(mut val) = internal.write() {
+                            if let Ok(mut val) = internal.lock() {
                                 val.tsizex = width;
                                 val.tsizey = height;
                             }

@@ -358,7 +358,7 @@ fn main() -> Result<()> {
             },
             // resize
             105 => {
-                if let Ok(val) = system.events.read() {
+                if let Ok(val) = system.events.lock() {
                     cache.tsizex = val.tsizex;
                     cache.tsizey = val.tsizey;
                 }

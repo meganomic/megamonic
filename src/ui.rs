@@ -371,7 +371,7 @@ macro_rules! draw_loadavg {
             $cache.load_title = true;
         }
        // Load Average ~3000 -> ~2660 -> ~1570
-        if let Ok(loadavg) = $system.loadavg.read() {
+        if let Ok(loadavg) = $system.loadavg.lock() {
             if $cache.load1.is_empty() {
                 $cache.load1 = format!(
                     "{}\x1b[0K\x1b[37m1 min:  \x1b[91m[ \x1b[92m",
@@ -425,7 +425,7 @@ macro_rules! draw_memory {
             )?;
             $cache.memory_title = true;
         }
-        if let Ok(val) = $system.memoryinfo.read() {
+        if let Ok(val) = $system.memoryinfo.lock() {
             if $cache.memory1.is_empty() {
                 $cache.memory1.push_str(format!(
                     "{}                    {}\x1b[37mTotal: \x1b[38;5;244m[ \x1b[37m",
@@ -480,7 +480,7 @@ macro_rules! draw_swap {
             $cache.swap_title = true;
         }
 
-        if let Ok(val) = $system.swapinfo.read() {
+        if let Ok(val) = $system.swapinfo.lock() {
             if $cache.swap1.is_empty() {
                 $cache.swap1.push_str(format!(
                     "{}                  {}\x1b[37mTotal: \x1b[38;5;244m[ \x1b[37m",
@@ -548,7 +548,7 @@ macro_rules! draw_sensors {
         }
 
         let mut count = 0;
-        if let Ok(sensorinfo) = $system.sensorinfo.read() {
+        if let Ok(sensorinfo) = $system.sensorinfo.lock() {
             for (idx, (key, val)) in sensorinfo.chips.iter().enumerate() {
                 if (y + 1 + idx as u16) < (y + 8) {
                     if $cache.sensors.len() <= idx {
@@ -594,7 +594,7 @@ macro_rules! draw_network {
             $cache.network_title = true;
         }
 
-        if let Ok(networkinfo) = $system.networkinfo.read() {
+        if let Ok(networkinfo) = $system.networkinfo.lock() {
             let freq = $system.config.frequency.load(atomic::Ordering::Relaxed);
             let mut count = 0;
 
@@ -859,7 +859,7 @@ macro_rules! draw_overview {
 
 
 
-        if let Ok(memoryinfo) = $system.memoryinfo.read() {
+        if let Ok(memoryinfo) = $system.memoryinfo.lock() {
             let mem_use = (memoryinfo.used as f32 / memoryinfo.total as f32) * 100.0;
 
             if mem_use < 100.0 {
@@ -876,7 +876,7 @@ macro_rules! draw_overview {
         }
 
 
-        if let Ok(swapinfo) = $system.swapinfo.read() {
+        if let Ok(swapinfo) = $system.swapinfo.lock() {
             let swap_use = (swapinfo.used as f32 / swapinfo.total as f32) * 100.0;
 
             if swap_use < 100.0{
@@ -907,7 +907,7 @@ macro_rules! draw_gpu {
             $cache.gpu_title = true;
         }
 
-        if let Ok(val) = $system.gpuinfo.read() {
+        if let Ok(val) = $system.gpuinfo.lock() {
             if $cache.gpu1.is_empty() {
                 $cache.gpu1.push_str(format!(
                 "{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[37mTemp:         \x1b[91m[ \x1b[92m",

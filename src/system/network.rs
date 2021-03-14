@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use std::sync::{Arc, RwLock, Mutex, mpsc};
+use std::sync::{Arc, Mutex, mpsc};
 
 #[derive(Default)]
 pub struct Bandwidth {
@@ -56,11 +56,11 @@ impl Network {
     }
 }
 
-pub fn start_thread(internal: Arc<RwLock<Network>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+pub fn start_thread(internal: Arc<Mutex<Network>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
         let (lock, cvar) = &*exit;
         'outer: loop {
-            match internal.write() {
+            match internal.lock() {
                 Ok(mut val) => {
                     if let Err(err) = val.update() {
                         let mut errvec = error.lock().expect("Error lock couldn't be aquired!");
