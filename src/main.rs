@@ -1,9 +1,11 @@
 use crossterm::{
-    cursor, terminal, Result, execute, queue,
+    cursor, terminal, execute, queue,
     style::{Print, SetColors},
 };
 
 use std::io::{stdout, Write};
+
+use anyhow::Result;
 
 use std::sync::atomic;
 mod system;
@@ -14,32 +16,17 @@ mod ui;
 static mut _CUMULATIVE_BENCHMARK: u128 = 0;
 static mut _CUMULATIVE_COUNT: u128 = 0;
 
-fn draw_full_ui(stdout: &mut std::io::StdoutLock, system: &system::System, cache: &mut ui::CachedCursor) -> Result<()> {
-    cache.clear();
+/*fn draw_full_ui(stdout: &mut std::io::StdoutLock, system: &system::System, cache: &mut ui::CachedCursor) -> Result<()> {
+    //cache.clear();
 
-    queue!(stdout, terminal::Clear(terminal::ClearType::All))?;
+    //queue!(stdout, terminal::Clear(terminal::ClearType::All))?;
 
-    if cache.tsizex > 14 && cache.tsizey > 4 {
-        draw_overview!(stdout, system, 0, 0, cache);
-    }
 
-    if cache.tsizex > 34 && cache.tsizey > 4  {
-        draw_memory!(stdout, system, 17, 0, cache);
-    }
-
-    if cache.tsizex > 54 && cache.tsizey > 4  {
-        draw_swap!(stdout, system, 37, 0, cache);
-    }
-
-    if cache.tsizex > 72 && cache.tsizey > 4  {
-        draw_loadavg!(stdout, system, 57, 0, cache);
-    }
-
-    if cache.tsizex > 50 && cache.tsizey > 8 {
+    /*if cache.tsizex > 50 && cache.tsizey > 8 {
         draw_processes!(stdout, system, 26, 5, cache);
-    }
+    }*/
 
-    if cache.tsizex > 23  && cache.tsizey > (cache.network_size + 4) as u16 {
+    /*if cache.tsizex > 23  && cache.tsizey > (cache.network_size + 4) as u16 {
         draw_network!(stdout, system, 0, 5, cache);
     }
 
@@ -49,17 +36,7 @@ fn draw_full_ui(stdout: &mut std::io::StdoutLock, system: &system::System, cache
 
     if cache.tsizex > 22 && cache.tsizey > (cache.network_size + cache.sensors_size + 10) as u16 {
         draw_gpu!(stdout, system, 0, 21, cache);
-    }
-
-    if let Ok(timeinfo) = system.time.read() {
-        if cache.tsizex > timeinfo.time_string.len() as u16 {
-            draw_time!(stdout, system, cache);
-        }
-
-        if cache.tsizex > (timeinfo.time_string.len() + system.hostinfo.distname.len() + system.hostinfo.kernel.len()) as u16 + 9 {
-            draw_hostinfo!(stdout, system, cache);
-        }
-    }
+    }*/
 
     if system.config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
         queue!(stdout,
@@ -100,7 +77,7 @@ fn draw_full_ui(stdout: &mut std::io::StdoutLock, system: &system::System, cache
     stdout.flush()?;
 
     Ok(())
-}
+}*/
 
 fn main() -> Result<()> {
     let options = clap::App::new("Megamonic")
@@ -156,9 +133,6 @@ fn main() -> Result<()> {
         ..Default::default()
     };
 
-    // Size of the terminal window
-    let (tsizex, tsizey) = terminal::size()?;
-
     // Event channel
     let (tx, rx) = std::sync::mpsc::channel();
 
@@ -176,129 +150,32 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // UI cache
-    let mut cache = ui::CachedCursor { tsizex, tsizey, ..Default::default() };
+    let mut ui = ui::Ui::new(&system);
 
-    // Used to pause the UI
-    let mut paused = false;
-
-    // Disable all hotkeys and stuff. ctrl+c wont work.
+    // Disable all hotkeys and stuff.
     terminal::enable_raw_mode()?;
 
     // Setup the terminal screen
     execute!(
         stdout,
         terminal::EnterAlternateScreen,
+        terminal::Clear(terminal::ClearType::All),
         terminal::DisableLineWrap,
         cursor::Hide,
     )?;
 
-    draw_full_ui(&mut stdout, &system, &mut cache)?;
+    ui.rebuild()?;
 
     // Main loop
     for event in rx.iter() {
         match event {
-            // Time
-            1 => {
-                if !paused {
-                    if let Ok(timeinfo) = system.time.read() {
-                        if cache.tsizex > timeinfo.time_string.len() as u16 {
-                            draw_time!(stdout, &system, cache);
-                        }
-                    }
-                }
-            },
-            // Loadavg
-            2 => {
-                if !paused {
-                    if cache.tsizex > 72 && cache.tsizey > 4  {
-                        draw_loadavg!(stdout, &system, 57, 0, cache);
-                    }
-                }
-            },
-            // CPU stats
-            3 => {
-                if !paused {
-                    if cache.tsizex > 14 && cache.tsizey > 4 {
-                        draw_overview!(stdout, &system, 0, 0, cache);
-                    }
-                }
-            },
-            // Memory
-            4 => {
-                if !paused {
-                    if cache.tsizex > 34 && cache.tsizey > 4  {
-                        draw_memory!(stdout, &system, 17, 0, cache);
-                    }
-                }
-            },
-            // Swap
-            5 => {
-                if !paused {
-                    if cache.tsizex > 54 && cache.tsizey > 4  {
-                        draw_swap!(stdout, &system, 37, 0, cache);
-                    }
-                }
-            },
-            // Sensors
-            6 => {
-                if !paused {
-                    if cache.tsizex > 22 && cache.tsizey > (cache.network_size + cache.sensors_size + 4) as u16 {
-                        //let now = std::time::Instant::now();
-                        draw_sensors!(stdout, &system, 0, 11, cache);
-                        //_draw_benchmark!(stdout, now, tsizex, tsizey);
-                    }
-                }
-            },
-            // Network
-            7 => {
-                if !paused {
-                    if cache.tsizex > 23  && cache.tsizey > (cache.network_size + 4) as u16 {
-                        let old_size = cache.network_size;
-                        draw_network!(stdout, &system, 0, 5, cache);
+            // Update UI element
+            1..=13 => ui.update(event)?,
 
-                        // Redraw full UI if network adapters are added/removed.
-                        if old_size != cache.network_size {
-                            draw_full_ui(&mut stdout, &system, &mut cache)?;
-                        }
-                    }
-                }
-            },
-            // Processes
-            8 => {
-                if !paused {
-                    if cache.tsizex > 50 && cache.tsizey > 8 {
-                        draw_processes!(stdout, &system, 26, 5, cache);
-                    }
-                }
-            },
-            // GPU
-            9 => {
-                if !paused {
-                    if cache.tsizex > 22 && cache.tsizey > (cache.network_size + cache.sensors_size + 10) as u16 {
-                        draw_gpu!(stdout, &system, 0, 21, cache);
-                    }
-                }
-            },
-            // Distribution + kernel info
-            10 => {
-                if !paused {
-                    if let Ok(timeinfo) = system.time.read() {
-                        if cache.tsizex > (timeinfo.time_string.len() + system.hostinfo.distname.len() + system.hostinfo.kernel.len()) as u16 + 9 {
-                            draw_hostinfo!(stdout, &system, cache);
-                        }
-                    }
-                }
-            },
+            // This is a error event incase one of the threads break.
             99 => {
                 system.stop();
-                execute!(
-                    stdout,
-                    terminal::Clear(terminal::ClearType::All),
-                    cursor::MoveTo(cache.tsizex / 2 - 16, cache.tsizey / 2 - 1),
-                    Print("Stopping monitoring threads...")
-                )?;
-                execute!(stdout, terminal::LeaveAlternateScreen, terminal::EnableLineWrap, cursor::Show)?;
+                execute!(stdout, terminal::Clear(terminal::ClearType::All), terminal::LeaveAlternateScreen, terminal::EnableLineWrap, cursor::Show)?;
                 terminal::disable_raw_mode()?;
                 for err in system.error.lock().unwrap().iter() {
                     eprintln!("{:?}", err);
@@ -306,68 +183,22 @@ fn main() -> Result<()> {
 
                 return Ok(());
             },
+
             // Pause
-            101 => {
-                if paused {
-                    paused = false;
-                } else {
-                    paused = true;
-                }
-            },
-            // topmode
-            102 => {
-                if system.config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
-                    queue!(stdout,
-                        cursor::MoveTo(36, 5),
-                        Print("\x1b[38;5;244mt\x1b[0m")
-                    )?;
-                } else {
-                    queue!(stdout,
-                        cursor::MoveTo(36, 5),
-                        Print(" ")
-                    )?;
-                }
-            },
-            // smaps
-            103 => {
-                if system.config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
-                    queue!(stdout,
-                        cursor::MoveTo(37, 5),
-                        Print("\x1b[38;5;244ms\x1b[0m")
-                    )?;
-                } else {
-                    queue!(stdout,
-                        cursor::MoveTo(37, 5),
-                        Print(" ")
-                    )?;
-                }
-            },
-            // all_processes
-            104 => {
-                if system.config.all.load(std::sync::atomic::Ordering::Relaxed) {
-                    queue!(stdout,
-                        cursor::MoveTo(38, 5),
-                        Print("\x1b[38;5;244ma\x1b[0m")
-                    )?;
-                } else {
-                    queue!(stdout,
-                        cursor::MoveTo(38, 5),
-                        Print(" ")
-                    )?;
-                }
-            },
+            101 => ui.toggle_pause(),
+
             // resize
             105 => {
                 if let Ok(val) = system.events.lock() {
-                    cache.tsizex = val.tsizex;
-                    cache.tsizey = val.tsizey;
+                    ui.terminal_size.x = val.tsizex;
+                    ui.terminal_size.y = val.tsizey;
                 }
 
-                draw_full_ui(&mut stdout, &system, &mut cache)?;
+                ui.rebuild()?;
             },
 
-            // Redraw UI if user pressed r
-            106 => draw_full_ui(&mut stdout, &system, &mut cache)?,
+            // Rebuild UI if user pressed r
+            106 => ui.rebuild()?,
 
             // Exit - Someone pressed Q or ctrl+c
             255 => break,
@@ -377,14 +208,13 @@ fn main() -> Result<()> {
         }
 
         stdout.flush()?;
-        //_draw_benchmark!(stdout, now, tsizex, tsizey);
     }
 
     // Stop monitoring threads
     system.stop();
 
     // Reset terminal
-    execute!(stdout, terminal::LeaveAlternateScreen, terminal::EnableLineWrap, cursor::Show)?;
+    execute!(stdout, terminal::Clear(terminal::ClearType::All), terminal::LeaveAlternateScreen, terminal::EnableLineWrap, cursor::Show)?;
 
     terminal::disable_raw_mode()?;
 

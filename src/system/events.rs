@@ -33,7 +33,7 @@ pub fn start_thread(internal: Arc<Mutex<Events>>, config: Arc<Config>, tx: mpsc:
                                     config.topmode.store(true, atomic::Ordering::Release);
                                 }
 
-                                match tx.send(102) {
+                                match tx.send(10) {
                                     Ok(_) => (),
                                     Err(_) => break,
                                 };
@@ -44,7 +44,7 @@ pub fn start_thread(internal: Arc<Mutex<Events>>, config: Arc<Config>, tx: mpsc:
                                     config.smaps.store(true, atomic::Ordering::Release);
                                 }
 
-                                match tx.send(103) {
+                                match tx.send(11) {
                                     Ok(_) => (),
                                     Err(_) => break,
                                 };
@@ -55,7 +55,7 @@ pub fn start_thread(internal: Arc<Mutex<Events>>, config: Arc<Config>, tx: mpsc:
                                     config.all.store(true, atomic::Ordering::Release);
                                 }
 
-                                match tx.send(104) {
+                                match tx.send(12) {
                                     Ok(_) => (),
                                     Err(_) => break,
                                 };

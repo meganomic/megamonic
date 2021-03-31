@@ -10,7 +10,7 @@ mod network;
 mod processes;
 mod gpu;
 mod hostinfo;
-mod time;
+pub mod time;
 mod events;
 
 // Holds all the commandline options.
@@ -88,7 +88,6 @@ impl System {
         self.threads.push(
             time::start_thread(
                 Arc::clone(&self.time),
-                Arc::clone(&self.config),
                 mtx.clone(),
                 Arc::clone(&self.exit)
             )

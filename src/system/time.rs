@@ -1,16 +1,12 @@
 use std::sync::{Arc, RwLock, mpsc};
-use super::Config;
 
 #[derive(Default)]
 pub struct Time {
-    pub time_string: String,
+    pub time: u64,
 }
 
-pub fn start_thread(internal: Arc<RwLock<Time>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
+pub fn start_thread(internal: Arc<RwLock<Time>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
-        // Set locale to whatever the environment is
-        libc_strftime::set_locale();
-
         // Override frequency setting. We always want to update the time
         let sleepy = std::time::Duration::from_millis(1000);
 
@@ -24,7 +20,7 @@ pub fn start_thread(internal: Arc<RwLock<Time>>, config: Arc<Config>, tx: mpsc::
 
             match internal.write() {
                 Ok(mut val) => {
-                    val.time_string = libc_strftime::strftime_local(config.strftime_format.as_str(), current_time.as_secs() as i64);
+                    val.time = current_time.as_secs();
                 },
                 Err(_) => break,
             }
