@@ -58,7 +58,6 @@ impl <'a> Overview <'a> {
     }
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-
         if let Ok(cpuinfo) = self.system.cpuinfo.read() {
             if cpuinfo.cpu_avg < 100.0 {
                 unsafe {
@@ -75,11 +74,6 @@ impl <'a> Overview <'a> {
                     )?;
                 }
             }
-
-            queue!(stdout,
-                //cursor::MoveTo(40, 5),
-                Print(&format!("\x1b[6;41H               \x1b[6;41H\x1b[38;5;244m{}\x1b[0m", &cpuinfo.governor))
-            )?;
         }
 
         if let Ok(memoryinfo) = self.system.memoryinfo.lock() {

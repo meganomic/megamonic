@@ -95,6 +95,7 @@ impl <'ui> Ui <'ui> {
             stdout: std::io::stdout(),
             system,
             terminal_size: XY { x: tsizex, y: tsizey },
+
             time: Time::new(system, XY { x: 0, y: tsizey }),
             overview: Overview::new(system, XY { x: 0, y: 0 }),
             memory: Memory::new(system, XY { x: 17, y: 0 }),
@@ -163,6 +164,15 @@ impl <'ui> Ui <'ui> {
                     if self.terminal_size.x > (self.overview.size.x + self.overview.pos.x) && self.terminal_size.y > (self.overview.size.y + self.overview.pos.y) {
                         self.overview.draw(&mut self.stdout)?;
                     }
+
+                    if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
+                        if let Ok(cpuinfo) = self.system.cpuinfo.read() {
+                            queue!(self.stdout,
+                                //cursor::MoveTo(40, 5),
+                                Print(&format!("\x1b[6;41H\x1b[0K\x1b[38;5;244m{}\x1b[0m", &cpuinfo.governor))
+                            )?;
+                        }
+                    }
                 },
 
                 // Memory
@@ -203,7 +213,7 @@ impl <'ui> Ui <'ui> {
                 // Process list
                 8 => {
                     //let now = std::time::Instant::now();
-                    if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 4) {
+                    if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
                         self.processes.draw(&mut self.stdout, &self.terminal_size)?;
                     }
                     //eprintln!("{}", now.elapsed().as_micros());
@@ -218,13 +228,25 @@ impl <'ui> Ui <'ui> {
                 },
 
                 // Topmode
-                10 => self.toggle_topmode()?,
+                10 => {
+                    if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
+                        self.toggle_topmode()?;
+                    }
+                },
 
                 // smaps
-                11 => self.toggle_smaps()?,
+                11 => {
+                    if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
+                        self.toggle_smaps()?;
+                    }
+                },
 
                 // all_processes
-                12 => self.toggle_all_processes()?,
+                12 => {
+                    if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
+                        self.toggle_all_processes()?;
+                    }
+                },
 
                 _ => (),
             }
