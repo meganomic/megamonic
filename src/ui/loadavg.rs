@@ -59,26 +59,20 @@ impl <'a> Loadavg <'a> {
             let len = loadavg.min1.len().max(loadavg.min5.len().max(loadavg.min15.len()));
             self.size.x = len as u16 + 12;
 
-
-                unsafe {
-                    queue!(
-                        stdout,
-                        Print(&self.cache.get_unchecked(0)),
-
-                        Print(&format!("{:>pad$}", &loadavg.min1, pad=len)),
-
-                        Print(&self.cache.get_unchecked(1)),
-
-                        Print(&format!("{:>pad$}", &loadavg.min5, pad=len)),
-
-                        Print(&self.cache.get_unchecked(2)),
-
-                        Print(&format!("{:>pad$}", &loadavg.min15, pad=len)),
-                        Print("\x1b[91m ]\x1b[0m")
-                    )?;
-                }
-
+            unsafe {
+                queue!(
+                    stdout,
+                    Print(&self.cache.get_unchecked(0)),
+                    Print(&format!("{:>pad$}", &loadavg.min1, pad=len)),
+                    Print(&self.cache.get_unchecked(1)),
+                    Print(&format!("{:>pad$}", &loadavg.min5, pad=len)),
+                    Print(&self.cache.get_unchecked(2)),
+                    Print(&format!("{:>pad$}", &loadavg.min15, pad=len)),
+                    Print("\x1b[91m ]\x1b[0m")
+                )?;
+            }
         }
+
         Ok(())
     }
 }

@@ -29,7 +29,7 @@ impl <'a> Memory <'a> {
         }
     }
 
-    pub fn update_cache (&mut self) {
+    pub fn rebuild_cache (&mut self) {
         unsafe {
             let cache1 = self.cache.get_unchecked_mut(0);
             cache1.clear();
@@ -59,23 +59,18 @@ impl <'a> Memory <'a> {
     }
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-
-            if let Ok(val) = self.system.memoryinfo.lock() {
-                unsafe {
-                    queue!(
-                        stdout,
-                        Print(&self.cache.get_unchecked(0)),
-                        Print(&convert_with_padding(val.total, 4)),
-
-                        Print(&self.cache.get_unchecked(1)),
-                        Print(&convert_with_padding(val.used, 4)),
-
-                        Print(&self.cache.get_unchecked(2)),
-                        Print(&convert_with_padding(val.free, 4)),
-                        Print("\x1b[38;5;244m ]\x1b[0m")
-                    )?;
-                }
+        if let Ok(val) = self.system.memoryinfo.lock() {
+            unsafe {
+                write!(stdout, "{}{}{}{}{}{}\x1b[38;5;244m ]\x1b[0m",
+                    &self.cache.get_unchecked(0),
+                    &convert_with_padding(val.total, 4),
+                    &self.cache.get_unchecked(1),
+                    &convert_with_padding(val.used, 4),
+                    &self.cache.get_unchecked(2),
+                    &convert_with_padding(val.free, 4)
+                )?;
             }
+        }
 
         Ok(())
     }

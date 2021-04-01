@@ -29,11 +29,37 @@ impl <'a> Gpu <'a> {
         }
     }
 
-    pub fn update_cache(&mut self) {
+    pub fn rebuild_cache(&mut self) {
         self.cache1.clear();
         self.cache2.clear();
         self.cache3.clear();
         self.cache4.clear();
+
+        self.cache1.push_str(format!(
+        "{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[37mTemp:         \x1b[91m[ \x1b[92m",
+            cursor::MoveTo(self.pos.x+24, self.pos.y+1),
+            cursor::MoveTo(self.pos.x+24, self.pos.y+2),
+            cursor::MoveTo(self.pos.x+24, self.pos.y+3),
+            cursor::MoveTo(self.pos.x+24, self.pos.y+4),
+            cursor::MoveTo(self.pos.x, self.pos.y+1),
+        ).as_str());
+
+
+        self.cache2.push_str(format!(
+            " C\x1b[91m ]\x1b[0m{}\x1b[37mGpu load:     \x1b[91m[ \x1b[92m",
+            cursor::MoveTo(self.pos.x, self.pos.y+2),
+        ).as_str());
+
+        self.cache3.push_str(format!(
+            "%\x1b[91m ]\x1b[0m{}\x1b[37mMem load:     \x1b[91m[ \x1b[92m",
+            cursor::MoveTo(self.pos.x, self.pos.y+3),
+        ).as_str());
+
+        self.cache4.push_str(format!(
+            "%\x1b[91m ]\x1b[0m{}\x1b[37mMem use:      \x1b[91m[ \x1b[92m",
+            cursor::MoveTo(self.pos.x, self.pos.y+4),
+        ).as_str());
+
 
     }
 
@@ -41,74 +67,23 @@ impl <'a> Gpu <'a> {
         queue!(
             stdout,
             cursor::MoveTo(self.pos.x, self.pos.y),
-            Print("\x1b[95mGpu\x1b[0m")
+            Print("\x1b[95mGpu\x1b[0m"),
+            //Print(&self.cache1)
         )?;
 
         Ok(())
     }
 
+    // 2550 -> 2050
     pub fn draw(&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-        self.draw_static(stdout)?;
-
         if let Ok(val) = self.system.gpuinfo.lock() {
-            if self.cache1.is_empty() {
-                self.cache1.push_str(format!(
-                "{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[37mTemp:         \x1b[91m[ \x1b[92m",
-                    cursor::MoveTo(self.pos.x+24, self.pos.y+1),
-                    cursor::MoveTo(self.pos.x+24, self.pos.y+2),
-                    cursor::MoveTo(self.pos.x+24, self.pos.y+3),
-                    cursor::MoveTo(self.pos.x+24, self.pos.y+4),
-                    cursor::MoveTo(self.pos.x, self.pos.y+1),
-                ).as_str());
-            }
-
-            if self.cache2.is_empty() {
-                self.cache2.push_str(format!(
-                    " C\x1b[91m ]\x1b[0m{}\x1b[37mGpu load:     \x1b[91m[ \x1b[92m",
-                    cursor::MoveTo(self.pos.x, self.pos.y+2),
-                ).as_str());
-            }
-            if self.cache3.is_empty() {
-                self.cache3.push_str(format!(
-                    "%\x1b[91m ]\x1b[0m{}\x1b[37mMem load:     \x1b[91m[ \x1b[92m",
-                    cursor::MoveTo(self.pos.x, self.pos.y+3),
-                ).as_str());
-            }
-            if self.cache4.is_empty() {
-                self.cache4.push_str(format!(
-                    "%\x1b[91m ]\x1b[0m{}\x1b[37mMem use:      \x1b[91m[ \x1b[92m",
-                    cursor::MoveTo(self.pos.x, self.pos.y+4),
-                ).as_str());
-            }
-
-            queue!(
-                stdout,
-
-                Print(&self.cache1),
-
-                Print(&format!("{:>3}", val.temp)),
-                Print(&self.cache2),
-
-                Print(&format!("{:>4}", val.gpu_load)),
-                Print(&self.cache3),
-
-                Print(&format!("{:>4}", val.mem_load)),
-                Print(&self.cache4)
-            )?;
-
             if val.mem_used < 100.0 {
-                queue!(stdout,
-                    Print(&format!("{:>4.1}", val.mem_used)),
-                    Print("%\x1b[91m ]\x1b[0m")
-                )?;
-            } else if val.mem_used >= 100.0 {
-                queue!(stdout,
-                    Print(&format!("{:>4.0}", val.mem_used)),
-                    Print("%\x1b[91m ]\x1b[0m")
-                )?;
+                write!(stdout, "{}{:>3}{}{:>4}{}{:>4}{}{:>4.1}%\x1b[91m ]\x1b[0m", &self.cache1, val.temp, &self.cache2, val.gpu_load, &self.cache3, val.mem_load, &self.cache4, val.mem_used)?;
+            } else {
+                write!(stdout, "{}{:>3}{}{:>4}{}{:>4}{}{:>4.0}%\x1b[91m ]\x1b[0m", &self.cache1, val.temp, &self.cache2, val.gpu_load, &self.cache3, val.mem_load, &self.cache4, val.mem_used)?;
             }
+        }
 
-}
         Ok(())
     }
 }

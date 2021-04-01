@@ -38,7 +38,7 @@ static mut _CUMULATIVE_COUNT: u128 = 0;
 macro_rules! _draw_benchmark {
     ($stdout:expr, $now:expr, $x:expr, $y:expr) => {
         // update benchmark
-        let shoe = $now.elapsed().as_micros();
+        let shoe = $now.elapsed().as_nanos();
         unsafe {
         _CUMULATIVE_BENCHMARK += shoe;
         _CUMULATIVE_COUNT += 1;
@@ -125,7 +125,7 @@ impl <'ui> Ui <'ui> {
 
         self.loadavg.update_cache();
         self.overview.update_cache();
-        self.memory.update_cache();
+        self.memory.rebuild_cache();
         self.swap.update_cache();
         self.processes.rebuild_cache(&self.terminal_size);
 
@@ -135,9 +135,11 @@ impl <'ui> Ui <'ui> {
 
         self.sensors.pos.y = self.network.size.y + self.network.pos.y;
         self.sensors.update_cache();
+        self.sensors.draw_static(&mut self.stdout)?;
 
         self.gpu.pos.y = self.sensors.pos.y + self.sensors.size.y;
-        self.gpu.update_cache();
+        self.gpu.rebuild_cache();
+        self.gpu.draw_static(&mut self.stdout)?;
 
         Ok(())
     }
@@ -205,7 +207,7 @@ impl <'ui> Ui <'ui> {
 
                         // If network size changes rebuild the UI
                         if sy != self.network.size.y {
-                            self.rebuild();
+                            self.rebuild()?;
                         }
                     }
                 },
@@ -223,7 +225,10 @@ impl <'ui> Ui <'ui> {
                 // Gpu
                 9 => {
                     if self.terminal_size.x > (self.gpu.pos.x + self.gpu.size.x) && self.terminal_size.y > (self.gpu.pos.y + self.gpu.size.y)  {
+                        //let now = std::time::Instant::now();
                         self.gpu.draw(&mut self.stdout)?;
+                        //eprintln!("{}", now.elapsed().as_nanos());
+                        //_draw_benchmark!(self.stdout, now, self.terminal_size.x, self.terminal_size.y);
                     }
                 },
 

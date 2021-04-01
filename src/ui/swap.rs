@@ -12,6 +12,12 @@ pub struct Swap <'a> {
     pub size: XY,
 
     cache: Vec::<String>,
+
+    total: i64,
+    free: i64,
+    total_str: String,
+    free_str: String,
+    used_str: String,
 }
 
 impl <'a> Swap <'a> {
@@ -24,6 +30,11 @@ impl <'a> Swap <'a> {
         Self {
             system,
             cache,
+            total: 0,
+            free: 0,
+            total_str: String::new(),
+            free_str: String::new(),
+            used_str: String::new(),
             pos,
             size: XY { x: 18, y: 4 }
         }
@@ -59,35 +70,29 @@ impl <'a> Swap <'a> {
     }
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-
-            if let Ok(val) = self.system.swapinfo.lock() {
-                unsafe {
-                    /*if $cache.swap_total != val.total {
-                        $cache.swap_total = val.total;
-                        $cache.swap_total_str = ui::convert_with_padding(val.total, 4);
-                    }
-
-                    if $cache.swap_free != val.free {
-                        $cache.swap_free = val.free;
-                        $cache.swap_free_str = ui::convert_with_padding(val.free, 4);
-                        $cache.swap_used_str = ui::convert_with_padding(val.used, 4);
-                    }*/
-
-                    queue!(
-                        stdout,
-                        Print(&self.cache.get_unchecked(0)),
-
-                        Print(&convert_with_padding(val.total, 4)),
-                        Print(&self.cache.get_unchecked(1)),
-
-                        Print(&convert_with_padding(val.used, 4)),
-                        Print(&self.cache.get_unchecked(2)),
-
-                        Print(&convert_with_padding(val.free, 4)),
-                        Print("\x1b[38;5;244m ]\x1b[0m")
-                    )?;
+        if let Ok(val) = self.system.swapinfo.lock() {
+            unsafe {
+                if self.total != val.total {
+                    self.total = val.total;
+                    self.total_str = convert_with_padding(val.total, 4);
                 }
+
+                if self.free != val.free {
+                    self.free = val.free;
+                    self.free_str = convert_with_padding(val.free, 4);
+                    self.used_str = convert_with_padding(val.used, 4);
+                }
+
+                write!(stdout, "{}{}{}{}{}{}\x1b[38;5;244m ]\x1b[0m",
+                    &self.cache.get_unchecked(0),
+                    &self.total_str,
+                    &self.cache.get_unchecked(1),
+                    &self.used_str,
+                    &self.cache.get_unchecked(2),
+                    &self.free_str
+                )?;
             }
+        }
 
         Ok(())
     }
