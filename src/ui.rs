@@ -117,7 +117,7 @@ impl <'ui> Ui <'ui> {
         }
     }
 
-    pub fn update_cache(&mut self) -> Result<()> {
+    pub fn rebuild_cache(&mut self) -> Result<()> {
         self.time.pos.y = self.terminal_size.y;
         self.time.rebuild_cache();
 
@@ -265,7 +265,7 @@ impl <'ui> Ui <'ui> {
     pub fn rebuild(&mut self) -> Result<()> {
         queue!(self.stdout, terminal::Clear(terminal::ClearType::All))?;
 
-        self.update_cache()?;
+        self.rebuild_cache()?;
 
         for i in 1..=12 {
             self.update(i)?;
