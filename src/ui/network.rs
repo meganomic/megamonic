@@ -92,13 +92,11 @@ impl <'a> Network <'a> {
                 unsafe {
                     if val.recv != 0 {
                         write!(stdout, "{}{}",
-                            //&self.cache1.get_unchecked(count),
                             &self.cache.get_unchecked(count).0,
                             &convert_speed(val.recv, freq),
                         )?;
                     } else {
                         write!(stdout, "{}{}",
-                            //&self.cache2.get_unchecked(count),
                             &self.cache.get_unchecked(count).1,
                             &convert_speed(val.recv, freq),
                         )?;
@@ -106,15 +104,13 @@ impl <'a> Network <'a> {
 
                     if val.sent != 0 {
                         write!(stdout, "{}{}",
-                            //&self.cache3.get_unchecked(count),
                             &self.cache.get_unchecked(count).2,
-                            &convert_speed(val.recv, freq),
+                            &convert_speed(val.sent, freq),
                         )?;
                     } else {
                         write!(stdout, "{}{}",
-                            //&self.cache4.get_unchecked(count),
                             &self.cache.get_unchecked(count).3,
-                            &convert_speed(val.recv, freq),
+                            &convert_speed(val.sent, freq),
                         )?;
                     }
                 }
