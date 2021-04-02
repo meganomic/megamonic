@@ -61,17 +61,11 @@ impl <'a> Overview <'a> {
         if let Ok(cpuinfo) = self.system.cpuinfo.read() {
             if cpuinfo.cpu_avg < 100.0 {
                 unsafe {
-                    queue!(stdout,
-                        Print(&self.cache.get_unchecked(0)),
-                        Print(&format!("{:4.1}%\x1b[91m ]\x1b[0m", cpuinfo.cpu_avg)),
-                    )?;
+                    write!(stdout, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.get_unchecked(0), cpuinfo.cpu_avg)?;
                 }
             } else if cpuinfo.cpu_avg >= 100.0 {
                 unsafe {
-                    queue!(stdout,
-                        Print(&self.cache.get_unchecked(0)),
-                        Print(&format!("{:4.0}%\x1b[91m ]\x1b[0m", cpuinfo.cpu_avg)),
-                    )?;
+                    write!(stdout, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.get_unchecked(0), cpuinfo.cpu_avg)?;
                 }
             }
         }
@@ -81,17 +75,11 @@ impl <'a> Overview <'a> {
 
             if mem_use < 100.0 {
                 unsafe {
-                    queue!(stdout,
-                        Print(&self.cache.get_unchecked(1)),
-                        Print(&format!("{:4.1}%\x1b[91m ]\x1b[0m", mem_use)),
-                    )?;
+                    write!(stdout, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.get_unchecked(1), mem_use)?;
                 }
             } else if mem_use >= 100.0 {
                 unsafe {
-                    queue!(stdout,
-                        Print(&self.cache.get_unchecked(1)),
-                        Print(&format!("{:4.0}%\x1b[91m ]\x1b[0m", mem_use)),
-                    )?;
+                    write!(stdout, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.get_unchecked(1), mem_use)?;
                 }
             }
         }
@@ -101,17 +89,11 @@ impl <'a> Overview <'a> {
 
             if swap_use < 100.0 {
                 unsafe {
-                    queue!(stdout,
-                        Print(&self.cache.get_unchecked(2)),
-                        Print(&format!("{:4.1}%\x1b[91m ]\x1b[0m", swap_use)),
-                    )?;
+                    write!(stdout, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.get_unchecked(2), swap_use)?;
                 }
             } else if swap_use >= 100.0 {
                 unsafe {
-                    queue!(stdout,
-                        Print(&self.cache.get_unchecked(2)),
-                        Print(&format!("{:4.0}%\x1b[91m ]\x1b[0m", swap_use)),
-                    )?;
+                    write!(stdout, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.get_unchecked(2), swap_use)?;
                 }
             }
         }

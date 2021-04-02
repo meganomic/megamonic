@@ -128,10 +128,12 @@ impl <'ui> Ui <'ui> {
         self.memory.rebuild_cache();
         self.swap.update_cache();
         self.processes.rebuild_cache(&self.terminal_size);
+        self.processes.draw_static(&mut self.stdout)?;
 
         // The following objects rely on the position of the previous ones
         // So don't do anything silly.
-        self.network.update_cache();
+        self.network.rebuild_cache();
+        self.network.draw_static(&mut self.stdout)?;
 
         self.sensors.pos.y = self.network.size.y + self.network.pos.y;
         self.sensors.update_cache();

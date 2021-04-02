@@ -5,7 +5,7 @@ use std::sync::atomic;
 
 use crate::system::System as System;
 use super::XY as XY;
-use super::convert_with_padding_proc as convert_with_padding_proc;
+//use super::convert_with_padding_proc as convert_with_padding_proc;
 
 pub struct Processes <'a> {
     pub system: &'a System,
@@ -43,15 +43,19 @@ impl <'a> Processes <'a> {
         }
     }
 
-    pub fn draw(&mut self, stdout: &mut std::io::Stdout, terminal_size: &XY) -> Result<()> {
-        //let now = std::time::Instant::now();
-        let items = terminal_size.y - self.pos.y - 4;
-
+    pub fn draw_static(&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
         queue!(
             stdout,
             cursor::MoveTo(self.pos.x, self.pos.y),
             Print("\x1b[95mProcesses\x1b[0m")
         )?;
+
+        Ok(())
+    }
+
+    pub fn draw(&mut self, stdout: &mut std::io::Stdout, terminal_size: &XY) -> Result<()> {
+        //let now = std::time::Instant::now();
+        let items = terminal_size.y - self.pos.y - 4;
 
         if let Ok(processinfo) = self.system.processinfo.read() {
             let (pidlen, vector) = processinfo.cpu_sort();
@@ -61,59 +65,56 @@ impl <'a> Processes <'a> {
                 self.cache2.clear();
             }
 
-            //let now = std::time::Instant::now();
             for (idx, (_, val)) in vector.iter().enumerate() {
-
-                unsafe {
-                    queue!(stdout,
-                        Print(&self.cache1.get_unchecked(idx)),
-                    )?;
-                }
-
-                if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
-                    queue!(stdout,
-                        Print(&format!("\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m", val.cpu_avg)),
-                    )?;
-                } else if val.cpu_avg >= 99.5 {
-                    queue!(stdout,
-                        Print(&format!("\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m", val.cpu_avg)),
-                    )?;
-                } else {
-                    queue!(stdout,
-                        Print(&format!("\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ \x1b[92m", val.cpu_avg)),
-                    )?;
-                }
-
-                if self.system.config.smaps.load(atomic::Ordering::Relaxed) {
+                //let now = std::time::Instant::now();
+                let memory = if self.system.config.smaps.load(atomic::Ordering::Relaxed) {
                     // Check if there actually is a PSS value
                     // If there isn't it probably requires root access, use RSS instead
                     if val.pss != -1 {
-                        queue!(
-                            stdout,
-                            Print(&format!("\x1b[94m{}\x1b[0m", &convert_with_padding_proc(val.pss, 4))),
-                        )?;
+                        format!("\x1b[94m{}\x1b[0m", &convert_with_padding_proc(val.pss, 4))
                     } else {
-                        queue!(
-                            stdout,
-                            Print(&convert_with_padding_proc(val.rss, 4)),
-                        )?;
+                        convert_with_padding_proc(val.rss, 4)
                     }
                 } else {
-                    queue!(
-                        stdout,
-                        Print(&convert_with_padding_proc(val.rss, 4)),
-                    )?;
-                }
+                    convert_with_padding_proc(val.rss, 4)
+                };
+                //eprintln!("{}", now.elapsed().as_nanos());
+
 
                 if !self.cache2.contains_key(&val.pid) {
                     let shoe = maxstr(&val.executable, &val.cmdline, val.pid, pidlen, (terminal_size.x - self.pos.x - 19) as usize);
                     self.cache2.insert(val.pid, shoe);
                 }
 
-                queue!(
-                    stdout,
-                    Print(&self.cache2.get(&val.pid).unwrap()),
-                )?;
+                unsafe {
+                    if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
+                        write!(stdout,
+                            "{}\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m{}{}",
+                            &self.cache1.get_unchecked(idx),
+                            val.cpu_avg,
+                            &memory,
+                            &self.cache2.get(&val.pid)
+                                .expect("Process cache is corrupted!")
+                        )?;
+                    } else if val.cpu_avg >= 99.5 {
+                        write!(stdout,
+                            "{}\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m{}{}",
+                            &self.cache1.get_unchecked(idx),
+                            val.cpu_avg, &memory,
+                            &self.cache2.get(&val.pid)
+                                .expect("Process cache is corrupted!")
+                        )?;
+                    } else {
+                        write!(stdout,
+                            "{}\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ \x1b[92m{}{}",
+                            &self.cache1.get_unchecked(idx),
+                            val.cpu_avg,
+                            &memory,
+                            &self.cache2.get(&val.pid)
+                                .expect("Process cache is corrupted!")
+                        )?;
+                    }
+                }
 
                 if idx == items as usize {
                     break;
@@ -124,7 +125,7 @@ impl <'a> Processes <'a> {
             // In which case we need to rebuild the cache
             self.pidlen = pidlen;
         }
-        //eprintln!("{}", now.elapsed().as_micros());
+
         Ok(())
     }
 }
@@ -153,4 +154,40 @@ fn maxstr(exec: &str, cmd: &str, pid: u32, pidlen: usize, maxlen: usize) -> Stri
     }
 
     format!("\x1b[91m ] \x1b[0m\x1b[37m{}\x1b[0m\x1b[92m{}\x1b[38;5;244m{}\x1b[0m", p, e, c)
+}
+
+// Special handling for 0 memory for processe list
+fn convert_with_padding_proc(num: i64, padding: usize) -> String {
+    if num == -1 {
+        return format!("Error");
+    }
+    if num == 0 {
+        return format!("  {:>pad$}", "-", pad=padding+1);
+    }
+    // convert it to a f64 type to we can use ln() and stuff on it.
+    let num = num as f64;
+
+    let units = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
+
+    // A kilobyte is 1024 bytes. Fight me!
+    let delimiter = 1024_f64;
+
+    // Magic that makes no sense to me
+    let exponent = std::cmp::min(
+        (num.ln() / delimiter.ln()).floor() as i32,
+        (units.len() - 1) as i32,
+    );
+    let pretty_bytes = num / delimiter.powi(exponent as i32);
+    let unit = units[exponent as usize];
+
+    // Different behaviour for different units
+    match unit {
+        "b" => format!("{:>pad$.0} {}", pretty_bytes, unit, pad=padding+1),
+        "Kb" | "Mb" => format!("{:>pad$.0} {}", pretty_bytes, unit, pad=padding),
+        "Gb" => {
+            if pretty_bytes >= 10.0 { format!("{:>pad$.1} {}", pretty_bytes, unit, pad=padding) }
+            else { format!("{:>pad$.2} {}", pretty_bytes, unit, pad=padding) }
+        },
+        _ => format!("{:>pad$.1} {}", pretty_bytes, unit, pad=padding),
+    }
 }

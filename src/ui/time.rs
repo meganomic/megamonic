@@ -37,10 +37,7 @@ impl <'a> Time <'a> {
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
         let time_string = self.gettime()?;
-        queue!(stdout,
-            Print(&self.cache),
-            Print(&time_string)
-        )?;
+        write!(stdout, "{}{}", &self.cache, &time_string)?;
 
         Ok(())
     }

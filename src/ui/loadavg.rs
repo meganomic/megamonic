@@ -60,15 +60,14 @@ impl <'a> Loadavg <'a> {
             self.size.x = len as u16 + 12;
 
             unsafe {
-                queue!(
-                    stdout,
-                    Print(&self.cache.get_unchecked(0)),
-                    Print(&format!("{:>pad$}", &loadavg.min1, pad=len)),
-                    Print(&self.cache.get_unchecked(1)),
-                    Print(&format!("{:>pad$}", &loadavg.min5, pad=len)),
-                    Print(&self.cache.get_unchecked(2)),
-                    Print(&format!("{:>pad$}", &loadavg.min15, pad=len)),
-                    Print("\x1b[91m ]\x1b[0m")
+                write!(stdout, "{}{:>pad$}{}{:>pad$}{}{:>pad$}\x1b[91m ]\x1b[0m",
+                    &self.cache.get_unchecked(0),
+                    &loadavg.min1,
+                    &self.cache.get_unchecked(1),
+                    &loadavg.min5,
+                    &self.cache.get_unchecked(2),
+                    &loadavg.min15,
+                    pad=len
                 )?;
             }
         }
