@@ -1,6 +1,6 @@
 use crossterm::{terminal, queue, cursor, style::Print};
 use std::io::Write;
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 
 mod time;
 use time::Time as Time;
@@ -119,14 +119,14 @@ impl <'ui> Ui <'ui> {
 
     pub fn update_cache(&mut self) -> Result<()> {
         self.time.pos.y = self.terminal_size.y;
-        self.time.update_cache();
+        self.time.rebuild_cache();
 
         self.hostinfo.rebuild_cache(&self.terminal_size);
 
-        self.loadavg.update_cache();
-        self.overview.update_cache();
+        self.loadavg.rebuild_cache();
+        self.overview.rebuild_cache();
         self.memory.rebuild_cache();
-        self.swap.update_cache();
+        self.swap.rebuild_cache();
         self.processes.rebuild_cache(&self.terminal_size);
         self.processes.draw_static(&mut self.stdout)?;
 
@@ -136,7 +136,7 @@ impl <'ui> Ui <'ui> {
         self.network.draw_static(&mut self.stdout)?;
 
         self.sensors.pos.y = self.network.size.y + self.network.pos.y;
-        self.sensors.update_cache();
+        self.sensors.rebuild_cache();
         self.sensors.draw_static(&mut self.stdout)?;
 
         self.gpu.pos.y = self.sensors.pos.y + self.sensors.size.y;
@@ -327,42 +327,6 @@ impl <'ui> Ui <'ui> {
     }
 }
 
-// Special handling for 0 memory for processe list
-pub fn convert_with_padding_proc(num: i64, padding: usize) -> String {
-    if num == -1 {
-        return format!("Error");
-    }
-    if num == 0 {
-        return format!("  {:>pad$}", "-", pad=padding+1);
-    }
-    // convert it to a f64 type to we can use ln() and stuff on it.
-    let num = num as f64;
-
-    let units = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
-
-    // A kilobyte is 1024 bytes. Fight me!
-    let delimiter = 1024_f64;
-
-    // Magic that makes no sense to me
-    let exponent = std::cmp::min(
-        (num.ln() / delimiter.ln()).floor() as i32,
-        (units.len() - 1) as i32,
-    );
-    let pretty_bytes = num / delimiter.powi(exponent as i32);
-    let unit = units[exponent as usize];
-
-    // Different behaviour for different units
-    match unit {
-        "b" => format!("{:>pad$.0} {}", pretty_bytes, unit, pad=padding+1),
-        "Kb" | "Mb" => format!("{:>pad$.0} {}", pretty_bytes, unit, pad=padding),
-        "Gb" => {
-            if pretty_bytes >= 10.0 { format!("{:>pad$.1} {}", pretty_bytes, unit, pad=padding) }
-            else { format!("{:>pad$.2} {}", pretty_bytes, unit, pad=padding) }
-        },
-        _ => format!("{:>pad$.1} {}", pretty_bytes, unit, pad=padding),
-    }
-}
-
 // Convert to pretty bytes with specified right alignment
 pub fn convert_with_padding(num: i64, padding: usize) -> String {
     if num == -1 {
@@ -399,33 +363,6 @@ pub fn convert_with_padding(num: i64, padding: usize) -> String {
     }
 }
 
-// Convert function for network with special handling
-pub fn convert_speed(num: u64, freq: u64) -> String {
-    if num == 0 {
-        return format!("{:>5.0} b/s\x1b[38;5;244m ]\x1b[37m Rx\x1b[0m", num);
-    }
-    // convert it to a f64 type to we can use ln() and stuff on it.
-    let num = num as f64 / (freq as f64 / 1000.0);
 
-    let units = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
-
-    // A kilobyte is 1024 bytes. Fight me!
-    let delimiter = 1024_f64;
-
-    // Magic that makes no sense to me
-    let exponent = std::cmp::min(
-        (num.ln() / delimiter.ln()).floor() as i32,
-        (units.len() - 1) as i32,
-    );
-    let pretty_bytes = num / delimiter.powi(exponent as i32);
-    let unit = units[exponent as usize];
-
-    // Different behaviour for different units 7
-    match unit {
-        "b" => format!("{:>5.0} {}/s\x1b[91m ]\x1b[37m Tx\x1b[0m", pretty_bytes, unit),
-        "Kb" => format!("{:>4.0} {}/s\x1b[91m ]\x1b[37m Tx\x1b[0m", pretty_bytes, unit),
-        _ => format!("{:>4.1} {}/s\x1b[91m ]\x1b[37m Tx\x1b[0m", pretty_bytes, unit),
-    }
-}
 
 

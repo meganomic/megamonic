@@ -1,4 +1,4 @@
-use crossterm::{ cursor, queue, style::Print };
+use crossterm::cursor;
 use std::io::Write;
 use anyhow::Result;
 

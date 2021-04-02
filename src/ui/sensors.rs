@@ -29,12 +29,26 @@ impl <'a> Sensors <'a> {
         }
     }
 
-    pub fn update_cache (&mut self) {
+    pub fn rebuild_cache (&mut self) {
         if let Ok(sensorinfo) = self.system.sensorinfo.lock() {
             self.size.y = sensorinfo.chips.len() as u16 + 2;
-        }
-        self.cache.clear();
 
+            self.cache.clear();
+            for (idx, key) in sensorinfo.chips.keys().enumerate() {
+                self.cache.push(
+                    (
+                        format!(
+                            "{}\x1b[1K{}\x1b[37m{}{}\x1b[91m[ \x1b[92m",
+                            cursor::MoveTo(self.pos.x + 23, self.pos.y + 1 + idx as u16),
+                            cursor::MoveTo(self.pos.x, self.pos.y + 1 + idx as u16),
+                            key,
+                            cursor::MoveTo(self.pos.x + 15, self.pos.y + 1 + idx as u16),
+                        ),
+                        0
+                    )
+                );
+            }
+        }
     }
 
     pub fn draw_static(&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
@@ -49,27 +63,11 @@ impl <'a> Sensors <'a> {
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
         if let Ok(sensorinfo) = self.system.sensorinfo.lock() {
-            for (idx, (key, val)) in sensorinfo.chips.iter().enumerate() {
-                if self.cache.len() <= idx {
-                    self.cache.push((format!(
-                        "{}\x1b[1K{}\x1b[37m{}{}\x1b[91m[ \x1b[92m",
-                        cursor::MoveTo(self.pos.x + 23, self.pos.y + 1 + idx as u16),
-                        cursor::MoveTo(self.pos.x, self.pos.y + 1 + idx as u16),
-                        key,
-                        cursor::MoveTo(self.pos.x + 15, self.pos.y + 1 + idx as u16),
-                    ), 0));
-                }
-
+            for (idx, val) in sensorinfo.chips.values().enumerate() {
                 unsafe {
                     let cache = self.cache.get_unchecked_mut(idx);
                     if cache.1 != *val {
                         write!(stdout, "{}{} C\x1b[91m ]\x1b[0m", &cache.0, val)?;
-                        /*queue!(
-                            stdout,
-                            Print(&cache.0),
-                            Print(&format!("{}", val)),
-                            Print(" C\x1b[91m ]\x1b[0m"),
-                        )?;*/
                         cache.1 = *val;
                     }
                 }

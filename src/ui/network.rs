@@ -5,7 +5,6 @@ use std::sync::atomic;
 
 use crate::system::System as System;
 use super::XY as XY;
-use super::convert_speed as convert_speed;
 
 pub struct Network <'a> {
     pub system: &'a System,
@@ -125,5 +124,34 @@ impl <'a> Network <'a> {
         }
 
         Ok(())
+    }
+}
+
+// Convert function for network with special handling
+fn convert_speed(num: u64, freq: u64) -> String {
+    if num == 0 {
+        return format!("{:>5.0} b/s\x1b[38;5;244m ]\x1b[37m Rx\x1b[0m", num);
+    }
+    // convert it to a f64 type to we can use ln() and stuff on it.
+    let num = num as f64 / (freq as f64 / 1000.0);
+
+    let units = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
+
+    // A kilobyte is 1024 bytes. Fight me!
+    let delimiter = 1024_f64;
+
+    // Magic that makes no sense to me
+    let exponent = std::cmp::min(
+        (num.ln() / delimiter.ln()).floor() as i32,
+        (units.len() - 1) as i32,
+    );
+    let pretty_bytes = num / delimiter.powi(exponent as i32);
+    let unit = units[exponent as usize];
+
+    // Different behaviour for different units 7
+    match unit {
+        "b" => format!("{:>5.0} {}/s\x1b[91m ]\x1b[37m Tx\x1b[0m", pretty_bytes, unit),
+        "Kb" => format!("{:>4.0} {}/s\x1b[91m ]\x1b[37m Tx\x1b[0m", pretty_bytes, unit),
+        _ => format!("{:>4.1} {}/s\x1b[91m ]\x1b[37m Tx\x1b[0m", pretty_bytes, unit),
     }
 }

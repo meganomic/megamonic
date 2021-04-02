@@ -1,6 +1,5 @@
 use crossterm::{
-    cursor, terminal, execute, queue,
-    style::{Print, SetColors},
+    cursor, terminal, execute
 };
 
 use std::io::{stdout, Write};
@@ -15,69 +14,6 @@ mod ui;
 
 static mut _CUMULATIVE_BENCHMARK: u128 = 0;
 static mut _CUMULATIVE_COUNT: u128 = 0;
-
-/*fn draw_full_ui(stdout: &mut std::io::StdoutLock, system: &system::System, cache: &mut ui::CachedCursor) -> Result<()> {
-    //cache.clear();
-
-    //queue!(stdout, terminal::Clear(terminal::ClearType::All))?;
-
-
-    /*if cache.tsizex > 50 && cache.tsizey > 8 {
-        draw_processes!(stdout, system, 26, 5, cache);
-    }*/
-
-    /*if cache.tsizex > 23  && cache.tsizey > (cache.network_size + 4) as u16 {
-        draw_network!(stdout, system, 0, 5, cache);
-    }
-
-    if cache.tsizex > 22 && cache.tsizey > (cache.network_size + cache.sensors_size + 4) as u16 {
-        draw_sensors!(stdout, system, 0, 11, cache);
-    }
-
-    if cache.tsizex > 22 && cache.tsizey > (cache.network_size + cache.sensors_size + 10) as u16 {
-        draw_gpu!(stdout, system, 0, 21, cache);
-    }*/
-
-    if system.config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
-        queue!(stdout,
-            cursor::MoveTo(36, 5),
-            Print("\x1b[38;5;244mt\x1b[0m")
-        )?;
-    } else {
-        queue!(stdout,
-            cursor::MoveTo(36, 5),
-            Print(" ")
-        )?;
-    }
-
-    if system.config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
-        queue!(stdout,
-            cursor::MoveTo(37, 5),
-            Print("\x1b[38;5;244ms\x1b[0m")
-        )?;
-    } else {
-        queue!(stdout,
-            cursor::MoveTo(37, 5),
-            Print(" ")
-        )?;
-    }
-
-    if system.config.all.load(std::sync::atomic::Ordering::Relaxed) {
-        queue!(stdout,
-            cursor::MoveTo(38, 5),
-            Print("\x1b[38;5;244ma\x1b[0m")
-        )?;
-    } else {
-        queue!(stdout,
-            cursor::MoveTo(38, 5),
-            Print(" ")
-        )?;
-    }
-
-    stdout.flush()?;
-
-    Ok(())
-}*/
 
 fn main() -> Result<()> {
     let options = clap::App::new("Megamonic")

@@ -1,4 +1,4 @@
-use crossterm::{ cursor, queue, style::Print };
+use crossterm::cursor;
 use std::io::Write;
 use anyhow::Result;
 
@@ -40,7 +40,7 @@ impl <'a> Swap <'a> {
         }
     }
 
-    pub fn update_cache (&mut self) {
+    pub fn rebuild_cache (&mut self) {
         unsafe {
             let cache1 = self.cache.get_unchecked_mut(0);
             cache1.clear();

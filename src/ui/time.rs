@@ -1,4 +1,4 @@
-use crossterm::{ cursor, queue, style::Print };
+use crossterm::cursor;
 use std::io::Write;
 use anyhow::{ anyhow, Result };
 
@@ -26,7 +26,7 @@ impl <'a> Time <'a> {
         }
     }
 
-    pub fn update_cache (&mut self) {
+    pub fn rebuild_cache (&mut self) {
         self.cache.clear();
         self.cache.push_str(&format!(
             "{}\x1b[1K{}\x1b[0m",
@@ -54,7 +54,7 @@ impl <'a> Time <'a> {
 
         if self.size.x != length {
             self.size.x = length;
-            self.update_cache();
+            self.rebuild_cache();
         }
 
         Ok(time_string)

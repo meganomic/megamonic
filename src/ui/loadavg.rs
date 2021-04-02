@@ -1,4 +1,4 @@
-use crossterm::{ cursor, queue, style::Print };
+use crossterm::cursor;
 use std::io::Write;
 use anyhow::Result;
 
@@ -28,7 +28,7 @@ impl <'a> Loadavg <'a> {
         }
     }
 
-    pub fn update_cache (&mut self) {
+    pub fn rebuild_cache (&mut self) {
         unsafe {
             let load1 = self.cache.get_unchecked_mut(0);
             load1.clear();
