@@ -100,7 +100,8 @@ impl <'a> Processes <'a> {
                         write!(stdout,
                             "{}\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m{}{}",
                             &self.cache1.get_unchecked(idx),
-                            val.cpu_avg, &memory,
+                            val.cpu_avg,
+                            &memory,
                             &self.cache2.get(&val.pid)
                                 .expect("Process cache is corrupted!")
                         )?;
