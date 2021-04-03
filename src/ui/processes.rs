@@ -82,11 +82,21 @@ impl <'a> Processes <'a> {
 
 
                 if !self.cache2.contains_key(&val.pid) {
-                    let shoe = maxstr(&val.executable, &val.cmdline, val.not_executable, val.pid, pidlen, (terminal_size.x - self.pos.x - 19) as usize);
-                    self.cache2.insert(val.pid, shoe);
+                    self.cache2.insert(
+                        val.pid,
+                        maxstr(
+                            &val.executable,
+                            &val.cmdline,
+                            val.not_executable,
+                            val.pid,
+                            pidlen,
+                            (terminal_size.x - self.pos.x - 19) as usize
+                        )
+                    );
                 }
 
                 unsafe {
+                    // This is needed because of rounding errors. There's probably a better way
                     if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
                         write!(stdout,
                             "{}\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m{}{}",
@@ -117,6 +127,7 @@ impl <'a> Processes <'a> {
                     }
                 }
 
+                // Break once we printed all the processes that fit
                 if idx == items as usize {
                     break;
                 }
