@@ -36,11 +36,7 @@ impl Processes {
                     if !self.processes.contains_key(&pid) {
                         // If cmdline can't be opened it probably means that the process has terminated.
                         // A rare but possible scenario
-                        let commandline = if let Ok(res) = std::fs::read_to_string(&format!("/proc/{}/cmdline", pid)) {
-                            res
-                        } else {
-                            continue;
-                        };
+                        let commandline = std::fs::read_to_string(&format!("/proc/{}/cmdline", pid))?;
 
                         // Limit the results to actual programs unless 'all-processes' is enabled
                         // pid == 1 is weird so make an extra check
