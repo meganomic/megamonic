@@ -54,7 +54,6 @@ impl <'a> Processes <'a> {
     }
 
     pub fn draw(&mut self, stdout: &mut std::io::Stdout, terminal_size: &XY) -> Result<()> {
-        //let now = std::time::Instant::now();
         let items = terminal_size.y - self.pos.y - 4;
 
         if let Ok(processinfo) = self.system.processinfo.read() {
@@ -71,6 +70,7 @@ impl <'a> Processes <'a> {
                     // Check if there actually is a PSS value
                     // If there isn't it probably requires root access, use RSS instead
                     if val.pss != -1 {
+                        // This should be fixed so it doesn't allocated yet another string
                         format!("\x1b[94m{}\x1b[0m", &convert_with_padding_proc(val.pss, 4))
                     } else {
                         convert_with_padding_proc(val.rss, 4)
@@ -175,9 +175,6 @@ fn maxstr(exec: &str, cmd: &str, is_not_exec: bool, pid: u32, pidlen: usize, max
 
 // Special handling for 0 memory for processe list
 fn convert_with_padding_proc(num: i64, padding: usize) -> String {
-    if num == -1 {
-        return format!("Error");
-    }
     if num == 0 {
         return format!("  {:>pad$}", "-", pad=padding+1);
     }
