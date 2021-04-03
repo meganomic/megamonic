@@ -10,48 +10,38 @@ pub struct Loadavg <'a> {
     pub pos: XY,
     pub size: XY,
 
-    cache: Vec::<String>,
+    cache: (String, String, String),
 }
 
 impl <'a> Loadavg <'a> {
     pub fn new(system: &'a System, pos: XY) -> Self {
-        let mut cache = Vec::<String>::new();
-        cache.push(String::new());
-        cache.push(String::new());
-        cache.push(String::new());
-
         Self {
             system,
-            cache,
+            cache: (String::new(), String::new(), String::new()),
             pos,
             size: XY { x: 16, y: 4 }
         }
     }
 
     pub fn rebuild_cache (&mut self) {
-        unsafe {
-            let load1 = self.cache.get_unchecked_mut(0);
-            load1.clear();
-            load1.push_str(&format!(
-                "{}\x1b[95mLoad\x1b[0m{}\x1b[0K\x1b[37m1 min:  \x1b[91m[ \x1b[92m",
-                cursor::MoveTo(self.pos.x, self.pos.y),
-                cursor::MoveTo(self.pos.x, self.pos.y+1)
-            ));
+        self.cache.0.clear();
+        self.cache.0.push_str(&format!(
+            "{}\x1b[95mLoad\x1b[0m{}\x1b[0K\x1b[37m1 min:  \x1b[91m[ \x1b[92m",
+            cursor::MoveTo(self.pos.x, self.pos.y),
+            cursor::MoveTo(self.pos.x, self.pos.y+1)
+        ));
 
-            let load2 = self.cache.get_unchecked_mut(1);
-            load2.clear();
-            load2.push_str(&format!(
-                "\x1b[91m ]\x1b[0m{}\x1b[0K\x1b[37m5 min:  \x1b[91m[ \x1b[92m",
-                cursor::MoveTo(self.pos.x, self.pos.y+2)
-            ));
+        self.cache.1.clear();
+        self.cache.1.push_str(&format!(
+            "\x1b[91m ]\x1b[0m{}\x1b[0K\x1b[37m5 min:  \x1b[91m[ \x1b[92m",
+            cursor::MoveTo(self.pos.x, self.pos.y+2)
+        ));
 
-            let load3 = self.cache.get_unchecked_mut(2);
-            load3.clear();
-            load3.push_str(&format!(
-                "\x1b[91m ]\x1b[0m{}\x1b[0K\x1b[37m15 min: \x1b[91m[ \x1b[92m",
-                cursor::MoveTo(self.pos.x, self.pos.y+3)
-            ));
-        }
+        self.cache.2.clear();
+        self.cache.2.push_str(&format!(
+            "\x1b[91m ]\x1b[0m{}\x1b[0K\x1b[37m15 min: \x1b[91m[ \x1b[92m",
+            cursor::MoveTo(self.pos.x, self.pos.y+3)
+        ));
     }
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
@@ -59,17 +49,15 @@ impl <'a> Loadavg <'a> {
             let len = loadavg.min1.len().max(loadavg.min5.len().max(loadavg.min15.len()));
             self.size.x = len as u16 + 12;
 
-            unsafe {
-                write!(stdout, "{}{:>pad$}{}{:>pad$}{}{:>pad$}\x1b[91m ]\x1b[0m",
-                    &self.cache.get_unchecked(0),
-                    &loadavg.min1,
-                    &self.cache.get_unchecked(1),
-                    &loadavg.min5,
-                    &self.cache.get_unchecked(2),
-                    &loadavg.min15,
-                    pad=len
-                )?;
-            }
+            write!(stdout, "{}{:>pad$}{}{:>pad$}{}{:>pad$}\x1b[91m ]\x1b[0m",
+                &self.cache.0,
+                &loadavg.min1,
+                &self.cache.1,
+                &loadavg.min5,
+                &self.cache.2,
+                &loadavg.min15,
+                pad=len
+            )?;
         }
 
         Ok(())
