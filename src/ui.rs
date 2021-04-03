@@ -123,7 +123,7 @@ impl <'ui> Ui <'ui> {
 
         self.hostinfo.rebuild_cache(&self.terminal_size);
 
-        self.loadavg.rebuild_cache();
+        self.loadavg.rebuild_cache()?;
         self.overview.rebuild_cache();
         self.memory.rebuild_cache();
         self.swap.rebuild_cache();

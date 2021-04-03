@@ -2,6 +2,8 @@ use crossterm::cursor;
 use std::io::Write;
 use anyhow::Result;
 
+use std::fmt::Write as fmtWrite;
+
 use crate::system::System as System;
 use super::XY as XY;
 
@@ -23,25 +25,27 @@ impl <'a> Loadavg <'a> {
         }
     }
 
-    pub fn rebuild_cache (&mut self) {
+    pub fn rebuild_cache (&mut self) -> Result <()> {
         self.cache.0.clear();
-        self.cache.0.push_str(&format!(
+        write!(self.cache.0,
             "{}\x1b[95mLoad\x1b[0m{}\x1b[0K\x1b[37m1 min:  \x1b[91m[ \x1b[92m",
             cursor::MoveTo(self.pos.x, self.pos.y),
             cursor::MoveTo(self.pos.x, self.pos.y+1)
-        ));
+        )?;
 
         self.cache.1.clear();
-        self.cache.1.push_str(&format!(
+        write!(self.cache.1,
             "\x1b[91m ]\x1b[0m{}\x1b[0K\x1b[37m5 min:  \x1b[91m[ \x1b[92m",
             cursor::MoveTo(self.pos.x, self.pos.y+2)
-        ));
+        )?;
 
         self.cache.2.clear();
-        self.cache.2.push_str(&format!(
+        write!(self.cache.2,
             "\x1b[91m ]\x1b[0m{}\x1b[0K\x1b[37m15 min: \x1b[91m[ \x1b[92m",
             cursor::MoveTo(self.pos.x, self.pos.y+3)
-        ));
+        )?;
+
+        Ok(())
     }
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
