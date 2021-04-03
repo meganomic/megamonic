@@ -82,7 +82,7 @@ impl <'a> Processes <'a> {
 
 
                 if !self.cache2.contains_key(&val.pid) {
-                    let shoe = maxstr(&val.executable, &val.cmdline, val.pid, pidlen, (terminal_size.x - self.pos.x - 19) as usize);
+                    let shoe = maxstr(&val.executable, &val.cmdline, val.not_executable, val.pid, pidlen, (terminal_size.x - self.pos.x - 19) as usize);
                     self.cache2.insert(val.pid, shoe);
                 }
 
@@ -131,12 +131,16 @@ impl <'a> Processes <'a> {
     }
 }
 
-fn maxstr(exec: &str, cmd: &str, pid: u32, pidlen: usize, maxlen: usize) -> String {
-    let mut e = String::new();
-    let mut c = String::new();
+fn maxstr(exec: &str, cmd: &str, is_not_exec: bool, pid: u32, pidlen: usize, maxlen: usize) -> String {
+    let mut e = exec.to_string();
+    let mut c = cmd.to_string();
 
-    e.push_str(exec);
-    c.push_str(cmd);
+    let color = if is_not_exec {
+        "\x1b[94m"
+    } else {
+        "\x1b[92m"
+    };
+
     let mut p = format!("{:>pad$} ", pid, pad=pidlen);
 
     if (p.len() + 3) > maxlen {
@@ -146,15 +150,16 @@ fn maxstr(exec: &str, cmd: &str, pid: u32, pidlen: usize, maxlen: usize) -> Stri
 
     if (e.len() + p.len() + 3) > maxlen {
         e.truncate(maxlen.saturating_sub(p.len() + 3));
-        return format!("\x1b[91m ] \x1b[0m\x1b[37m{}\x1b[0m\x1b[92m{}\x1b[0m", p, e);
+        return format!("\x1b[91m ] \x1b[0m\x1b[37m{}\x1b[0m{}{}\x1b[0m", p, color, e);
+
     }
 
     if (c.len() + e.len() + p.len() + 3) > maxlen {
         c.truncate(maxlen.saturating_sub(e.len() + p.len() + 3));
-        return format!("\x1b[91m ] \x1b[0m\x1b[37m{}\x1b[0m\x1b[92m{}\x1b[38;5;244m{}\x1b[0m", p, e, c);
+        return format!("\x1b[91m ] \x1b[0m\x1b[37m{}\x1b[0m{}{}\x1b[38;5;244m{}\x1b[0m", p, color, e, c);
     }
 
-    format!("\x1b[91m ] \x1b[0m\x1b[37m{}\x1b[0m\x1b[92m{}\x1b[38;5;244m{}\x1b[0m", p, e, c)
+    format!("\x1b[91m ] \x1b[0m\x1b[37m{}\x1b[0m{}{}\x1b[38;5;244m{}\x1b[0m", p, color, e, c)
 }
 
 // Special handling for 0 memory for processe list
