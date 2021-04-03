@@ -20,7 +20,7 @@ impl Sensors {
         for chip in self.sensors {
             if let Ok(mut c_name) = chip.get_name() {
                 for feature in chip {
-                    if let Ok(f_name) = feature.get_label() {
+                    if let Ok(mut f_name) = feature.get_label() {
                         if let Some(subfeature) = feature.get_subfeature(sensors::SubfeatureType::SENSORS_SUBFEATURE_TEMP_INPUT) {
                             if let Ok(val) = subfeature.get_value() {
                                 // If the name is temp1 that means it doesn't have a f_name
@@ -30,6 +30,7 @@ impl Sensors {
                                     self.chips.insert(c_name.clone(), val.round() as u8);
                                 }
                                 else {
+                                    f_name.truncate(14);
                                     self.chips.insert(f_name, val.round() as u8);
                                 }
                             }
