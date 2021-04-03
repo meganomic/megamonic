@@ -76,7 +76,7 @@ impl Process {
             let mut split = buffer[
                     buffer.find(")")
                     .ok_or(
-                        anyhow!("Can't find ')' in for loop")
+                        anyhow!("Can't find ')'")
                         .context("Can't parse /proc/[pid]/stat"))?
                     ..buffer.len()
                 ].split_whitespace();
