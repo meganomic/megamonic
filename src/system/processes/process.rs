@@ -35,23 +35,6 @@ pub struct Process {
 }
 
 impl Process {
-    /*pub fn update_tasks(&mut self) {
-        // Can we even read /proc?
-        if let Ok(entries) = std::fs::read_dir(format!("/proc/{}/task", self.pid)) {
-            self.tasks.clear();
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    if let Ok(dir_name) = entry.file_name().into_string() {
-                        // Only directory names made up of numbers will pass
-                        if let Ok(pid) = dir_name.parse::<u32>() {
-                            self.tasks.insert(pid);
-                        }
-                    }
-                }
-            }
-        }
-    }*/
-
     pub fn update(&mut self, buffer: &mut String, config: &Arc<Config>) -> Result<()> {
         if let Ok(mut file) = std::fs::File::open(&self.stat_file) {
             if file.read_to_string(buffer).is_ok() {
