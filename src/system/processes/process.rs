@@ -54,78 +54,80 @@ impl Process {
 
     pub fn update(&mut self, buffer: &mut String, config: &Arc<Config>) -> Result<()> {
         if let Ok(mut file) = std::fs::File::open(&self.stat_file) {
-            file.read_to_string(buffer)?;
+            if file.read_to_string(buffer).is_ok() {
+                if self.executable.is_empty() {
+                    self.not_executable = true;
+                    self.executable =
+                        buffer[
+                            buffer.find("(")
+                            .ok_or(
+                                anyhow!("Can't find '('")
+                                .context("Can't parse /proc/[pid]/stat"))?
+                            ..buffer.find(")")
+                            .ok_or(
+                                anyhow!("Can't find ')'")
+                                .context("Can't parse /proc/[pid]/stat"))?+1
+                        ].to_string();
+                }
 
-            if self.executable.is_empty() {
-                self.not_executable = true;
-                self.executable =
-                    buffer[
-                        buffer.find("(")
-                        .ok_or(
-                            anyhow!("Can't find '('")
-                            .context("Can't parse /proc/[pid]/stat"))?
-                        ..buffer.find(")")
+                let old_total = self.utime + self.stime + self.cutime + self.cstime;
+
+                let mut split = buffer[
+                        buffer.find(")")
                         .ok_or(
                             anyhow!("Can't find ')'")
-                            .context("Can't parse /proc/[pid]/stat"))?+1
-                    ].to_string();
-            }
+                            .context("Can't parse /proc/[pid]/stat"))?
+                        ..buffer.len()
+                    ].split_whitespace();
 
-            let old_total = self.utime + self.stime + self.cutime + self.cstime;
+                self.utime = split.nth(11)
+                    .ok_or(anyhow!("Can't parse 'utime' from /proc/[pid]/stat"))?
+                    .parse::<u64>()
+                    .context("Can't parse 'utime' from /proc/[pid]/stat")?;
 
-            let mut split = buffer[
-                    buffer.find(")")
-                    .ok_or(
-                        anyhow!("Can't find ')'")
-                        .context("Can't parse /proc/[pid]/stat"))?
-                    ..buffer.len()
-                ].split_whitespace();
+                self.stime = split.next()
+                    .ok_or(anyhow!("Can't parse 'stime' from /proc/[pid]/stat"))?
+                    .parse::<u64>()
+                    .context("Can't parse 'stime' from /proc/[pid]/stat")?;
 
-            self.utime = split.nth(11)
-                .ok_or(anyhow!("Can't parse 'utime' from /proc/[pid]/stat"))?
-                .parse::<u64>()
-                .context("Can't parse 'utime' from /proc/[pid]/stat")?;
+                self.cutime = split.next()
+                    .ok_or(anyhow!("Can't parse 'cutime' from /proc/[pid]/stat"))?
+                    .parse::<u64>()
+                    .context("Can't parse 'cutime' from /proc/[pid]/stat")?;
 
-            self.stime = split.next()
-                .ok_or(anyhow!("Can't parse 'stime' from /proc/[pid]/stat"))?
-                .parse::<u64>()
-                .context("Can't parse 'stime' from /proc/[pid]/stat")?;
+                self.cstime = split.next()
+                    .ok_or(anyhow!("Can't parse 'cstime' from /proc/[pid]/stat"))?
+                    .parse::<u64>()
+                    .context("Can't parse 'cstime' from /proc/[pid]/stat")?;
 
-            self.cutime = split.next()
-                .ok_or(anyhow!("Can't parse 'cutime' from /proc/[pid]/stat"))?
-                .parse::<u64>()
-                .context("Can't parse 'cutime' from /proc/[pid]/stat")?;
+                self.rss = split.nth(7)
+                    .ok_or(anyhow!("Can't parse 'rss' from /proc/[pid]/stat"))?
+                    .parse::<i64>()
+                    .context("Can't parse 'rss' from /proc/[pid]/stat")?
+                    * 4096;
 
-            self.cstime = split.next()
-                .ok_or(anyhow!("Can't parse 'cstime' from /proc/[pid]/stat"))?
-                .parse::<u64>()
-                .context("Can't parse 'cstime' from /proc/[pid]/stat")?;
+                if !self.error {
+                    let total = self.utime + self.stime + self.cutime + self.cstime;
 
-            self.rss = split.nth(7)
-                .ok_or(anyhow!("Can't parse 'rss' from /proc/[pid]/stat"))?
-                .parse::<i64>()
-                .context("Can't parse 'rss' from /proc/[pid]/stat")?
-                * 4096;
+                    // If old_total is 0 it means we don't have anything to compare to. So work is 0.
+                    self.work = if old_total == 0 {
+                        0
+                    } else {
+                        total - old_total
+                    };
 
-            if !self.error {
-                let total = self.utime + self.stime + self.cutime + self.cstime;
-
-                // If old_total is 0 it means we don't have anything to compare to. So work is 0.
-                self.work = if old_total == 0 {
-                    0
                 } else {
-                    total - old_total
-                };
+                    self.cpu_avg = -1.0;
+                }
 
+                if config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
+                    self.update_smaps()?;
+                }
+
+                //self.update_tasks();
             } else {
-                self.cpu_avg = -1.0;
+                self.alive = false;
             }
-
-            if config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
-                self.update_smaps()?;
-            }
-
-            //self.update_tasks();
         } else {
             self.alive = false;
         }
