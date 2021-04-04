@@ -36,7 +36,11 @@ impl Processes {
                     if !self.processes.contains_key(&pid) {
                         // If cmdline can't be opened it probably means that the process has terminated.
                         // A rare but possible scenario
-                        let commandline = std::fs::read_to_string(&format!("/proc/{}/cmdline", pid))?;
+                        let commandline = if let Ok(buf) = std::fs::read_to_string(&format!("/proc/{}/cmdline", pid)) {
+                            buf
+                        } else {
+                            continue
+                        };
 
                         // Limit the results to actual programs unless 'all-processes' is enabled
                         // pid == 1 is weird so make an extra check
@@ -77,15 +81,33 @@ impl Processes {
                         } else {
                             // If 'all-processes' is enabled add everything
                             if all_processes {
+                                let stat_file = format!("/proc/{}/stat", pid);
+                                let executable = if let Ok(buffer) = std::fs::read_to_string(&stat_file) {
+                                    buffer[
+                                        buffer.find("(")
+                                        .ok_or(
+                                            anyhow!("Can't find '('")
+                                            .context("Can't parse /proc/[pid]/stat"))?
+                                        ..buffer.find(")")
+                                        .ok_or(
+                                            anyhow!("Can't find ')'")
+                                            .context("Can't parse /proc/[pid]/stat"))?+1
+                                    ].to_string()
+
+                                } else {
+                                    continue
+                                };
+
                                 self.processes.insert(
                                     pid,
                                     process::Process {
                                         pid,
-                                        executable: String::new(),
+                                        executable,
                                         cmdline: String::new(),
-                                        stat_file: format!("/proc/{}/stat", pid),
+                                        stat_file,
                                         statm_file: format!("/proc/{}/statm", pid),
                                         alive: true,
+                                        not_executable: true,
                                         ..Default::default()
                                     },
                                 );

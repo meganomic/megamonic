@@ -55,21 +55,6 @@ impl Process {
     pub fn update(&mut self, buffer: &mut String, config: &Arc<Config>) -> Result<()> {
         if let Ok(mut file) = std::fs::File::open(&self.stat_file) {
             if file.read_to_string(buffer).is_ok() {
-                if self.executable.is_empty() {
-                    self.not_executable = true;
-                    self.executable =
-                        buffer[
-                            buffer.find("(")
-                            .ok_or(
-                                anyhow!("Can't find '('")
-                                .context("Can't parse /proc/[pid]/stat"))?
-                            ..buffer.find(")")
-                            .ok_or(
-                                anyhow!("Can't find ')'")
-                                .context("Can't parse /proc/[pid]/stat"))?+1
-                        ].to_string();
-                }
-
                 let old_total = self.utime + self.stime + self.cutime + self.cstime;
 
                 let mut split = buffer[
