@@ -10,7 +10,7 @@ mod network;
 mod processes;
 mod gpu;
 mod hostinfo;
-pub mod time;
+mod time;
 mod events;
 
 // Holds all the commandline options.
