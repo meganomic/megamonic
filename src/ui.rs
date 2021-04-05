@@ -170,7 +170,7 @@ impl <'ui> Ui <'ui> {
                     }
 
                     if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
-                        if let Ok(cpuinfo) = self.system.cpuinfo.read() {
+                        if let Ok(cpuinfo) = self.system.cpuinfo.lock() {
                             queue!(self.stdout,
                                 //cursor::MoveTo(40, 5),
                                 Print(&format!("\x1b[6;41H\x1b[0K\x1b[38;5;244m{}\x1b[0m", &cpuinfo.governor))

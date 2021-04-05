@@ -1,11 +1,11 @@
-use std::sync::{Arc, RwLock, mpsc};
+use std::sync::{Arc, mpsc, atomic};
 
 #[derive(Default)]
 pub struct Time {
-    pub time: u64,
+    pub time: atomic::AtomicU64,
 }
 
-pub fn start_thread(internal: Arc<RwLock<Time>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
+pub fn start_thread(internal: Arc<Time>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
         // Override frequency setting. We always want to update the time
         let sleepy = std::time::Duration::from_millis(1000);
@@ -18,12 +18,7 @@ pub fn start_thread(internal: Arc<RwLock<Time>>, tx: mpsc::Sender::<u8>, exit: A
             // Used to synchronize the update frequency to system time
             let st_subsec = current_time.subsec_micros();
 
-            match internal.write() {
-                Ok(mut val) => {
-                    val.time = current_time.as_secs();
-                },
-                Err(_) => break,
-            }
+            internal.time.store(current_time.as_secs(), std::sync::atomic::Ordering::Relaxed);
 
             match tx.send(1) {
                 Ok(_) => (),

@@ -1,7 +1,8 @@
 mod process;
 use super::{cpu, Config};
 use anyhow::{bail, anyhow, Context, Result};
-use std::sync::{Arc, RwLock, Mutex, mpsc};
+use std::sync::{Arc, Mutex, mpsc};
+use std::io::prelude::*;
 
 #[derive(Default)]
 pub struct Processes {
@@ -22,6 +23,8 @@ impl Processes {
 
         let entries = std::fs::read_dir("/proc/").context("Can't read /proc/")?;
 
+        let mut commandline = String::new();
+
         for entry in entries {
             // Only directory names made up of numbers will pass
             if let Ok(pid) = entry
@@ -35,8 +38,10 @@ impl Processes {
                     // Don't add it if we already have it
                     if !self.processes.contains_key(&pid) {
                         // If cmdline can't be opened it probably means that the process has terminated, skip it.
-                        let commandline = if let Ok(buf) = std::fs::read_to_string(&format!("/proc/{}/cmdline", pid)) {
-                            buf
+
+                        if let Ok(mut f) = std::fs::File::open(&format!("/proc/{}/cmdline", pid)) {
+                            commandline.clear();
+                            f.read_to_string(&mut commandline)?;
                         } else {
                             continue
                         };
@@ -127,7 +132,7 @@ impl Processes {
         Ok(())
     }
 
-    pub fn update(&mut self, cpuinfo: &Arc<RwLock<cpu::Cpuinfo>>, config: &Arc<Config>) -> Result<()> {
+    pub fn update(&mut self, cpuinfo: &Arc<Mutex<cpu::Cpuinfo>>, config: &Arc<Config>) -> Result<()> {
         //let now = std::time::Instant::now();
         self.update_pids(config)?;
         //eprintln!("{}", now.elapsed().as_micros());
@@ -142,34 +147,32 @@ impl Processes {
             buffer.clear();
         }
 
-        // Wait here until cpuinfo is updated
-        // The barrier exists to reduce the sampling error
-        // It doens't actually result in any significant reduction
-        // Should probably be removed
-        //barrier.wait();
-        if let Ok(cpu) = cpuinfo.read() {
-            if config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
-                for val in self.processes.values_mut() {
-                        // process.work can be higher than cpu.totald because of sampling error.
-                        // If that is the case, set usage to 100%
-                        if val.work > cpu.totald {
-                            val.cpu_avg = 100.0 * cpu.cpu_count as f32;
-                        } else {
-                            val.cpu_avg = (val.work as f32 / cpu.totald as f32) * 100.0 *  cpu.cpu_count as f32;
-                        }
-                }
-            } else {
-                for val in self.processes.values_mut() {
-                    if val.work > cpu.totald {
-                        val.cpu_avg = 100.0;
-                    } else {
-                        val.cpu_avg = (val.work as f32 / cpu.totald as f32) * 100.0;
-                    }
+        let (cpu_count, totald) = if let Ok(cpu) = cpuinfo.lock() {
+            (cpu.cpu_count as f32, cpu.totald)
+        } else {
+            bail!("Cpuinfo lock is poisoned!");
+        };
+
+        if config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
+            for val in self.processes.values_mut() {
+                // process.work can be higher than cpu.totald because of sampling error.
+                // If that is the case, set usage to 100%
+                if val.work > totald {
+                    val.cpu_avg = 100.0 * cpu_count;
+                } else {
+                    val.cpu_avg = (val.work as f32 / totald as f32) * 100.0 *  cpu_count;
                 }
             }
         } else {
-            bail!("Cpuinfo lock is poisoned!");
+            for val in self.processes.values_mut() {
+                if val.work > totald {
+                    val.cpu_avg = 100.0;
+                } else {
+                    val.cpu_avg = (val.work as f32 / totald as f32) * 100.0;
+                }
+            }
         }
+
 
         Ok(())
     }
@@ -202,8 +205,8 @@ impl Processes {
                 18..=21 => if pidlen < 4 { pidlen = 4 },
                 22..=24 => if pidlen < 3 { pidlen = 3 },
                 25..=27 => if pidlen < 2 { pidlen = 2 },
-                28..=32 => if pidlen < 1 { pidlen = 1 },
-                _ => pidlen = 10, // This should never happen?
+                28..=31 => if pidlen < 1 { pidlen = 1 },
+                _ => pidlen = 10, // This should never happen
             }
 
             // Multiply it so it can be sorted
@@ -223,58 +226,13 @@ impl Processes {
 
         (pidlen, sorted)
     }
-
-    // This function is cancer
-    /*pub fn cpu_sort_combined(&self, cpu_totald: i64, cpu_count: u8) -> Vec::<(u32,&process::Process)> {
-        let mut sorted = Vec::new();
-
-        for process in self.processes.values() {
-            let mut work = 0;
-            for task in &process.tasks {
-                if let Some(shoe) = self.processes.get(task) {
-                    let total = shoe.utime + shoe.stime + shoe.cutime + shoe.cstime;
-                    let old_total = shoe.old_utime + shoe.old_stime + shoe.old_cutime + shoe.old_cstime;
-                    work += total - old_total;
-                }
-            }
-
-            let cpu_avg = (work as f32 / cpu_totald as f32) * 100.0 *  cpu_count as f32;
-            sorted.push(((cpu_avg * 1000.0) as u32, process));
-        }
-
-
-        /*for val in self.processes.values() {
-            // Multiply so it sorts properly
-            sorted.push(((val.cpu_avg * 1000.0) as u32, val));
-        }*/
-        let mut bajs = Vec::new();
-        sorted.sort_by(|(i,_), (z,_)| i.cmp(z));
-        sorted.reverse();
-        for (_,val) in &sorted {
-            for x in &val.tasks {
-                for (_,z) in &sorted {
-                    if val.pid != *x {
-                        if *x == z.pid {
-                            bajs.push(x.clone());
-
-                        }
-                    }
-                }
-            }
-        }
-
-        for val in bajs {
-            sorted.dedup_by_key(|(_, i)| i.pid == val);
-        }
-        sorted
-    }*/
 }
 
-pub fn start_thread(internal: Arc<RwLock<Processes>>, cpuinfo: Arc<RwLock<cpu::Cpuinfo>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+pub fn start_thread(internal: Arc<Mutex<Processes>>, cpuinfo: Arc<Mutex<cpu::Cpuinfo>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
         let (lock, cvar) = &*exit;
         'outer: loop {
-            match internal.write() {
+            match internal.lock() {
                 Ok(mut val) => {
                     if let Err(err) = val.update(&cpuinfo, &config) {
                         let mut errvec = error.lock().expect("Error lock couldn't be aquired!");

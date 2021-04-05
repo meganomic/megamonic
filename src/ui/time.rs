@@ -1,6 +1,6 @@
 use crossterm::cursor;
 use std::io::Write;
-use anyhow::{ anyhow, Result };
+use anyhow::Result;
 
 use crate::system::System as System;
 use super::XY as XY;
@@ -36,18 +36,14 @@ impl <'a> Time <'a> {
     }
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-        let time_string = self.gettime()?;
+        let time_string = self.gettime();
         write!(stdout, "{}{}", &self.cache, &time_string)?;
 
         Ok(())
     }
 
-    fn gettime(&mut self) -> Result<String> {
-        let current_time = if let Ok(timeinfo) = self.system.time.read() {
-            timeinfo.time
-        } else {
-            return Err(anyhow!("Couldn't aquire system.time lock!"));
-        };
+    fn gettime(&mut self) -> String {
+        let current_time = self.system.time.time.load(std::sync::atomic::Ordering::Relaxed);
 
         let time_string = libc_strftime::strftime_local(&self.system.config.strftime_format, current_time as i64);
         let length = time_string.len() as u16;
@@ -57,6 +53,6 @@ impl <'a> Time <'a> {
             self.rebuild_cache();
         }
 
-        Ok(time_string)
+        time_string
     }
 }

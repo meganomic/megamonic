@@ -56,7 +56,7 @@ impl <'a> Processes <'a> {
     pub fn draw(&mut self, stdout: &mut std::io::Stdout, terminal_size: &XY) -> Result<()> {
         let items = terminal_size.y - self.pos.y - 4;
 
-        if let Ok(processinfo) = self.system.processinfo.read() {
+        if let Ok(processinfo) = self.system.processinfo.lock() {
             let (pidlen, vector) = processinfo.cpu_sort();
 
             // Update cache if the length of PID increases

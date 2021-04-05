@@ -3,7 +3,6 @@ use crossterm::{
 };
 
 use std::io::{stdout, Write};
-
 use anyhow::Result;
 
 use std::sync::atomic;
@@ -54,8 +53,8 @@ fn main() -> Result<()> {
         .after_help("\x1b[91mEnabling both smaps and all processes is ultra slow.\nEspecially if running as root.\x1b[0m\n\nThese buttons do things:\nq => exit.\na => toggle all processes.\ns => toggle smaps.\nt => toggle \"Top mode\"\nr => rebuild the UI incase its broken\n[space] => pause the UI.")
         .get_matches();
 
-    let stdout_l = stdout();
-    let mut stdout = stdout_l.lock();
+    let mut stdout = stdout();
+    //let mut stdout = stdout_l.lock();
 
     // Initialize System and set the configuration options
     let mut system = system::System {

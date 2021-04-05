@@ -52,7 +52,7 @@ impl <'a> Overview <'a> {
     }
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-        if let Ok(cpuinfo) = self.system.cpuinfo.read() {
+        if let Ok(cpuinfo) = self.system.cpuinfo.lock() {
             if cpuinfo.cpu_avg < 100.0 {
                     write!(stdout, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.0, cpuinfo.cpu_avg)?;
             } else if cpuinfo.cpu_avg >= 100.0 {
