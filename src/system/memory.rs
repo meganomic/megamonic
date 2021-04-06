@@ -1,18 +1,24 @@
 use anyhow::{anyhow, Context, Result};
 use std::sync::{Arc, Mutex, mpsc};
+use std::io::prelude::*;
 
 #[derive(Default, Clone)]
 pub struct Memory {
     pub total: i64,
     pub free: i64,
     pub used: i64,
+    buffer: String
 }
 
 impl Memory {
     pub fn update(&mut self) -> Result<()> {
-        let meminfo = std::fs::read_to_string("/proc/meminfo")?;
+        self.buffer.clear();
+        std::fs::File::open("/proc/meminfo")
+            .context("Can't open /proc/meminfo")?
+            .read_to_string(&mut self.buffer)
+            .context("Can't read /proc/meminfo")?;
 
-        let mut lines = meminfo.lines();
+        let mut lines = self.buffer.lines();
 
         self.total = lines.next()
             .ok_or(anyhow!("Can't parse /proc/meminfo: 1"))?
