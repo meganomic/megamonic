@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use std::sync::{Arc, Mutex, mpsc};
+use std::io::prelude::*;
 
 #[derive(Default)]
 pub struct Bandwidth {
@@ -12,12 +13,18 @@ pub struct Bandwidth {
 #[derive(Default)]
 pub struct Network {
     pub stats: std::collections::BTreeMap<String, Bandwidth>,
+    buffer: String,
 }
 
 impl Network {
     pub fn update(&mut self) -> Result<()> {
-        let networkinfo = std::fs::read_to_string("/proc/net/dev").context("Can't read /proc/net/dev")?;
-        for line in networkinfo.lines().skip(2) {
+        self.buffer.clear();
+        std::fs::File::open("/proc/net/dev")
+            .context("Can't open /proc/net/dev")?
+            .read_to_string(&mut self.buffer)
+            .context("Can't read /proc/net/dev")?;
+
+        for line in self.buffer.lines().skip(2) {
             let mut bandwidth = Bandwidth::default();
 
             let mut split = line.split_whitespace();

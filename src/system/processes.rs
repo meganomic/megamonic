@@ -39,7 +39,6 @@ impl Processes {
                     // Don't add it if we already have it
                     if !self.processes.contains_key(&pid) {
                         // If cmdline can't be opened it probably means that the process has terminated, skip it.
-
                         if let Ok(mut f) = std::fs::File::open(&format!("/proc/{}/cmdline", pid)) {
                             commandline.clear();
                             f.read_to_string(&mut commandline)?;
@@ -83,10 +82,8 @@ impl Processes {
                         } else {
                             // If 'all-processes' is enabled add everything
                             if all_processes {
-                                let stat_file = format!("/proc/{}/stat", pid);
-
                                 // If stat can't be opened it means the process has terminated, skip it.
-                                let executable = if let Ok(buffer) = std::fs::read_to_string(&stat_file) {
+                                let executable = if let Ok(buffer) = std::fs::read_to_string(&format!("/proc/{}/stat", pid)) {
                                     buffer[
                                         buffer.find("(")
                                         .ok_or(
