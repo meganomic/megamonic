@@ -91,24 +91,24 @@ impl <'a> Network <'a> {
             for val in networkinfo.stats.values() {
                 unsafe {
                     if val.recv != 0 {
-                        write!(stdout, "{}{}",
+                        write!(stdout, "{}{}\x1b[37m Rx\x1b[0m",
                             &self.cache.get_unchecked(count).0,
                             &convert_speed(val.recv, freq),
                         )?;
                     } else {
-                        write!(stdout, "{}{}",
+                        write!(stdout, "{}{}\x1b[37m Rx\x1b[0m",
                             &self.cache.get_unchecked(count).1,
                             &convert_speed(val.recv, freq),
                         )?;
                     }
 
                     if val.sent != 0 {
-                        write!(stdout, "{}{}",
+                        write!(stdout, "{}{}\x1b[37m Tx\x1b[0m",
                             &self.cache.get_unchecked(count).2,
                             &convert_speed(val.sent, freq),
                         )?;
                     } else {
-                        write!(stdout, "{}{}",
+                        write!(stdout, "{}{}\x1b[37m Tx\x1b[0m",
                             &self.cache.get_unchecked(count).3,
                             &convert_speed(val.sent, freq),
                         )?;
@@ -126,7 +126,7 @@ impl <'a> Network <'a> {
 // Convert function for network with special handling
 fn convert_speed(num: u64, freq: u64) -> String {
     if num == 0 {
-        return format!("{:>5.0} b/s\x1b[38;5;244m ]\x1b[37m Rx\x1b[0m", num);
+        return format!("{:>5.0} b/s\x1b[38;5;244m ]", num);
     }
     // convert it to a f64 type to we can use ln() and stuff on it.
     let num = num as f64 / (freq as f64 / 1000.0);
@@ -146,8 +146,8 @@ fn convert_speed(num: u64, freq: u64) -> String {
 
     // Different behaviour for different units 7
     match unit {
-        "b" => format!("{:>5.0} {}/s\x1b[91m ]\x1b[37m Tx\x1b[0m", pretty_bytes, unit),
-        "Kb" => format!("{:>4.0} {}/s\x1b[91m ]\x1b[37m Tx\x1b[0m", pretty_bytes, unit),
-        _ => format!("{:>4.1} {}/s\x1b[91m ]\x1b[37m Tx\x1b[0m", pretty_bytes, unit),
+        "b" => format!("{:>5.0} {}/s\x1b[91m ]", pretty_bytes, unit),
+        "Kb" => format!("{:>4.0} {}/s\x1b[91m ]", pretty_bytes, unit),
+        _ => format!("{:>4.1} {}/s\x1b[91m ]", pretty_bytes, unit),
     }
 }
