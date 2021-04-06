@@ -123,9 +123,9 @@ impl Processes {
     }
 
     pub fn update(&mut self, cpuinfo: &Arc<Mutex<cpu::Cpuinfo>>, config: &Arc<Config>) -> Result<()> {
-        let now = std::time::Instant::now();
+        //let now = std::time::Instant::now();
         self.update_pids(config)?;
-        eprintln!("{}", now.elapsed().as_nanos());
+        //eprintln!("{}", now.elapsed().as_nanos());
 
         let (cpu_count, totald) = if let Ok(cpu) = cpuinfo.lock() {
             (cpu.cpu_count as f32, cpu.totald)
