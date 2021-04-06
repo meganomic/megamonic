@@ -15,7 +15,7 @@ codegen-units = 1
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crossterm = "0.18"
+crossterm = "0.19"
 libc-strftime = "0.2"
 sensors = "0.2"
 clap = "2"

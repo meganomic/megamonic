@@ -1,5 +1,4 @@
 use crossterm::{ cursor, queue, style::{ SetColors, Print } };
-use std::io::Write;
 use anyhow::Result;
 
 use crate::system::System as System;

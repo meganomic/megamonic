@@ -1,5 +1,4 @@
 use crossterm::{terminal, queue, cursor, style::Print};
-use std::io::Write;
 use anyhow::Result;
 
 mod time;
