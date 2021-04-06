@@ -40,7 +40,6 @@ impl Memory {
 
         self.used = self.total - self.free;
 
-
         Ok(())
     }
 }
