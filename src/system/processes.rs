@@ -39,7 +39,7 @@ impl Processes {
                         // If cmdline can't be opened it probably means that the process has terminated, skip it.
                         if let Ok(mut f) = std::fs::File::open(&format!("/proc/{}/cmdline", pid)) {
                             self.buffer.clear();
-                            f.read_to_string(&mut self.buffer)?;
+                            f.read_to_string(&mut self.buffer).context(format!("/proc/{}/cmdline", pid))?;
                         } else {
                             continue
                         };
@@ -83,7 +83,7 @@ impl Processes {
                                 // If stat can't be opened it means the process has terminated, skip it.
                                 let executable = if let Ok(mut f) = std::fs::File::open(&format!("/proc/{}/stat", pid)) {
                                     self.buffer.clear();
-                                    f.read_to_string(&mut self.buffer)?;
+                                    f.read_to_string(&mut self.buffer).context(format!("/proc/{}/stat", pid))?;
                                     self.buffer[
                                         self.buffer.find("(")
                                         .ok_or(
