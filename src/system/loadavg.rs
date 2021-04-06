@@ -1,21 +1,28 @@
 use anyhow::{anyhow, Context, Result};
 use std::sync::{Arc, Mutex, mpsc};
+use std::io::prelude::*;
 
 #[derive(Default)]
 pub struct Loadavg {
     pub min1: String,
     pub min5: String,
     pub min15: String,
+    buffer: String
 }
 
 impl Loadavg {
     pub fn update(&mut self) -> Result<()> {
-        let procloadavg = std::fs::read_to_string("/proc/loadavg").context("Can't read /proc/loadavg")?;
+        self.buffer.clear();
+        std::fs::File::open("/proc/loadavg")
+            .context("Can't open /proc/loadavg")?
+            .read_to_string(&mut self.buffer)
+            .context("Can't read /proc/loadavg")?;
+
         self.min1.clear();
         self.min5.clear();
         self.min15.clear();
 
-        let mut split = procloadavg.split_whitespace();
+        let mut split = self.buffer.split_whitespace();
 
         self.min1.push_str(split.next().ok_or(anyhow!("Can't parse /proc/loadavg"))?);
         self.min5.push_str(split.next().ok_or(anyhow!("Can't parse /proc/loadavg"))?);
