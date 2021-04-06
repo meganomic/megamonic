@@ -24,8 +24,6 @@ impl Processes {
 
         let entries = std::fs::read_dir("/proc/").context("Can't read /proc/")?;
 
-        let mut commandline = String::new();
-
         for entry in entries {
             // Only directory names made up of numbers will pass
             if let Ok(pid) = entry
@@ -40,18 +38,18 @@ impl Processes {
                     if !self.processes.contains_key(&pid) {
                         // If cmdline can't be opened it probably means that the process has terminated, skip it.
                         if let Ok(mut f) = std::fs::File::open(&format!("/proc/{}/cmdline", pid)) {
-                            commandline.clear();
-                            f.read_to_string(&mut commandline)?;
+                            self.buffer.clear();
+                            f.read_to_string(&mut self.buffer)?;
                         } else {
                             continue
                         };
 
                         // Limit the results to actual programs unless 'all-processes' is enabled
                         // pid == 1 is weird so make an extra check
-                        if !commandline.is_empty() && pid != 1 {
+                        if !self.buffer.is_empty() && pid != 1 {
                             // Cancer code that is very hacky and don't work for all cases
                             // For instance, if a directory name has spaces or slashes in it, it breaks.
-                            let mut split = commandline.split(&['\0', ' '][..]);
+                            let mut split = self.buffer.split(&['\0', ' '][..]);
                             let executable = split.next()
                                 .ok_or(anyhow!("Parsing error in /proc/[pid]/cmdline"))?
                                 .rsplit("/")
@@ -83,18 +81,19 @@ impl Processes {
                             // If 'all-processes' is enabled add everything
                             if all_processes {
                                 // If stat can't be opened it means the process has terminated, skip it.
-                                let executable = if let Ok(buffer) = std::fs::read_to_string(&format!("/proc/{}/stat", pid)) {
-                                    buffer[
-                                        buffer.find("(")
+                                let executable = if let Ok(mut f) = std::fs::File::open(&format!("/proc/{}/stat", pid)) {
+                                    self.buffer.clear();
+                                    f.read_to_string(&mut self.buffer)?;
+                                    self.buffer[
+                                        self.buffer.find("(")
                                         .ok_or(
                                             anyhow!("Can't find '('")
                                             .context("Can't parse /proc/[pid]/stat"))?
-                                        ..buffer.find(")")
+                                        ..self.buffer.find(")")
                                         .ok_or(
                                             anyhow!("Can't find ')'")
                                             .context("Can't parse /proc/[pid]/stat"))?+1
                                     ].to_string()
-
                                 } else {
                                     continue
                                 };
@@ -107,16 +106,6 @@ impl Processes {
                                         String::new(),
                                         true
                                     )
-                                    /*process::Process {
-                                        pid,
-                                        executable,
-                                        cmdline: String::new(),
-                                        stat_file,
-                                        statm_file: format!("/proc/{}/statm", pid),
-                                        alive: true,
-                                        not_executable: true,
-                                        ..Default::default()
-                                    },*/
                                 );
                             } else {
                                 // Otherwise add it to the ignore list
@@ -134,18 +123,9 @@ impl Processes {
     }
 
     pub fn update(&mut self, cpuinfo: &Arc<Mutex<cpu::Cpuinfo>>, config: &Arc<Config>) -> Result<()> {
-        //let now = std::time::Instant::now();
+        let now = std::time::Instant::now();
         self.update_pids(config)?;
-        //eprintln!("{}", now.elapsed().as_micros());
-
-        // Make a buffer here so it doesn't have to allocated over and over again.
-        //let mut buffer = String::with_capacity(10000);
-
-        for val in self.processes.values_mut() {
-            //let now = std::time::Instant::now();
-            val.update(&mut self.buffer, config)?;
-            //eprintln!("{}", now.elapsed().as_nanos());
-        }
+        eprintln!("{}", now.elapsed().as_nanos());
 
         let (cpu_count, totald) = if let Ok(cpu) = cpuinfo.lock() {
             (cpu.cpu_count as f32, cpu.totald)
@@ -153,18 +133,20 @@ impl Processes {
             bail!("Cpuinfo lock is poisoned!");
         };
 
-        if config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
-            for val in self.processes.values_mut() {
-                // process.work can be higher than cpu.totald because of sampling error.
-                // If that is the case, set usage to 100%
+        let topmode = config.topmode.load(std::sync::atomic::Ordering::Relaxed);
+
+        for val in self.processes.values_mut() {
+            //let now = std::time::Instant::now();
+            val.update(&mut self.buffer, config)?;
+            //eprintln!("{}", now.elapsed().as_nanos());
+
+            if topmode {
                 if val.work > totald {
                     val.cpu_avg = 100.0 * cpu_count;
                 } else {
                     val.cpu_avg = (val.work as f32 / totald as f32) * 100.0 *  cpu_count;
                 }
-            }
-        } else {
-            for val in self.processes.values_mut() {
+            } else {
                 if val.work > totald {
                     val.cpu_avg = 100.0;
                 } else {
@@ -173,7 +155,7 @@ impl Processes {
             }
         }
 
-
+        //eprintln!("{}", now.elapsed().as_nanos());
         Ok(())
     }
 
