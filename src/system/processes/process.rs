@@ -10,33 +10,49 @@ pub struct Process {
     pub cmdline: String,
     pub executable: String,
 
-    pub stat_file: String,
-    pub statm_file: String,
+    stat_file: String,
+    smaps_file: String,
 
     // /proc/stat
     pub pid: u32,        // 1
-    pub utime: u64,      // 14
-    pub stime: u64,      // 15
-    pub cutime: u64,     // 16
-    pub cstime: u64,     // 17
+    utime: u64,      // 14
+    stime: u64,      // 15
+    cutime: u64,     // 16
+    cstime: u64,     // 17
 
     // /proc/smaps_rollup
     pub rss: i64,
     pub pss: i64,
 
     pub work: u64,
+    pub total: u64,
     // /proc/task
     //pub tasks : std::collections::HashSet<u32>,
 
     pub not_executable: bool,
 
     pub alive: bool,
-    pub error: bool,
+    error: bool,
 }
 
 impl Process {
+    pub fn new(pid: u32, executable: String, cmdline: String, not_executable: bool) -> Self {
+
+        Self {
+            pid,
+            executable,
+            cmdline,
+            stat_file: format!("/proc/{}/stat", pid),
+            smaps_file: format!("/proc/{}/smaps_rollup", pid),
+            alive: true,
+            not_executable,
+            ..Default::default()
+        }
+    }
+
     pub fn update(&mut self, buffer: &mut String, config: &Arc<Config>) -> Result<()> {
         if let Ok(mut file) = std::fs::File::open(&self.stat_file) {
+            buffer.clear();
             if file.read_to_string(buffer).is_ok() {
                 let old_total = self.utime + self.stime + self.cutime + self.cstime;
 
@@ -75,13 +91,13 @@ impl Process {
                     * 4096;
 
                 if !self.error {
-                    let total = self.utime + self.stime + self.cutime + self.cstime;
+                    self.total = self.utime + self.stime + self.cutime + self.cstime;
 
                     // If old_total is 0 it means we don't have anything to compare to. So work is 0.
                     self.work = if old_total == 0 {
                         0
                     } else {
-                        total - old_total
+                        self.total - old_total
                     };
 
                 } else {
@@ -89,7 +105,7 @@ impl Process {
                 }
 
                 if config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
-                    self.update_smaps()?;
+                    self.update_smaps(buffer)?;
                 }
 
                 //self.update_tasks();
@@ -103,18 +119,20 @@ impl Process {
         Ok(())
     }
 
-    pub fn update_smaps(&mut self) -> Result<()> {
-        if let Ok(smaps) = std::fs::read_to_string(format!("/proc/{}/smaps_rollup", self.pid)) {
-            self.pss = smaps.lines()
-                .nth(2)
-                .ok_or(anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
-                .split_whitespace()
-                .nth(1)
-                .ok_or(anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
-                .parse::<i64>()
-                .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup")?
-                * 1024;
-
+    pub fn update_smaps(&mut self, buffer: &mut String) -> Result<()> {
+        buffer.clear();
+        if let Ok(mut file) = std::fs::File::open(&self.smaps_file) {
+            if file.read_to_string(buffer).is_ok() {
+                self.pss = buffer.lines()
+                    .nth(2)
+                    .ok_or(anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
+                    .split_whitespace()
+                    .nth(1)
+                    .ok_or(anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
+                    .parse::<i64>()
+                    .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup")?
+                    * 1024;
+            }
         } else {
             //self.rss = -1;
             self.pss = -1;

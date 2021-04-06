@@ -8,6 +8,7 @@ use std::io::prelude::*;
 pub struct Processes {
     pub processes: std::collections::HashMap<u32, process::Process>,
     pub rebuild: bool,
+    buffer: String,
     ignored: std::collections::HashSet<u32>,
 }
 
@@ -72,15 +73,12 @@ impl Processes {
 
                             self.processes.insert(
                                 pid,
-                                process::Process {
+                                process::Process::new(
                                     pid,
                                     executable,
                                     cmdline,
-                                    stat_file: format!("/proc/{}/stat", pid),
-                                    statm_file: format!("/proc/{}/statm", pid),
-                                    alive: true,
-                                    ..Default::default()
-                                },
+                                    false
+                                )
                             );
                         } else {
                             // If 'all-processes' is enabled add everything
@@ -106,7 +104,13 @@ impl Processes {
 
                                 self.processes.insert(
                                     pid,
-                                    process::Process {
+                                    process::Process::new(
+                                        pid,
+                                        executable,
+                                        String::new(),
+                                        true
+                                    )
+                                    /*process::Process {
                                         pid,
                                         executable,
                                         cmdline: String::new(),
@@ -115,7 +119,7 @@ impl Processes {
                                         alive: true,
                                         not_executable: true,
                                         ..Default::default()
-                                    },
+                                    },*/
                                 );
                             } else {
                                 // Otherwise add it to the ignore list
@@ -138,13 +142,12 @@ impl Processes {
         //eprintln!("{}", now.elapsed().as_micros());
 
         // Make a buffer here so it doesn't have to allocated over and over again.
-        let mut buffer = String::with_capacity(10000);
+        //let mut buffer = String::with_capacity(10000);
 
         for val in self.processes.values_mut() {
             //let now = std::time::Instant::now();
-            val.update(&mut buffer, config)?;
+            val.update(&mut self.buffer, config)?;
             //eprintln!("{}", now.elapsed().as_nanos());
-            buffer.clear();
         }
 
         let (cpu_count, totald) = if let Ok(cpu) = cpuinfo.lock() {
@@ -216,9 +219,9 @@ impl Processes {
         // Sort by CPU% if the process did work, otherwise sort by Total CPU time
         sorted.sort_by(|(i,a), (z,b)| {
             if z.cmp(i) == std::cmp::Ordering::Equal {
-                let at = a.utime + a.stime + a.cutime + a.cstime;
-                let bt = b.utime + b.stime + b.cutime + b.cstime;
-                bt.cmp(&at)
+                //let at = a.utime + a.stime + a.cutime + a.cstime;
+                //let bt = b.utime + b.stime + b.cutime + b.cstime;
+                b.total.cmp(&a.total)
             } else {
                 z.cmp(i)
             }
