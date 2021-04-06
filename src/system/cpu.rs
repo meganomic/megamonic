@@ -19,6 +19,7 @@ pub struct Cpuinfo {
     pub totald: u64,
     pub cpu_count: u8,
     pub governor: String,
+    buffer: String,
     idle: u64,
     non_idle: u64,
     stats: Cpustats,
@@ -42,6 +43,7 @@ impl Default for Cpuinfo {
             totald: 0,
             cpu_count,
             governor: String::new(),
+            buffer: String::new(),
             idle: 0,
             non_idle: 0,
             stats: Cpustats::default(),
@@ -57,10 +59,13 @@ impl Cpuinfo {
             .read_to_string(&mut self.governor)
             .with_context(|| "Can't read /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?;
 
+        self.buffer.clear();
+        std::fs::File::open("/proc/stat")
+            .with_context(|| "Can't open /proc/stat")?
+            .read_to_string(&mut self.buffer)
+            .with_context(|| "Can't read /proc/stat")?;
 
-        let procstat = std::fs::read_to_string("/proc/stat").context("Can't read /proc/stat")?;
-
-        let line = procstat.lines().nth(0).ok_or(anyhow!("Can't parse /proc/stat"))?;
+        let line = self.buffer.lines().nth(0).ok_or(anyhow!("Can't parse /proc/stat"))?;
 
         // Save previous stats
         let prev_idle = self.stats.idle + self.stats.iowait;
