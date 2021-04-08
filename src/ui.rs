@@ -1,5 +1,6 @@
-use crossterm::{terminal, queue, cursor, style::Print};
-use anyhow::Result;
+use crossterm::{terminal, execute, queue, cursor, style::Print};
+use std::io::Write;
+use anyhow::{ Context, Result };
 
 mod time;
 use time::Time as Time;
@@ -86,10 +87,10 @@ pub struct Ui <'ui> {
 }
 
 impl <'ui> Ui <'ui> {
-    pub fn new(system: &'ui super::system::System) -> Self {
-        let (tsizex, tsizey) = terminal::size().expect("Can't get terminal size");
+    pub fn new(system: &'ui super::system::System) -> Result<Self> {
+        let (tsizex, tsizey) = terminal::size().context("Can't get terminal size")?;
 
-        Self {
+        let mut ui = Self {
             paused: false,
             stdout: std::io::stdout(),
             system,
@@ -105,7 +106,42 @@ impl <'ui> Ui <'ui> {
             network: Network::new(system, XY { x: 0, y: 5 }),
             sensors: Sensors::new(system, XY { x: 0, y: 11 }),
             gpu: Gpu::new(system, XY { x: 0, y: 21 }),
-        }
+        };
+
+        ui.init().context("Error occured while initializting UI")?;
+
+        ui.rebuild().context("Error occured while building UI")?;
+
+        Ok(ui)
+    }
+
+    fn init(&mut self) -> Result<()> {
+        // Disable all hotkeys and stuff.
+        terminal::enable_raw_mode()?;
+
+        // Setup the terminal screen
+        execute!(
+            self.stdout,
+            terminal::EnterAlternateScreen,
+            terminal::Clear(terminal::ClearType::All),
+            terminal::DisableLineWrap,
+            cursor::Hide,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn exit(&mut self) -> Result<()> {
+        execute!(self.stdout,
+            terminal::Clear(terminal::ClearType::All),
+            terminal::LeaveAlternateScreen,
+            terminal::EnableLineWrap,
+            cursor::Show
+        )?;
+
+        terminal::disable_raw_mode()?;
+
+        Ok(())
     }
 
     pub fn toggle_pause(&mut self) {
@@ -257,6 +293,8 @@ impl <'ui> Ui <'ui> {
                 _ => (),
             }
         }
+
+        self.stdout.flush()?;
 
         Ok(())
     }

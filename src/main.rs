@@ -1,10 +1,4 @@
-use crossterm::{
-    cursor, terminal, execute
-};
-
-use std::io::{stdout, Write};
-use anyhow::{ ensure, Result };
-
+use anyhow::{ bail, ensure, Context, Result };
 
 use clap::{ App, AppSettings, Arg, value_t };
 
@@ -56,8 +50,6 @@ fn main() -> Result<()> {
         .after_help("\x1b[91mEnabling both smaps and all processes is ultra slow.\nEspecially if running as root.\x1b[0m\n\nThese buttons do things:\nq => exit.\na => toggle all processes.\ns => toggle smaps.\nt => toggle \"Top mode\"\nr => rebuild the UI incase its broken\n[space] => pause the UI.")
         .get_matches();
 
-    let mut stdout = stdout();
-
     let freq = value_t!(options, "frequency", u64).unwrap_or_else(|e| e.exit());
 
     ensure!(freq >= 1000 && freq <= 3000, "\x1b[32mFrequency\x1b[0m must in range 1000-3000");
@@ -84,45 +76,31 @@ fn main() -> Result<()> {
     if !system.error.lock().unwrap().is_empty() {
         system.stop();
 
-        for err in system.error.lock().unwrap().iter() {
+        for err in system.error.lock().expect("system.error lock couldn't be aquired!").iter() {
             eprintln!("{:?}", err);
         }
 
         return Ok(());
     }
 
-    let mut ui = ui::Ui::new(&system);
-
-    // Disable all hotkeys and stuff.
-    terminal::enable_raw_mode()?;
-
-    // Setup the terminal screen
-    execute!(
-        stdout,
-        terminal::EnterAlternateScreen,
-        terminal::Clear(terminal::ClearType::All),
-        terminal::DisableLineWrap,
-        cursor::Hide,
-    )?;
-
-    ui.rebuild()?;
+    let mut ui = ui::Ui::new(&system)?;
 
     // Main loop
     for event in rx.iter() {
         match event {
             // Update UI element
-            1..=13 => ui.update(event)?,
+            1..=13 => ui.update(event).context("Error occured while updating UI")?,
 
             // This is a error event incase one of the threads break.
             99 => {
+                ui.exit()?;
                 system.stop();
-                execute!(stdout, terminal::Clear(terminal::ClearType::All), terminal::LeaveAlternateScreen, terminal::EnableLineWrap, cursor::Show)?;
-                terminal::disable_raw_mode()?;
-                for err in system.error.lock().unwrap().iter() {
+
+                for err in system.error.lock().expect("system.error lock couldn't be aquired!").iter() {
                     eprintln!("{:?}", err);
                 }
 
-                return Ok(());
+                bail!("Error event 99 occured!");
             },
 
             // Pause
@@ -133,13 +111,15 @@ fn main() -> Result<()> {
                 if let Ok(val) = system.events.lock() {
                     ui.terminal_size.x = val.tsizex;
                     ui.terminal_size.y = val.tsizey;
+                } else {
+                    break;
                 }
 
-                ui.rebuild()?;
+                ui.rebuild().context("Error occured while rebuilding UI")?;
             },
 
             // Rebuild UI if user pressed r
-            106 => ui.rebuild()?,
+            106 => ui.rebuild().context("Error occured while rebuilding UI")?,
 
             // Exit - Someone pressed Q or ctrl+c
             255 => break,
@@ -147,17 +127,12 @@ fn main() -> Result<()> {
             // If its something else we better exit just in case!
             _ => break,
         }
-
-        stdout.flush()?;
     }
+
+    ui.exit()?;
 
     // Stop monitoring threads
     system.stop();
-
-    // Reset terminal
-    execute!(stdout, terminal::Clear(terminal::ClearType::All), terminal::LeaveAlternateScreen, terminal::EnableLineWrap, cursor::Show)?;
-
-    terminal::disable_raw_mode()?;
 
     Ok(())
 }
