@@ -3,7 +3,10 @@ use crossterm::{
 };
 
 use std::io::{stdout, Write};
-use anyhow::Result;
+use anyhow::{ ensure, Result };
+
+
+use clap::{ App, AppSettings, Arg, value_t };
 
 use std::sync::atomic;
 mod system;
@@ -15,46 +18,49 @@ static mut _CUMULATIVE_BENCHMARK: u128 = 0;
 static mut _CUMULATIVE_COUNT: u128 = 0;
 
 fn main() -> Result<()> {
-    let options = clap::App::new("Megamonic")
-        .setting(clap::AppSettings::ColoredHelp)
+    let options = App::new("Megamonic")
+        .setting(AppSettings::ColoredHelp)
         .about("A badly designed multithreaded system monitor")
         .version("0.1.0")
         .arg(
-            clap::Arg::with_name("smaps")
+            Arg::with_name("smaps")
                 .short("s")
                 .long("enable-smaps")
-                .help("Enable use of PSS value instead of RSS for memory reporting\nRequires root for some processes (very slow)")
+                .help("Enable use of PSS value instead of RSS for memory reporting. Requires root for some processes (very slow)")
         )
         .arg(
-            clap::Arg::with_name("strftime")
+            Arg::with_name("strftime")
                 .long("strftime")
                 .help("Strftime format string")
                 .default_value("%c")
         )
         .arg(
-            clap::Arg::with_name("topmode")
+            Arg::with_name("topmode")
                 .short("t")
                 .long("enable-top-mode")
                 .help("Report CPU % the same way top does")
         )
         .arg(
-            clap::Arg::with_name("all")
+            Arg::with_name("all")
                 .short("a")
                 .long("enable-all-processes")
                 .help("Shows all processes, including kernel threads and other stuff (slow)")
         )
         .arg(
-            clap::Arg::with_name("frequency")
+            Arg::with_name("frequency")
                 .short("f")
                 .long("frequency")
-                .help("Sample frequency in milliseconds. Min: 1000, Max: 5000")
+                .help("Sample frequency in milliseconds. Min: 1000, Max: 3000")
                 .default_value("1000")
         )
         .after_help("\x1b[91mEnabling both smaps and all processes is ultra slow.\nEspecially if running as root.\x1b[0m\n\nThese buttons do things:\nq => exit.\na => toggle all processes.\ns => toggle smaps.\nt => toggle \"Top mode\"\nr => rebuild the UI incase its broken\n[space] => pause the UI.")
         .get_matches();
 
     let mut stdout = stdout();
-    //let mut stdout = stdout_l.lock();
+
+    let freq = value_t!(options, "frequency", u64).unwrap_or_else(|e| e.exit());
+
+    ensure!(freq >= 1000 && freq <= 3000, "\x1b[32mFrequency\x1b[0m must in range 1000-3000");
 
     // Initialize System and set the configuration options
     let mut system = system::System {
@@ -62,8 +68,8 @@ fn main() -> Result<()> {
             smaps: atomic::AtomicBool::new(options.is_present("smaps")),
             topmode: atomic::AtomicBool::new(options.is_present("topmode")),
             all: atomic::AtomicBool::new(options.is_present("all")),
-            frequency: atomic::AtomicU64::new(options.value_of("frequency").unwrap_or("1000").parse::<u64>().map_or(1000, |v| if v > 5000 { 5000 } else if v < 1000 { 1000 } else { v })),
-            strftime_format: options.value_of("strftime").unwrap_or("%c").to_string(),
+            frequency: atomic::AtomicU64::new(freq),
+            strftime_format: value_t!(options, "strftime", String).unwrap_or_else(|e| e.exit()),
         }),
         ..Default::default()
     };
