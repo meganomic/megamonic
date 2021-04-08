@@ -18,6 +18,7 @@ pub fn start_thread(internal: Arc<Mutex<Gpu>>, tx: mpsc::Sender::<u8>, exit: Arc
         // Setup device
         if let Ok(nvml) = nvml_wrapper::NVML::init() {
             if let Ok(device) = nvml.device_by_index(0) {
+                let (lock, cvar) = &*exit;
                 'outer: loop {
                     match internal.lock() {
                         Ok(mut val) => {
@@ -33,13 +34,13 @@ pub fn start_thread(internal: Arc<Mutex<Gpu>>, tx: mpsc::Sender::<u8>, exit: Arc
                             }
                         },
                         Err(_) => break,
-                    };
+                    }
+
                     match tx.send(9) {
                         Ok(_) => (),
                         Err(_) => break,
-                    };
+                    }
 
-                    let (lock, cvar) = &*exit;
                     if let Ok(mut exitvar) = lock.lock() {
                         loop {
                             if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {

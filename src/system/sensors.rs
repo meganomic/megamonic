@@ -49,11 +49,12 @@ pub fn start_thread(internal: Arc<Mutex<Sensors>>, tx: mpsc::Sender::<u8>, exit:
             match internal.lock() {
                 Ok(mut val) => val.update(),
                 Err(_) => break,
-            };
+            }
+
             match tx.send(6) {
                 Ok(_) => (),
                 Err(_) => break,
-            };
+            }
 
             if let Ok(mut exitvar) = lock.lock() {
                 loop {

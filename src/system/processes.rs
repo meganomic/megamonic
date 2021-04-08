@@ -230,6 +230,7 @@ pub fn start_thread(internal: Arc<Mutex<Processes>>, cpuinfo: Arc<Mutex<cpu::Cpu
                 },
                 Err(_) => break,
             }
+
             match tx.send(8) {
                 Ok(_) => (),
                 Err(_) => break,

@@ -82,11 +82,12 @@ pub fn start_thread(internal: Arc<Mutex<Network>>, tx: mpsc::Sender::<u8>, exit:
                     }
                 },
                 Err(_) => break,
-            };
+            }
+
             match tx.send(7) {
                 Ok(_) => (),
                 Err(_) => break,
-            };
+            }
 
             if let Ok(mut exitvar) = lock.lock() {
                 loop {

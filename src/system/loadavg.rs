@@ -51,11 +51,12 @@ pub fn start_thread(internal: Arc<Mutex<Loadavg>>, tx: mpsc::Sender::<u8>, exit:
                     }
                 },
                 Err(_) => break,
-            };
+            }
+
             match tx.send(2) {
                 Ok(_) => (),
                 Err(_) => break,
-            };
+            }
 
             if let Ok(mut exitvar) = lock.lock() {
                 loop {

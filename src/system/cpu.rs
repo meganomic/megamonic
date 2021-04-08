@@ -127,6 +127,7 @@ pub fn start_thread(internal: Arc<Mutex<Cpuinfo>>, tx: mpsc::Sender::<u8>, exit:
                 },
                 Err(_) => break
             }
+
             match tx.send(3) {
                 Ok(_) => (),
                 Err(_) => break
