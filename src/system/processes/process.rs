@@ -57,34 +57,34 @@ impl Process {
 
                 let mut split = buffer[
                         buffer.find(")")
-                        .ok_or(
+                        .ok_or_else(||
                             anyhow!("Can't find ')'")
                             .context("Can't parse /proc/[pid]/stat"))?
                         ..buffer.len()
-                    ].split_whitespace();
+                    ].split_ascii_whitespace();
 
                 self.utime = split.nth(11)
-                    .ok_or(anyhow!("Can't parse 'utime' from /proc/[pid]/stat"))?
+                    .ok_or_else(||anyhow!("Can't parse 'utime' from /proc/[pid]/stat"))?
                     .parse::<u64>()
                     .context("Can't parse 'utime' from /proc/[pid]/stat")?;
 
                 self.stime = split.next()
-                    .ok_or(anyhow!("Can't parse 'stime' from /proc/[pid]/stat"))?
+                    .ok_or_else(||anyhow!("Can't parse 'stime' from /proc/[pid]/stat"))?
                     .parse::<u64>()
                     .context("Can't parse 'stime' from /proc/[pid]/stat")?;
 
                 self.cutime = split.next()
-                    .ok_or(anyhow!("Can't parse 'cutime' from /proc/[pid]/stat"))?
+                    .ok_or_else(||anyhow!("Can't parse 'cutime' from /proc/[pid]/stat"))?
                     .parse::<u64>()
                     .context("Can't parse 'cutime' from /proc/[pid]/stat")?;
 
                 self.cstime = split.next()
-                    .ok_or(anyhow!("Can't parse 'cstime' from /proc/[pid]/stat"))?
+                    .ok_or_else(||anyhow!("Can't parse 'cstime' from /proc/[pid]/stat"))?
                     .parse::<u64>()
                     .context("Can't parse 'cstime' from /proc/[pid]/stat")?;
 
                 self.rss = split.nth(7)
-                    .ok_or(anyhow!("Can't parse 'rss' from /proc/[pid]/stat"))?
+                    .ok_or_else(||anyhow!("Can't parse 'rss' from /proc/[pid]/stat"))?
                     .parse::<i64>()
                     .context("Can't parse 'rss' from /proc/[pid]/stat")?
                     * 4096;
@@ -118,10 +118,10 @@ impl Process {
             if file.read_to_string(buffer).is_ok() {
                 self.pss = buffer.lines()
                     .nth(2)
-                    .ok_or(anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
-                    .split_whitespace()
+                    .ok_or_else(||anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
+                    .split_ascii_whitespace()
                     .nth(1)
-                    .ok_or(anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
+                    .ok_or_else(||anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
                     .parse::<i64>()
                     .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup")?
                     * 1024;

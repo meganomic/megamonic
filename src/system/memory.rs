@@ -21,19 +21,19 @@ impl Memory {
         let mut lines = self.buffer.lines();
 
         self.total = lines.next()
-            .ok_or(anyhow!("Can't parse /proc/meminfo: 1"))?
+            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 1"))?
             .split_whitespace()
             .nth(1)
-            .ok_or(anyhow!("Can't parse /proc/meminfo: 2"))?
+            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
             .parse::<i64>()
             .context("Can't parse /proc/meminfo: 3")?
             * 1024;
 
         self.free = lines.nth(1)
-            .ok_or(anyhow!("Can't parse /proc/meminfo: 1"))?
+            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 1"))?
             .split_whitespace()
             .nth(1)
-            .ok_or(anyhow!("Can't parse /proc/meminfo: 2"))?
+            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
             .parse::<i64>()
             .context("Can't parse /proc/meminfo: 3")?
             * 1024;

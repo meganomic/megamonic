@@ -55,17 +55,17 @@ impl Cpuinfo {
     pub fn update(&mut self) -> Result<()> {
         self.governor.clear();
         std::fs::File::open("/sys/devices/system/cpu/cpufreq/policy0/scaling_governor")
-            .with_context(|| "Can't open /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?
+            .context("Can't open /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?
             .read_to_string(&mut self.governor)
-            .with_context(|| "Can't read /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?;
+            .context("Can't read /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?;
 
         self.buffer.clear();
         std::fs::File::open("/proc/stat")
-            .with_context(|| "Can't open /proc/stat")?
+            .context("Can't open /proc/stat")?
             .read_to_string(&mut self.buffer)
-            .with_context(|| "Can't read /proc/stat")?;
+            .context("Can't read /proc/stat")?;
 
-        let line = self.buffer.lines().nth(0).ok_or(anyhow!("Can't parse /proc/stat"))?;
+        let line = self.buffer.lines().nth(0).ok_or_else(||anyhow!("Can't parse /proc/stat"))?;
 
         // Save previous stats
         let prev_idle = self.stats.idle + self.stats.iowait;

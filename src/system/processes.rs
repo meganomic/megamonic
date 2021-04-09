@@ -3,12 +3,14 @@ use super::{cpu, Config};
 use anyhow::{bail, anyhow, Context, Result};
 use std::sync::{Arc, Mutex, mpsc};
 use std::io::prelude::*;
+use std::fmt::Write as fmtWrite;
 
 #[derive(Default)]
 pub struct Processes {
     pub processes: std::collections::HashMap<u32, process::Process>,
     pub rebuild: bool,
     buffer: String,
+    buffer2: String,
     ignored: std::collections::HashSet<u32>,
 }
 
@@ -30,16 +32,18 @@ impl Processes {
                 .context("IO error while reading /proc/")?
                 .file_name()
                 .to_str()
-                .ok_or(anyhow!("Entry in /proc/ contains illegal unicode"))?
+                .ok_or_else(||anyhow!("Entry in /proc/ contains illegal unicode"))?
                 .parse::<u32>()
             {
                 if !self.ignored.contains(&pid) {
                     // Don't add it if we already have it
                     if !self.processes.contains_key(&pid) {
                         // If cmdline can't be opened it probably means that the process has terminated, skip it.
-                        if let Ok(mut f) = std::fs::File::open(&format!("/proc/{}/cmdline", pid)) {
+                        self.buffer2.clear();
+                        write!(&mut self.buffer2, "/proc/{}/cmdline", pid)?;
+                        if let Ok(mut f) = std::fs::File::open(&self.buffer2) {
                             self.buffer.clear();
-                            f.read_to_string(&mut self.buffer).context(format!("/proc/{}/cmdline", pid))?;
+                            f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/cmdline", pid))?;
                         } else {
                             continue
                         };
@@ -51,10 +55,10 @@ impl Processes {
                             // For instance, if a directory name has spaces or slashes in it, it breaks.
                             let mut split = self.buffer.split(&['\0', ' '][..]);
                             let executable = split.next()
-                                .ok_or(anyhow!("Parsing error in /proc/[pid]/cmdline"))?
+                                .ok_or_else(||anyhow!("Parsing error in /proc/[pid]/cmdline"))?
                                 .rsplit("/")
                                 .next()
-                                .ok_or(anyhow!("Parsing error in /proc/[pid]/cmdline"))?
+                                .ok_or_else(||anyhow!("Parsing error in /proc/[pid]/cmdline"))?
                                 .to_string();
 
                             let cmdline = split
@@ -81,16 +85,18 @@ impl Processes {
                             // If 'all-processes' is enabled add everything
                             if all_processes {
                                 // If stat can't be opened it means the process has terminated, skip it.
-                                let executable = if let Ok(mut f) = std::fs::File::open(&format!("/proc/{}/stat", pid)) {
+                                self.buffer2.clear();
+                                write!(&mut self.buffer2, "/proc/{}/stat", pid)?;
+                                let executable = if let Ok(mut f) = std::fs::File::open(&self.buffer2) {
                                     self.buffer.clear();
-                                    f.read_to_string(&mut self.buffer).context(format!("/proc/{}/stat", pid))?;
+                                    f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/stat", pid))?;
                                     self.buffer[
                                         self.buffer.find("(")
-                                        .ok_or(
+                                        .ok_or_else(||
                                             anyhow!("Can't find '('")
                                             .context("Can't parse /proc/[pid]/stat"))?
                                         ..self.buffer.find(")")
-                                        .ok_or(
+                                        .ok_or_else(||
                                             anyhow!("Can't find ')'")
                                             .context("Can't parse /proc/[pid]/stat"))?+1
                                     ].to_string()

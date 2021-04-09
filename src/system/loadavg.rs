@@ -24,9 +24,9 @@ impl Loadavg {
 
         let mut split = self.buffer.split_whitespace();
 
-        self.min1.push_str(split.next().ok_or(anyhow!("Can't parse /proc/loadavg"))?);
-        self.min5.push_str(split.next().ok_or(anyhow!("Can't parse /proc/loadavg"))?);
-        self.min15.push_str(split.next().ok_or(anyhow!("Can't parse /proc/loadavg"))?);
+        self.min1.push_str(split.next().ok_or_else(||anyhow!("Can't parse /proc/loadavg"))?);
+        self.min5.push_str(split.next().ok_or_else(||anyhow!("Can't parse /proc/loadavg"))?);
+        self.min15.push_str(split.next().ok_or_else(||anyhow!("Can't parse /proc/loadavg"))?);
 
         Ok(())
     }
