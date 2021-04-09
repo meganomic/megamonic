@@ -2,6 +2,7 @@ use super::Config;
 use anyhow::{anyhow, Context, Result};
 use std::sync::Arc;
 use std::io::prelude::*;
+use std::cmp::Ordering;
 
 #[derive(Default)]
 pub struct Process {
@@ -32,7 +33,6 @@ pub struct Process {
     pub not_executable: bool,
 
     pub alive: bool,
-    error: bool,
 }
 
 impl Process {
@@ -54,7 +54,7 @@ impl Process {
         if let Ok(mut file) = std::fs::File::open(&self.stat_file) {
             buffer.clear();
             if file.read_to_string(buffer).is_ok() {
-                let old_total = self.utime + self.stime + self.cutime + self.cstime;
+                let old_total = self.total;
 
                 let mut split = buffer[
                         buffer.find(")")
@@ -90,25 +90,19 @@ impl Process {
                     .context("Can't parse 'rss' from /proc/[pid]/stat")?
                     * 4096;
 
-                if !self.error {
-                    self.total = self.utime + self.stime + self.cutime + self.cstime;
+                self.total = self.utime + self.stime + self.cutime + self.cstime;
 
-                    // If old_total is 0 it means we don't have anything to compare to. So work is 0.
-                    self.work = if old_total == 0 {
-                        0
-                    } else {
-                        self.total - old_total
-                    };
-
+                // If old_total is 0 it means we don't have anything to compare to. So work is 0.
+                self.work = if old_total == 0 {
+                    0
                 } else {
-                    self.cpu_avg = -1.0;
-                }
+                    self.total - old_total
+                };
 
                 if config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
                     self.update_smaps(buffer)?;
                 }
 
-                //self.update_tasks();
             } else {
                 self.alive = false;
             }
@@ -132,9 +126,10 @@ impl Process {
                     .parse::<i64>()
                     .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup")?
                     * 1024;
+            } else {
+                self.pss = -1;
             }
         } else {
-            //self.rss = -1;
             self.pss = -1;
         }
 

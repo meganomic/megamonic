@@ -64,7 +64,8 @@ impl <'a> Processes <'a> {
                 self.cache2.clear();
             }
 
-            for (idx, (_, val)) in vector.iter().enumerate() {
+            //let now = std::time::Instant::now();
+            for (idx, val) in vector.iter().enumerate() {
                 //let now = std::time::Instant::now();
                 let memory = if self.system.config.smaps.load(atomic::Ordering::Relaxed) {
                     // Check if there actually is a PSS value
@@ -132,6 +133,7 @@ impl <'a> Processes <'a> {
                     break;
                 }
             }
+            //eprintln!("{}", now.elapsed().as_nanos());
 
             // Save the length of the longest PID in the cache so we can check if it changes
             // In which case we need to rebuild the cache

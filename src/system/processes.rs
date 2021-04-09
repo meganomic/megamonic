@@ -159,7 +159,7 @@ impl Processes {
         Ok(())
     }
 
-    pub fn cpu_sort(&self) -> (usize, Vec::<(u32,&process::Process)>) {
+    pub fn cpu_sort(&self) -> (usize, Vec::<&process::Process>) {
         let mut sorted = Vec::new();
         let mut pidlen = 0;
 
@@ -192,17 +192,16 @@ impl Processes {
             }
 
             // Multiply it so it can be sorted
-            sorted.push(((val.cpu_avg * 1000.0) as u32, val));
+            sorted.push(val);
         }
 
-        // Sort by CPU% if the process did work, otherwise sort by Total CPU time
-        sorted.sort_by(|(i,a), (z,b)| {
-            if z.cmp(i) == std::cmp::Ordering::Equal {
-                //let at = a.utime + a.stime + a.cutime + a.cstime;
-                //let bt = b.utime + b.stime + b.cutime + b.cstime;
+        // Sort by amount of Work, if equal sort by Total Work
+        sorted.sort_by(|a, b| {
+            let comparison = b.work.cmp(&a.work);
+            if comparison == std::cmp::Ordering::Equal {
                 b.total.cmp(&a.total)
             } else {
-                z.cmp(i)
+                comparison
             }
         });
 
