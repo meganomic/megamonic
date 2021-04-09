@@ -27,6 +27,7 @@ impl <'a> Hostinfo <'a> {
         let dist_len = self.system.hostinfo.distname.len();
         let kern_len = self.system.hostinfo.kernel.len();
 
+        // +9 is the static parts
         self.size.x = dist_len as u16 + kern_len as u16 + 9;
 
         self.cache.clear();
