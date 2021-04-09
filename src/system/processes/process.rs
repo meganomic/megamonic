@@ -2,7 +2,6 @@ use super::Config;
 use anyhow::{anyhow, Context, Result};
 use std::sync::Arc;
 use std::io::prelude::*;
-use std::cmp::Ordering;
 
 #[derive(Default)]
 pub struct Process {
