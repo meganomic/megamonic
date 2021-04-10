@@ -10,7 +10,7 @@ pub struct Events {
 
 pub fn start_thread(internal: Arc<Mutex<Events>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || loop {
-        if let Ok(polling) = poll(std::time::Duration::from_millis(100)) {
+        if let Ok(polling) = poll(std::time::Duration::from_millis(1000)) {
             if polling {
                 if let Ok(ev) = read() {
                     match ev {
