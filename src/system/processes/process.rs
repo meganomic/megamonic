@@ -1,6 +1,4 @@
-use super::Config;
 use anyhow::{anyhow, Context, Result};
-use std::sync::Arc;
 use std::io::prelude::*;
 
 #[derive(Default)]
@@ -49,7 +47,7 @@ impl Process {
         }
     }
 
-    pub fn update(&mut self, buffer: &mut String, config: &Arc<Config>) -> Result<()> {
+    pub fn update(&mut self, buffer: &mut String, smaps: bool) -> Result<()> {
         if let Ok(mut file) = std::fs::File::open(&self.stat_file) {
             buffer.clear();
             if file.read_to_string(buffer).is_ok() {
@@ -98,7 +96,7 @@ impl Process {
                     self.total - old_total
                 };
 
-                if config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
+                if smaps {
                     self.update_smaps(buffer)?;
                 }
 

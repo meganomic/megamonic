@@ -140,10 +140,11 @@ impl Processes {
         };
 
         let topmode = config.topmode.load(std::sync::atomic::Ordering::Relaxed);
+        let smaps = config.smaps.load(std::sync::atomic::Ordering::Relaxed);
 
         for val in self.processes.values_mut() {
             //let now = std::time::Instant::now();
-            val.update(&mut self.buffer, config)?;
+            val.update(&mut self.buffer, smaps)?;
             //eprintln!("{}", now.elapsed().as_nanos());
 
             if topmode {
