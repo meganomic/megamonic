@@ -56,12 +56,10 @@ impl <'a> Processes <'a> {
     }
 
     pub fn draw(&mut self, stdout: &mut std::io::Stdout, terminal_size: &XY) -> Result<()> {
-        //let items = terminal_size.y - self.pos.y - 4;
-
         let smaps = self.system.config.smaps.load(atomic::Ordering::Relaxed);
 
         if let Ok(processinfo) = self.system.processinfo.lock() {
-            let (pidlen, vector) = processinfo.cpu_sort();
+            let (pidlen, list) = processinfo.cpu_sort();
 
             // Update cache if the length of PID increases
             if pidlen > self.pidlen {
@@ -69,7 +67,7 @@ impl <'a> Processes <'a> {
             }
 
             //let now = std::time::Instant::now();
-            for (idx, val) in vector.iter().enumerate() {
+            for (idx, val) in list.iter().enumerate() {
                 // Break once we printed all the processes that fit on screen
                 if idx == self.size.y as usize {
                     break;
@@ -83,30 +81,25 @@ impl <'a> Processes <'a> {
                     convert_with_padding_proc(&mut self.memory, val.rss, 4, false)?;
                 }
 
-                if !self.cache2.contains_key(&val.pid) {
-                    self.cache2.insert(
-                        val.pid,
-                        maxstr(
-                            &val.executable,
-                            &val.cmdline,
-                            val.not_executable,
-                            val.pid,
-                            pidlen,
-                            (terminal_size.x - self.pos.x - 19) as usize
-                        )
-                    );
-                }
-
                 unsafe {
                     // This is needed because of rounding errors. There's probably a better way
+                    let max_length = (terminal_size.x - self.pos.x - 19) as usize;
                     if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
                         write!(stdout,
                             "{}\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ {}{}",
                             &self.cache1.get_unchecked(idx),
                             val.cpu_avg,
                             &self.memory,
-                            &self.cache2.get(&val.pid)
-                                .expect("Process cache is corrupted!")
+                            &self.cache2.entry(val.pid).or_insert_with(||
+                                maxstr(
+                                    &val.executable,
+                                    &val.cmdline,
+                                    val.not_executable,
+                                    val.pid,
+                                    pidlen,
+                                    max_length
+                                )
+                            )
                         )?;
                     } else if val.cpu_avg >= 99.5 {
                         write!(stdout,
@@ -114,8 +107,16 @@ impl <'a> Processes <'a> {
                             &self.cache1.get_unchecked(idx),
                             val.cpu_avg,
                             &self.memory,
-                            &self.cache2.get(&val.pid)
-                                .expect("Process cache is corrupted!")
+                            &self.cache2.entry(val.pid).or_insert_with(||
+                                maxstr(
+                                    &val.executable,
+                                    &val.cmdline,
+                                    val.not_executable,
+                                    val.pid,
+                                    pidlen,
+                                    max_length
+                                )
+                            )
                         )?;
                     } else {
                         write!(stdout,
@@ -123,8 +124,16 @@ impl <'a> Processes <'a> {
                             &self.cache1.get_unchecked(idx),
                             val.cpu_avg,
                             &self.memory,
-                            &self.cache2.get(&val.pid)
-                                .expect("Process cache is corrupted!")
+                            &self.cache2.entry(val.pid).or_insert_with(||
+                                maxstr(
+                                    &val.executable,
+                                    &val.cmdline,
+                                    val.not_executable,
+                                    val.pid,
+                                    pidlen,
+                                    max_length
+                                )
+                            )
                         )?;
                     }
                 }
