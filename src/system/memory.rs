@@ -22,7 +22,7 @@ impl Memory {
 
         self.total = lines.next()
             .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 1"))?
-            .split_whitespace()
+            .split_ascii_whitespace()
             .nth(1)
             .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
             .parse::<i64>()
@@ -31,7 +31,7 @@ impl Memory {
 
         self.free = lines.nth(1)
             .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 1"))?
-            .split_whitespace()
+            .split_ascii_whitespace()
             .nth(1)
             .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
             .parse::<i64>()

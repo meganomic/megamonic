@@ -27,7 +27,7 @@ impl Network {
         for line in self.buffer.lines().skip(2) {
             let mut bandwidth = Bandwidth::default();
 
-            let mut split = line.split_whitespace();
+            let mut split = line.split_ascii_whitespace();
 
             let name = split.next().ok_or_else(||anyhow!("Can't parse name from /proc/net/dev"))?;
 

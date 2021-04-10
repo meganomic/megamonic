@@ -76,7 +76,7 @@ impl Cpuinfo {
             + self.stats.softirq
             + self.stats.steal;
 
-        for (i, s) in line.split_whitespace().skip(1).enumerate() {
+        for (i, s) in line.split_ascii_whitespace().skip(1).enumerate() {
             match i {
                 0 => self.stats.user = s.parse::<u64>().context("Can't parse 'user'")?,
                 1 => self.stats.nice = s.parse::<u64>().context("Can't parse 'nice'")?,

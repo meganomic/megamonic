@@ -22,7 +22,7 @@ impl Loadavg {
         self.min5.clear();
         self.min15.clear();
 
-        let mut split = self.buffer.split_whitespace();
+        let mut split = self.buffer.split_ascii_whitespace();
 
         self.min1.push_str(split.next().ok_or_else(||anyhow!("Can't parse /proc/loadavg"))?);
         self.min5.push_str(split.next().ok_or_else(||anyhow!("Can't parse /proc/loadavg"))?);

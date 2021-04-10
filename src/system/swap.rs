@@ -22,7 +22,7 @@ impl Swap {
         self.used = 0;
 
         for line in self.buffer.lines().skip(1) {
-                let mut split = line.split_whitespace();
+                let mut split = line.split_ascii_whitespace();
                 self.total += split.nth(2).ok_or_else(||anyhow!("Can't parse /proc/swap"))?.parse::<i64>()? * 1024;
                 self.used += split.next().ok_or_else(||anyhow!("Can't parse /proc/swap"))?.parse::<i64>()? * 1024;
         }
