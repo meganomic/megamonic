@@ -63,7 +63,7 @@ impl <'a> Sensors <'a> {
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<bool> {
         if let Ok(sensorinfo) = self.system.sensorinfo.lock() {
-            if self.size.y != sensorinfo.chips.len() as u16 + 2 {
+            if self.cache.len() != sensorinfo.chips.len() {
                 return Ok(true);
             }
             for (idx, val) in sensorinfo.chips.values().enumerate() {
