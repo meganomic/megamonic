@@ -33,8 +33,39 @@ impl <'a> Network <'a> {
     pub fn rebuild_cache (&mut self) {
         if let Ok(networkinfo) = self.system.networkinfo.lock() {
             self.size.y = networkinfo.stats.len() as u16 * 2 + 2;
-
+            let mut count: u16 = 0;
             self.cache.clear();
+
+            for key in networkinfo.stats.keys() {
+                self.cache.push(
+                    (
+                        format!(
+                            "{}\x1b[1K{}\x1b[37m{:<8}\x1b[91m[ \x1b[92m",
+                            cursor::MoveTo(self.pos.x+25, self.pos.y + 1 + count ),
+                            cursor::MoveTo(self.pos.x, self.pos.y + 1 + count ),
+                            key
+                        ),
+                        format!(
+                            "{}\x1b[1K{}\x1b[37m{:<8}\x1b[38;5;244m[ \x1b[37m",
+                            cursor::MoveTo(self.pos.x+25, self.pos.y + 1 + count ),
+                            cursor::MoveTo(self.pos.x, self.pos.y + 1 + count ),
+                            key
+                        ),
+                        format!(
+                            "{}\x1b[91m{:>10}\x1b[92m",
+                            cursor::MoveTo(self.pos.x, self.pos.y + 2 + count ),
+                            "[ ",
+                        ),
+                        format!(
+                            "{}\x1b[38;5;244m{:>10}\x1b[37m",
+                            cursor::MoveTo(self.pos.x, self.pos.y + 2 + count ),
+                            "[ "
+                        )
+                    )
+                );
+
+                count += 2;
+            }
 
         }
     }
@@ -47,42 +78,10 @@ impl <'a> Network <'a> {
         Ok(())
     }
 
-    pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
+    pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<bool> {
         if let Ok(networkinfo) = self.system.networkinfo.lock() {
             if self.cache.len() != networkinfo.stats.len() {
-                self.cache.clear();
-
-                let mut count: u16 = 0;
-                for key in networkinfo.stats.keys() {
-                    self.cache.push(
-                        (
-                            format!(
-                                "{}\x1b[1K{}\x1b[37m{:<8}\x1b[91m[ \x1b[92m",
-                                cursor::MoveTo(self.pos.x+25, self.pos.y + 1 + count ),
-                                cursor::MoveTo(self.pos.x, self.pos.y + 1 + count ),
-                                key
-                            ),
-                            format!(
-                                "{}\x1b[1K{}\x1b[37m{:<8}\x1b[38;5;244m[ \x1b[37m",
-                                cursor::MoveTo(self.pos.x+25, self.pos.y + 1 + count ),
-                                cursor::MoveTo(self.pos.x, self.pos.y + 1 + count ),
-                                key
-                            ),
-                            format!(
-                                "{}\x1b[91m{:>10}\x1b[92m",
-                                cursor::MoveTo(self.pos.x, self.pos.y + 2 + count ),
-                                "[ ",
-                            ),
-                            format!(
-                                "{}\x1b[38;5;244m{:>10}\x1b[37m",
-                                cursor::MoveTo(self.pos.x, self.pos.y + 2 + count ),
-                                "[ "
-                            )
-                        )
-                    );
-
-                    count += 2;
-                }
+                return Ok(true);
             }
 
             let freq = self.system.config.frequency.load(atomic::Ordering::Relaxed);
@@ -116,10 +115,9 @@ impl <'a> Network <'a> {
                 }
                 count += 1;
             }
-            self.size.y = count as u16 * 2 + 2;
         }
 
-        Ok(())
+        Ok(false)
     }
 }
 

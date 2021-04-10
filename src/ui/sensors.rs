@@ -61,8 +61,11 @@ impl <'a> Sensors <'a> {
         Ok(())
     }
 
-    pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
+    pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<bool> {
         if let Ok(sensorinfo) = self.system.sensorinfo.lock() {
+            if self.size.y != sensorinfo.chips.len() as u16 + 2 {
+                return Ok(true);
+            }
             for (idx, val) in sensorinfo.chips.values().enumerate() {
                 unsafe {
                     let cache = self.cache.get_unchecked_mut(idx);
@@ -74,6 +77,6 @@ impl <'a> Sensors <'a> {
             }
         }
 
-        Ok(())
+        Ok(false)
     }
 }

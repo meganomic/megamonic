@@ -231,19 +231,16 @@ impl <'ui> Ui <'ui> {
                 // Sensors
                 6 => {
                     if self.terminal_size.x > self.sensors.size.x && self.terminal_size.y > (self.network.size.y + self.sensors.size.y + self.overview.size.y) as u16 {
-                        self.sensors.draw(&mut self.stdout)?;
+                        if self.sensors.draw(&mut self.stdout)? {
+                            self.rebuild()?;
+                        }
                     }
                 },
 
                 // Network
                 7 => {
                     if self.terminal_size.x > self.network.size.x  && self.terminal_size.y > (self.network.size.y + self.overview.size.y) as u16 {
-                        let sy = self.network.size.y;
-
-                        self.network.draw(&mut self.stdout)?;
-
-                        // If network size changes rebuild the UI
-                        if sy != self.network.size.y {
+                        if self.network.draw(&mut self.stdout)? {
                             self.rebuild()?;
                         }
                     }
