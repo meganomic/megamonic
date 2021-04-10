@@ -34,9 +34,9 @@ impl <'a> Processes <'a> {
     pub fn rebuild_cache(&mut self, terminal_size: &XY) {
         self.cache1.clear();
         self.cache2.clear();
-        let items = terminal_size.y.saturating_sub(self.pos.y).saturating_sub(3);
+        self.size.y = terminal_size.y.saturating_sub(self.pos.y).saturating_sub(3);
 
-        for idx in 0..items {
+        for idx in 0..self.size.y {
             self.cache1.push(format!(
                 "{}\x1b[0K{}",
                 cursor::MoveTo(self.pos.x, self.pos.y + 1 + idx as u16),
@@ -56,7 +56,7 @@ impl <'a> Processes <'a> {
     }
 
     pub fn draw(&mut self, stdout: &mut std::io::Stdout, terminal_size: &XY) -> Result<()> {
-        let items = terminal_size.y - self.pos.y - 4;
+        //let items = terminal_size.y - self.pos.y - 4;
 
         let smaps = self.system.config.smaps.load(atomic::Ordering::Relaxed);
 
@@ -70,6 +70,10 @@ impl <'a> Processes <'a> {
 
             //let now = std::time::Instant::now();
             for (idx, val) in vector.iter().enumerate() {
+                // Break once we printed all the processes that fit on screen
+                if idx == self.size.y as usize {
+                    break;
+                }
 
                 // Check if there actually is a PSS value
                 // If there isn't it probably requires root access, use RSS instead
@@ -123,11 +127,6 @@ impl <'a> Processes <'a> {
                                 .expect("Process cache is corrupted!")
                         )?;
                     }
-                }
-
-                // Break once we printed all the processes that fit on screen
-                if idx == items as usize {
-                    break;
                 }
             }
             //eprintln!("{}", now.elapsed().as_nanos());
