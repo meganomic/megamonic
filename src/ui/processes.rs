@@ -1,11 +1,11 @@
 use crossterm::{ cursor, queue, style::Print };
-use std::io::Write;
+use std::io::Write as ioWrite;
+use std::fmt::Write as fmtWrite;
 use anyhow::Result;
 use std::sync::atomic;
 
 use crate::system::System as System;
 use super::XY as XY;
-//use super::convert_with_padding_proc as convert_with_padding_proc;
 
 pub struct Processes <'a> {
     pub system: &'a System,
@@ -15,6 +15,7 @@ pub struct Processes <'a> {
     pidlen: usize,
     cache1: Vec::<String>,
     cache2: std::collections::HashMap<u32, String>,
+    memory: String,
 }
 
 impl <'a> Processes <'a> {
@@ -23,6 +24,7 @@ impl <'a> Processes <'a> {
             system,
             cache1: Vec::<String>::new(),
             cache2: std::collections::HashMap::new(),
+            memory: String::new(),
             pos,
             size: XY { x: 0, y: 4 },
             pidlen: 0,
@@ -56,6 +58,8 @@ impl <'a> Processes <'a> {
     pub fn draw(&mut self, stdout: &mut std::io::Stdout, terminal_size: &XY) -> Result<()> {
         let items = terminal_size.y - self.pos.y - 4;
 
+        let smaps = self.system.config.smaps.load(atomic::Ordering::Relaxed);
+
         if let Ok(processinfo) = self.system.processinfo.lock() {
             let (pidlen, vector) = processinfo.cpu_sort();
 
@@ -66,21 +70,14 @@ impl <'a> Processes <'a> {
 
             //let now = std::time::Instant::now();
             for (idx, val) in vector.iter().enumerate() {
-                //let now = std::time::Instant::now();
-                let memory = if self.system.config.smaps.load(atomic::Ordering::Relaxed) {
-                    // Check if there actually is a PSS value
-                    // If there isn't it probably requires root access, use RSS instead
-                    if val.pss != -1 {
-                        // This should be fixed so it doesn't allocated yet another string
-                        format!("\x1b[94m{}\x1b[0m", &convert_with_padding_proc(val.pss, 4))
-                    } else {
-                        convert_with_padding_proc(val.rss, 4)
-                    }
-                } else {
-                    convert_with_padding_proc(val.rss, 4)
-                };
-                //eprintln!("{}", now.elapsed().as_nanos());
 
+                // Check if there actually is a PSS value
+                // If there isn't it probably requires root access, use RSS instead
+                if smaps && val.pss != -1{
+                    convert_with_padding_proc(&mut self.memory, val.pss, 4, true)?;
+                } else {
+                    convert_with_padding_proc(&mut self.memory, val.rss, 4, false)?;
+                }
 
                 if !self.cache2.contains_key(&val.pid) {
                     self.cache2.insert(
@@ -100,35 +97,35 @@ impl <'a> Processes <'a> {
                     // This is needed because of rounding errors. There's probably a better way
                     if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
                         write!(stdout,
-                            "{}\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m{}{}",
+                            "{}\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ {}{}",
                             &self.cache1.get_unchecked(idx),
                             val.cpu_avg,
-                            &memory,
+                            &self.memory,
                             &self.cache2.get(&val.pid)
                                 .expect("Process cache is corrupted!")
                         )?;
                     } else if val.cpu_avg >= 99.5 {
                         write!(stdout,
-                            "{}\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ \x1b[92m{}{}",
+                            "{}\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ {}{}",
                             &self.cache1.get_unchecked(idx),
                             val.cpu_avg,
-                            &memory,
+                            &self.memory,
                             &self.cache2.get(&val.pid)
                                 .expect("Process cache is corrupted!")
                         )?;
                     } else {
                         write!(stdout,
-                            "{}\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ \x1b[92m{}{}",
+                            "{}\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ {}{}",
                             &self.cache1.get_unchecked(idx),
                             val.cpu_avg,
-                            &memory,
+                            &self.memory,
                             &self.cache2.get(&val.pid)
                                 .expect("Process cache is corrupted!")
                         )?;
                     }
                 }
 
-                // Break once we printed all the processes that fit
+                // Break once we printed all the processes that fit on screen
                 if idx == items as usize {
                     break;
                 }
@@ -176,9 +173,18 @@ fn maxstr(exec: &str, cmd: &str, is_not_exec: bool, pid: u32, pidlen: usize, max
 }
 
 // Special handling for 0 memory for processe list
-fn convert_with_padding_proc(num: i64, padding: usize) -> String {
+fn convert_with_padding_proc(buffer: &mut String, num: i64, padding: usize, blue: bool) -> Result<()> {
+    buffer.clear();
+
+    let color = if blue {
+        "\x1b[94m"
+    } else {
+        "\x1b[92m"
+    };
+
     if num == 0 {
-        return format!("  {:>pad$}", "-", pad=padding+1);
+        write!(buffer, "{}  {:>pad$}", "-", color, pad=padding+1)?;
+        return Ok(());
     }
     // convert it to a f64 type to we can use ln() and stuff on it.
     let num = num as f64;
@@ -198,12 +204,14 @@ fn convert_with_padding_proc(num: i64, padding: usize) -> String {
 
     // Different behaviour for different units
     match unit {
-        "b" => format!("{:>pad$.0} {}", pretty_bytes, unit, pad=padding+1),
-        "Kb" | "Mb" => format!("{:>pad$.0} {}", pretty_bytes, unit, pad=padding),
+        "b" => write!(buffer, "{}{:>pad$.0} {}", color, pretty_bytes, unit, pad=padding+1)?,
+        "Kb" | "Mb" => write!(buffer, "{}{:>pad$.0} {}", color, pretty_bytes, unit, pad=padding)?,
         "Gb" => {
-            if pretty_bytes >= 10.0 { format!("{:>pad$.1} {}", pretty_bytes, unit, pad=padding) }
-            else { format!("{:>pad$.2} {}", pretty_bytes, unit, pad=padding) }
+            if pretty_bytes >= 10.0 { write!(buffer, "{}{:>pad$.1} {}", color, pretty_bytes, unit, pad=padding)?; }
+            else { write!(buffer, "{}{:>pad$.2} {}", color, pretty_bytes, unit, pad=padding)?; }
         },
-        _ => format!("{:>pad$.1} {}", pretty_bytes, unit, pad=padding),
+        _ => write!(buffer, "{}{:>pad$.1} {}", color, pretty_bytes, unit, pad=padding)?,
     }
+
+    Ok(())
 }
