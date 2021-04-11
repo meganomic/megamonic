@@ -1,4 +1,5 @@
 use std::sync::{Arc, mpsc, atomic};
+use std::time::{ SystemTime, Duration };
 
 #[derive(Default)]
 pub struct Time {
@@ -7,18 +8,17 @@ pub struct Time {
 
 pub fn start_thread(internal: Arc<Time>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
-        // Override frequency setting. We always want to update the time
-        let sleepy = std::time::Duration::from_millis(1000);
+        let sleepy = Duration::from_millis(1000);
 
         let (lock, cvar) = &*exit;
 
         'outer: loop {
-            let current_time = std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).unwrap();
+            let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("Time is messed up!");
 
             // Used to synchronize the update frequency to system time
             let st_subsec = current_time.subsec_micros();
 
-            internal.time.store(current_time.as_secs(), std::sync::atomic::Ordering::Relaxed);
+            internal.time.store(current_time.as_secs(), atomic::Ordering::Relaxed);
 
             match tx.send(1) {
                 Ok(_) => (),
@@ -32,7 +32,7 @@ pub fn start_thread(internal: Arc<Time>, tx: mpsc::Sender::<u8>, exit: Arc<(std:
                 if let Ok(mut exitvar) = lock.lock() {
                     loop {
                         // Slowly work your way towards ~10000 microseconds after the last Second
-                        if let Ok(result) = cvar.wait_timeout(exitvar, sleepy - (std::time::Duration::from_micros(st_subsec as u64) / 10)) {
+                        if let Ok(result) = cvar.wait_timeout(exitvar, sleepy - (Duration::from_micros(st_subsec as u64) / 10)) {
                             exitvar = result.0;
 
                             if *exitvar {
@@ -49,6 +49,8 @@ pub fn start_thread(internal: Arc<Time>, tx: mpsc::Sender::<u8>, exit: Arc<(std:
                 } else {
                     break;
                 }
+
+            // If subsec isn't high then wait for a full second
             } else if let Ok(mut exitvar) = lock.lock() {
                 loop {
                     if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
