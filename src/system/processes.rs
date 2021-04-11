@@ -11,7 +11,6 @@ pub struct Processes {
     pub processes: HashMap<u32, process::Process>,
     pub rebuild: bool,
     buffer: String,
-    buffer2: String,
     ignored: HashSet<u32>,
 }
 
@@ -40,9 +39,9 @@ impl Processes {
                     // Don't add it if we already have it
                     if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
                         // If cmdline can't be opened it probably means that the process has terminated, skip it.
-                        self.buffer2.clear();
-                        write!(&mut self.buffer2, "/proc/{}/cmdline", pid)?;
-                        if let Ok(mut f) = std::fs::File::open(&self.buffer2) {
+                        self.buffer.clear();
+                        write!(&mut self.buffer, "/proc/{}/cmdline", pid)?;
+                        if let Ok(mut f) = std::fs::File::open(&self.buffer) {
                             self.buffer.clear();
                             f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/cmdline", pid))?;
                         } else {
@@ -85,9 +84,9 @@ impl Processes {
                             // If 'all-processes' is enabled add everything
                             if all_processes {
                                 // If stat can't be opened it means the process has terminated, skip it.
-                                self.buffer2.clear();
-                                write!(&mut self.buffer2, "/proc/{}/stat", pid)?;
-                                let executable = if let Ok(mut f) = std::fs::File::open(&self.buffer2) {
+                                self.buffer.clear();
+                                write!(&mut self.buffer, "/proc/{}/stat", pid)?;
+                                let executable = if let Ok(mut f) = std::fs::File::open(&self.buffer) {
                                     self.buffer.clear();
                                     f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/stat", pid))?;
                                     self.buffer[
