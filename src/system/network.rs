@@ -29,7 +29,7 @@ impl Network {
 
             let mut split = line.split_ascii_whitespace();
 
-            let name = split.next().ok_or_else(||anyhow!("Can't parse name from /proc/net/dev"))?;
+            let name = split.next().ok_or_else(||anyhow!("Can't parse name from /proc/net/dev"))?.to_string();
 
             bandwidth.total_recv = split.next()
                 .ok_or_else(||anyhow!("Can't parse total_recv from /proc/net/dev"))?
@@ -42,20 +42,17 @@ impl Network {
                 .context("Can't parse total_sent from /proc/net/dev")?;
 
             // If it hasn't sent and recieved anything it's probably off so don't add it.
-            if bandwidth.total_recv != 0 && bandwidth.total_sent != 0 {
-                match self.stats.get_mut(name) {
-                    Some(bw) => {
-                        // It already exists. Update the values.
-                        bw.recv = bandwidth.total_recv - bw.total_recv;
-                        bw.sent = bandwidth.total_sent - bw.total_sent;
-                        bw.total_recv = bandwidth.total_recv;
-                        bw.total_sent = bandwidth.total_sent;
-                    },
-                    None => {
-                        // If it didn't already exist add it
-                        self.stats.insert(name.to_string(), bandwidth);
-                    }
-                }
+            if bandwidth.total_recv + bandwidth.total_sent != 0 {
+                self.stats.entry(name)
+                    .and_modify(|bw|
+                        {
+                            bw.recv = bandwidth.total_recv - bw.total_recv;
+                            bw.sent = bandwidth.total_sent - bw.total_sent;
+                            bw.total_recv = bandwidth.total_recv;
+                            bw.total_sent = bandwidth.total_sent;
+                        }
+                    )
+                    .or_insert(bandwidth);
             }
         }
 
