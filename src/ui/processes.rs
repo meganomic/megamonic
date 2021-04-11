@@ -191,7 +191,7 @@ fn convert_with_padding_proc(buffer: &mut String, num: i64, padding: usize, blue
     };
 
     if num == 0 {
-        write!(buffer, "{}  {:>pad$}", "-", color, pad=padding+1)?;
+        write!(buffer, "{}  {:>pad$}", color, "-", pad=padding+1)?;
         return Ok(());
     }
     // convert it to a f64 type to we can use ln() and stuff on it.

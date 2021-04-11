@@ -11,7 +11,7 @@ impl Default for Hostinfo {
         let mut distname = String::new();
         let mut ansi_color = Colored::ForegroundColor(Color::White);
 
-        let osrelease = std::fs::read_to_string("/etc/os-release").unwrap_or("NAME=\"Not Found\"".to_string());
+        let osrelease = std::fs::read_to_string("/etc/os-release").unwrap_or_else(|_| "NAME=\"Not Found\"".to_string());
 
         for line in osrelease.lines() {
             if line.starts_with("NAME") {
@@ -26,7 +26,7 @@ impl Default for Hostinfo {
         }
 
         let kernel = std::fs::read_to_string("/proc/sys/kernel/osrelease")
-            .unwrap_or("Not Found".to_string())
+            .unwrap_or_else(|_|"Not Found".to_string())
             .trim()
             .to_string();
 

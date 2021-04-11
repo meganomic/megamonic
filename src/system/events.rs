@@ -80,14 +80,13 @@ pub fn start_thread(internal: Arc<Mutex<Events>>, config: Arc<Config>, tx: mpsc:
                         _ => (),
                     }
                 } else {
-                    match tx.send(255) {
-                        _ => break,
-                    };
+                    let _ = tx.send(255);
+                    break;
                 }
             } else {
                 let (lock, _) = &*exit;
                 if let Ok(exitvar) = lock.lock() {
-                        if *exitvar == true {
+                        if *exitvar {
                             break;
                         }
                 } else {
@@ -95,9 +94,8 @@ pub fn start_thread(internal: Arc<Mutex<Events>>, config: Arc<Config>, tx: mpsc:
                 }
             }
         } else {
-            match tx.send(255) {
-                _ => break,
-            };
+            let _ = tx.send(255);
+            break;
         }
     })
 }

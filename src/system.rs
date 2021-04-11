@@ -167,7 +167,7 @@ impl System {
         self.threads.push(
             gpu::start_thread(
                 Arc::clone(&self.gpuinfo),
-                mtx.clone(),
+                mtx,
                 Arc::clone(&self.exit),
                 sleepy
             )

@@ -52,7 +52,7 @@ fn main() -> Result<()> {
 
     let freq = value_t!(options, "frequency", u64).unwrap_or_else(|e| e.exit());
 
-    ensure!(freq >= 1000 && freq <= 3000, "\x1b[32mFrequency\x1b[0m must in range 1000-3000");
+    ensure!((1000..=3000).contains(&freq), "\x1b[32mFrequency\x1b[0m must in range 1000-3000");
 
     // Initialize System and set the configuration options
     let mut system = system::System {
@@ -70,7 +70,7 @@ fn main() -> Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
 
     // Start monitoring threads
-    system.start(tx.clone());
+    system.start(tx);
 
     // Check if there was any errors starting up
     if !system.error.lock().unwrap().is_empty() {

@@ -35,11 +35,11 @@ pub fn start_thread(internal: Arc<Time>, tx: mpsc::Sender::<u8>, exit: Arc<(std:
                         if let Ok(result) = cvar.wait_timeout(exitvar, sleepy - (std::time::Duration::from_micros(st_subsec as u64) / 10)) {
                             exitvar = result.0;
 
-                            if *exitvar == true {
+                            if *exitvar {
                                 break 'outer;
                             }
 
-                            if result.1.timed_out() == true {
+                            if result.1.timed_out() {
                                 break;
                             }
                         } else {
@@ -48,28 +48,27 @@ pub fn start_thread(internal: Arc<Time>, tx: mpsc::Sender::<u8>, exit: Arc<(std:
                     }
                 } else {
                     break;
+                }
+            } else if let Ok(mut exitvar) = lock.lock() {
+                loop {
+                    if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
+                        exitvar = result.0;
+
+                        if *exitvar {
+                            break 'outer;
+                        }
+
+                        if result.1.timed_out() {
+                            break;
+                        }
+                    } else {
+                        break 'outer;
+                    }
                 }
             } else {
-                if let Ok(mut exitvar) = lock.lock() {
-                    loop {
-                        if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
-                            exitvar = result.0;
-
-                            if *exitvar == true {
-                                break 'outer;
-                            }
-
-                            if result.1.timed_out() == true {
-                                break;
-                            }
-                        } else {
-                            break 'outer;
-                        }
-                    }
-                } else {
-                    break;
-                }
+                break;
             }
+
         }
     })
 }

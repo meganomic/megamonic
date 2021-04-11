@@ -85,9 +85,8 @@ impl <'a> Network <'a> {
             }
 
             let freq = self.system.config.frequency.load(atomic::Ordering::Relaxed);
-            let mut count = 0;
 
-            for val in networkinfo.stats.values() {
+            for (count, val) in networkinfo.stats.values().enumerate() {
                 unsafe {
                     if val.recv != 0 {
                         write!(stdout, "{}{}\x1b[37m Rx\x1b[0m",
@@ -113,7 +112,6 @@ impl <'a> Network <'a> {
                         )?;
                     }
                 }
-                count += 1;
             }
         }
 

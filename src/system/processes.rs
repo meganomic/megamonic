@@ -37,7 +37,7 @@ impl Processes {
             {
                 if !self.ignored.contains(&pid) {
                     // Don't add it if we already have it
-                    if !self.processes.contains_key(&pid) {
+                    if let std::collections::hash_map::Entry::Vacant(process_entry) = self.processes.entry(pid) {
                         // If cmdline can't be opened it probably means that the process has terminated, skip it.
                         self.buffer2.clear();
                         write!(&mut self.buffer2, "/proc/{}/cmdline", pid)?;
@@ -56,7 +56,7 @@ impl Processes {
                             let mut split = self.buffer.split(&['\0', ' '][..]);
                             let executable = split.next()
                                 .ok_or_else(||anyhow!("Parsing error in /proc/[pid]/cmdline"))?
-                                .rsplit("/")
+                                .rsplit('/')
                                 .next()
                                 .ok_or_else(||anyhow!("Parsing error in /proc/[pid]/cmdline"))?
                                 .to_string();
@@ -72,8 +72,7 @@ impl Processes {
                                     }
                                 );
 
-                            self.processes.insert(
-                                pid,
+                            process_entry.insert(
                                 process::Process::new(
                                     pid,
                                     executable,
@@ -91,11 +90,11 @@ impl Processes {
                                     self.buffer.clear();
                                     f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/stat", pid))?;
                                     self.buffer[
-                                        self.buffer.find("(")
+                                        self.buffer.find('(')
                                         .ok_or_else(||
                                             anyhow!("Can't find '('")
                                             .context("Can't parse /proc/[pid]/stat"))?
-                                        ..self.buffer.find(")")
+                                        ..self.buffer.find(')')
                                         .ok_or_else(||
                                             anyhow!("Can't find ')'")
                                             .context("Can't parse /proc/[pid]/stat"))?+1
@@ -104,8 +103,7 @@ impl Processes {
                                     continue
                                 };
 
-                                self.processes.insert(
-                                    pid,
+                                process_entry.insert(
                                     process::Process::new(
                                         pid,
                                         executable,
@@ -153,12 +151,10 @@ impl Processes {
                 } else {
                     val.cpu_avg = (val.work as f32 / totald as f32) * 100.0 *  cpu_count;
                 }
+            } else if val.work > totald {
+                val.cpu_avg = 100.0;
             } else {
-                if val.work > totald {
-                    val.cpu_avg = 100.0;
-                } else {
-                    val.cpu_avg = (val.work as f32 / totald as f32) * 100.0;
-                }
+                val.cpu_avg = (val.work as f32 / totald as f32) * 100.0;
             }
         }
 
@@ -247,11 +243,11 @@ pub fn start_thread(internal: Arc<Mutex<Processes>>, cpuinfo: Arc<Mutex<cpu::Cpu
                     if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
                         exitvar = result.0;
 
-                        if *exitvar == true {
+                        if *exitvar {
                             break 'outer;
                         }
 
-                        if result.1.timed_out() == true {
+                        if result.1.timed_out() {
                             break;
                         }
                     } else {

@@ -94,11 +94,11 @@ pub fn start_thread(internal: Arc<Mutex<Network>>, tx: mpsc::Sender::<u8>, exit:
                     if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
                         exitvar = result.0;
 
-                        if *exitvar == true {
+                        if *exitvar {
                             break 'outer;
                         }
 
-                        if result.1.timed_out() == true {
+                        if result.1.timed_out() {
                             break;
                         }
                     } else {

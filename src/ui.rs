@@ -364,7 +364,7 @@ impl <'ui> Ui <'ui> {
 // Convert to pretty bytes with specified right alignment
 pub fn convert_with_padding(num: i64, padding: usize) -> String {
     if num == -1 {
-        return format!("Error");
+        return "Error".to_string();
     }
     if num == 0 {
         return format!("{:>pad$.0} b", num, pad=padding+1);

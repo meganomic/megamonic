@@ -54,7 +54,7 @@ impl Process {
                 let old_total = self.total;
 
                 let mut split = buffer[
-                        buffer.find(")")
+                        buffer.find(')')
                         .ok_or_else(||
                             anyhow!("Can't find ')'")
                             .context("Can't parse /proc/[pid]/stat"))?
@@ -90,10 +90,10 @@ impl Process {
                 self.total = self.utime + self.stime + self.cutime + self.cstime;
 
                 // If old_total is 0 it means we don't have anything to compare to. So work is 0.
-                self.work = if old_total == 0 {
-                    0
-                } else {
+                self.work = if old_total != 0 {
                     self.total - old_total
+                } else {
+                    0
                 };
 
                 if smaps {
