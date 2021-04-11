@@ -85,17 +85,17 @@ pub fn start_thread(internal: Arc<Mutex<Events>>, config: Arc<Config>, tx: mpsc:
                         let _ = tx.send(255);
                         break;
                     }
-                } else {
-                    if let Ok(exitvar) = lock.lock() {
-                        if *exitvar {
-                            break;
-                        }
-                    } else {
+                } else if let Ok(exitvar) = lock.lock() {
+                    if *exitvar {
                         break;
                     }
+                } else {
+                    let _ = tx.send(99);
+                    break;
                 }
+
             } else {
-                let _ = tx.send(255);
+                let _ = tx.send(99);
                 break;
             }
         }
