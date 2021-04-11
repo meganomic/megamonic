@@ -1,23 +1,24 @@
 mod process;
 use super::{cpu, Config};
 use anyhow::{bail, anyhow, Context, Result};
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{Arc, Mutex, mpsc, atomic::Ordering };
 use std::io::prelude::*;
 use std::fmt::Write as fmtWrite;
+use std::collections::{ HashMap, HashSet, hash_map::Entry };
 
 #[derive(Default)]
 pub struct Processes {
-    pub processes: std::collections::HashMap<u32, process::Process>,
+    pub processes: HashMap<u32, process::Process>,
     pub rebuild: bool,
     buffer: String,
     buffer2: String,
-    ignored: std::collections::HashSet<u32>,
+    ignored: HashSet<u32>,
 }
 
 impl Processes {
     pub fn update_pids(&mut self, config: &Arc<Config>) -> Result<()> {
         // Trigger rebuild if 'show all processes' option is changed
-        let all_processes = config.all.load(std::sync::atomic::Ordering::Relaxed);
+        let all_processes = config.all.load(Ordering::Relaxed);
         if all_processes != self.rebuild {
             self.rebuild = all_processes;
             self.processes.clear();
@@ -37,7 +38,7 @@ impl Processes {
             {
                 if !self.ignored.contains(&pid) {
                     // Don't add it if we already have it
-                    if let std::collections::hash_map::Entry::Vacant(process_entry) = self.processes.entry(pid) {
+                    if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
                         // If cmdline can't be opened it probably means that the process has terminated, skip it.
                         self.buffer2.clear();
                         write!(&mut self.buffer2, "/proc/{}/cmdline", pid)?;
@@ -137,8 +138,8 @@ impl Processes {
             bail!("Cpuinfo lock is poisoned!");
         };
 
-        let topmode = config.topmode.load(std::sync::atomic::Ordering::Relaxed);
-        let smaps = config.smaps.load(std::sync::atomic::Ordering::Relaxed);
+        let topmode = config.topmode.load(Ordering::Relaxed);
+        let smaps = config.smaps.load(Ordering::Relaxed);
 
         for val in self.processes.values_mut() {
             //let now = std::time::Instant::now();
@@ -212,7 +213,7 @@ impl Processes {
     }
 }
 
-pub fn start_thread(internal: Arc<Mutex<Processes>>, cpuinfo: Arc<Mutex<cpu::Cpuinfo>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
+pub fn start_thread(internal: Arc<Mutex<Processes>>, cpuinfo: Arc<Mutex<cpu::Cpuinfo>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
         let (lock, cvar) = &*exit;
         'outer: loop {
