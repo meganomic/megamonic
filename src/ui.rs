@@ -396,7 +396,3 @@ pub fn convert_with_padding(num: i64, padding: usize) -> String {
         _ => format!("{:>pad$.1} {}", pretty_bytes, unit, pad=padding),
     }
 }
-
-
-
-
