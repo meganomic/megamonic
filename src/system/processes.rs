@@ -1,7 +1,7 @@
 mod process;
 use super::{cpu, Config};
 use anyhow::{bail, anyhow, Context, Result};
-use std::sync::{Arc, Mutex, mpsc, atomic::Ordering };
+use std::sync::{Arc, Mutex, mpsc, atomic };
 use std::io::prelude::*;
 use std::fmt::Write as fmtWrite;
 use std::collections::{ HashMap, HashSet, hash_map::Entry };
@@ -17,7 +17,7 @@ pub struct Processes {
 impl Processes {
     pub fn update_pids(&mut self, config: &Arc<Config>) -> Result<()> {
         // Trigger rebuild if 'show all processes' option is changed
-        let all_processes = config.all.load(Ordering::Relaxed);
+        let all_processes = config.all.load(atomic::Ordering::Relaxed);
         if all_processes != self.rebuild {
             self.rebuild = all_processes;
             self.processes.clear();
@@ -137,8 +137,8 @@ impl Processes {
             bail!("Cpuinfo lock is poisoned!");
         };
 
-        let topmode = config.topmode.load(Ordering::Relaxed);
-        let smaps = config.smaps.load(Ordering::Relaxed);
+        let topmode = config.topmode.load(atomic::Ordering::Relaxed);
+        let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
         for val in self.processes.values_mut() {
             //let now = std::time::Instant::now();
