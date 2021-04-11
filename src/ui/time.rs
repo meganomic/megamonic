@@ -16,6 +16,7 @@ pub struct Time <'a> {
 impl <'a> Time <'a> {
     pub fn new(system: &'a System, pos: XY) -> Self {
         // Set locale to whatever the environment is
+        libc_strftime::tz_set();
         libc_strftime::set_locale();
 
         Self {
