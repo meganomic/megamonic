@@ -54,11 +54,7 @@ pub fn start_thread(internal: Arc<Mutex<Memory>>, tx: mpsc::Sender::<u8>, exit: 
                         let mut errvec = error.lock().expect("Error lock couldn't be aquired!");
                         errvec.push(err);
 
-                        match tx.send(99) {
-                            Ok(_) => (),
-                            Err(_) => break,
-                        }
-
+                        let _ = tx.send(99);
                         break;
                     }
                 },
