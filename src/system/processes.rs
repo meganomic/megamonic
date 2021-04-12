@@ -121,8 +121,6 @@ impl Processes {
             }
         }
 
-        self.processes.retain(|_,v| v.alive);
-
         Ok(())
     }
 
@@ -157,6 +155,8 @@ impl Processes {
                 val.cpu_avg = (val.work as f32 / totald as f32) * 100.0;
             }
         }
+
+        self.processes.retain(|_,v| v.alive);
 
         //eprintln!("{}", now.elapsed().as_nanos());
         Ok(())
