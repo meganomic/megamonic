@@ -1,5 +1,6 @@
 use crossterm::{ cursor, queue, style::Print };
-use std::io::Write;
+use std::io::Write as ioWrite;
+use std::fmt::Write as fmtWrite;
 use anyhow::Result;
 use std::sync::atomic;
 
@@ -12,6 +13,7 @@ pub struct Network <'a> {
     pub size: XY,
 
     cache: Vec::<(String, String, String, String)>,
+    buffer_speed: String
 }
 
 impl <'a> Network <'a> {
@@ -25,6 +27,7 @@ impl <'a> Network <'a> {
         Self {
             system,
             cache: Vec::new(),
+            buffer_speed: String::new(),
             pos,
             size: XY { x: 23, y }
         }
@@ -89,27 +92,34 @@ impl <'a> Network <'a> {
 
             for (count, val) in networkinfo.stats.values().enumerate() {
                 unsafe {
+                    self.buffer_speed.clear();
+                    convert_speed(&mut self.buffer_speed, val.recv, freq)?;
+
                     if val.recv != 0 {
                         write!(stdout, "{}{}\x1b[37m Rx\x1b[0m",
                             &self.cache.get_unchecked(count).0,
-                            &convert_speed(val.recv, freq),
+                            &self.buffer_speed,
                         )?;
                     } else {
                         write!(stdout, "{}{}\x1b[37m Rx\x1b[0m",
                             &self.cache.get_unchecked(count).1,
-                            &convert_speed(val.recv, freq),
+                            &self.buffer_speed,
                         )?;
                     }
 
+                    self.buffer_speed.clear();
+                    convert_speed(&mut self.buffer_speed, val.sent, freq)?;
+
                     if val.sent != 0 {
+
                         write!(stdout, "{}{}\x1b[37m Tx\x1b[0m",
                             &self.cache.get_unchecked(count).2,
-                            &convert_speed(val.sent, freq),
+                            &self.buffer_speed,
                         )?;
                     } else {
                         write!(stdout, "{}{}\x1b[37m Tx\x1b[0m",
                             &self.cache.get_unchecked(count).3,
-                            &convert_speed(val.sent, freq),
+                            &self.buffer_speed,
                         )?;
                     }
                 }
@@ -121,9 +131,10 @@ impl <'a> Network <'a> {
 }
 
 // Convert function for network with special handling
-fn convert_speed(num: u64, freq: u64) -> String {
+fn convert_speed(buffer: &mut String, num: u64, freq: u64) -> Result<()> {
     if num == 0 {
-        return format!("{:>5.0} b/s\x1b[38;5;244m ]", num);
+        write!(buffer, "{:>5.0} b/s\x1b[38;5;244m ]", num)?;
+        return Ok(());
     }
     // convert it to a f64 type to we can use ln() and stuff on it.
     let num = num as f64 / (freq as f64 / 1000.0);
@@ -143,8 +154,10 @@ fn convert_speed(num: u64, freq: u64) -> String {
 
     // Different behaviour for different units 7
     match unit {
-        "b" => format!("{:>5.0} {}/s\x1b[91m ]", pretty_bytes, unit),
-        "Kb" => format!("{:>4.0} {}/s\x1b[91m ]", pretty_bytes, unit),
-        _ => format!("{:>4.1} {}/s\x1b[91m ]", pretty_bytes, unit),
+        "b" => write!(buffer, "{:>5.0} {}/s\x1b[91m ]", pretty_bytes, unit)?,
+        "Kb" => write!(buffer, "{:>4.0} {}/s\x1b[91m ]", pretty_bytes, unit)?,
+        _ => write!(buffer, "{:>4.1} {}/s\x1b[91m ]", pretty_bytes, unit)?,
     }
+
+    Ok(())
 }
