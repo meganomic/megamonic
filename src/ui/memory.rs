@@ -13,7 +13,11 @@ pub struct Memory <'a> {
     pub pos: XY,
     pub size: XY,
 
-    cache: (String, String, String)
+    cache: (String, String, String),
+    buffer: (String, String, String),
+
+    total: i64,
+    free: i64
 }
 
 impl <'a> Memory <'a> {
@@ -21,6 +25,9 @@ impl <'a> Memory <'a> {
         Self {
             system,
             cache: (String::new(), String::new(), String::new()),
+            buffer: (String::new(), String::new(), String::new()),
+            total: 0,
+            free: 0,
             pos,
             size: XY { x: 18, y: 4 }
         }
@@ -54,13 +61,22 @@ impl <'a> Memory <'a> {
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
         if let Ok(val) = self.system.memoryinfo.lock() {
+            if self.total != val.total {
+                convert_with_padding(&mut self.buffer.0, val.total, 4)?;
+            }
+
+            if self.free != val.free {
+                convert_with_padding(&mut self.buffer.1, val.used, 4)?;
+                convert_with_padding(&mut self.buffer.2, val.free, 4)?;
+            }
+
             write!(stdout, "{}{}{}{}{}{}\x1b[38;5;244m ]\x1b[0m",
                 &self.cache.0,
-                &convert_with_padding(val.total, 4),
+                &self.buffer.0,
                 &self.cache.1,
-                &convert_with_padding(val.used, 4),
+                &self.buffer.1,
                 &self.cache.2,
-                &convert_with_padding(val.free, 4)
+                &self.buffer.2
             )?;
         }
 

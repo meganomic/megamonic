@@ -1,5 +1,6 @@
 use crossterm::{terminal, execute, queue, cursor, style::Print};
-use std::io::Write;
+use std::io::Write as ioWrite;
+use std::fmt::Write as fmtWrite;
 use anyhow::{ Context, Result };
 
 mod time;
@@ -362,12 +363,15 @@ impl <'ui> Ui <'ui> {
 }
 
 // Convert to pretty bytes with specified right alignment
-pub fn convert_with_padding(num: i64, padding: usize) -> String {
+pub fn convert_with_padding(buffer: &mut String, num: i64, padding: usize) -> Result<()> {
+    buffer.clear();
     if num == -1 {
-        return "Error".to_string();
+        write!(buffer, "Error")?;
+        return Ok(());
     }
     if num == 0 {
-        return format!("{:>pad$.0} b", num, pad=padding+1);
+        write!(buffer, "{:>pad$.0} b", num, pad=padding+1)?;
+        return Ok(());
     }
     // convert it to a f64 type to we can use ln() and stuff on it.
     let num = num as f64;
@@ -387,12 +391,14 @@ pub fn convert_with_padding(num: i64, padding: usize) -> String {
 
     // Different behaviour for different units
     match unit {
-        "b" => format!("{:>pad$.0} {}", pretty_bytes, unit, pad=padding+1),
-        "Kb" | "Mb" => format!("{:>pad$.0} {}", pretty_bytes, unit, pad=padding),
+        "b" => write!(buffer, "{:>pad$.0} {}", pretty_bytes, unit, pad=padding+1)?,
+        "Kb" | "Mb" => write!(buffer, "{:>pad$.0} {}", pretty_bytes, unit, pad=padding)?,
         "Gb" => {
-            if pretty_bytes >= 10.0 { format!("{:>pad$.1} {}", pretty_bytes, unit, pad=padding) }
-            else { format!("{:>pad$.2} {}", pretty_bytes, unit, pad=padding) }
+            if pretty_bytes >= 10.0 { write!(buffer, "{:>pad$.1} {}", pretty_bytes, unit, pad=padding)? }
+            else { write!(buffer, "{:>pad$.2} {}", pretty_bytes, unit, pad=padding)? }
         },
-        _ => format!("{:>pad$.1} {}", pretty_bytes, unit, pad=padding),
+        _ => write!(buffer, "{:>pad$.1} {}", pretty_bytes, unit, pad=padding)?,
     }
+
+    Ok(())
 }

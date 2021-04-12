@@ -14,12 +14,10 @@ pub struct Swap <'a> {
     pub size: XY,
 
     cache: (String, String, String),
+    buffer: (String, String, String),
 
     total: i64,
     free: i64,
-    total_str: String,
-    free_str: String,
-    used_str: String,
 }
 
 impl <'a> Swap <'a> {
@@ -27,11 +25,9 @@ impl <'a> Swap <'a> {
         Self {
             system,
             cache: (String::new(), String::new(), String::new()),
+            buffer: (String::new(), String::new(), String::new()),
             total: 0,
             free: 0,
-            total_str: String::new(),
-            free_str: String::new(),
-            used_str: String::new(),
             pos,
             size: XY { x: 18, y: 4 }
         }
@@ -67,22 +63,23 @@ impl <'a> Swap <'a> {
         if let Ok(val) = self.system.swapinfo.lock() {
             if self.total != val.total {
                 self.total = val.total;
-                self.total_str = convert_with_padding(val.total, 4);
+                convert_with_padding(&mut self.buffer.0, val.total, 4)?;
             }
 
             if self.free != val.free {
                 self.free = val.free;
-                self.free_str = convert_with_padding(val.free, 4);
-                self.used_str = convert_with_padding(val.used, 4);
+                convert_with_padding(&mut self.buffer.1, val.used, 4)?;
+                convert_with_padding(&mut self.buffer.2, val.free, 4)?;
+
             }
 
             write!(stdout, "{}{}{}{}{}{}\x1b[38;5;244m ]\x1b[0m",
                 &self.cache.0,
-                &self.total_str,
+                &self.buffer.0,
                 &self.cache.1,
-                &self.used_str,
+                &self.buffer.1,
                 &self.cache.2,
-                &self.free_str
+                &self.buffer.2
             )?;
         }
 
