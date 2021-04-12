@@ -80,6 +80,7 @@ impl <'a> Network <'a> {
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<bool> {
         if let Ok(networkinfo) = self.system.networkinfo.lock() {
+            // Trigger cache rebuild if lengths don't match
             if self.cache.len() != networkinfo.stats.len() {
                 return Ok(true);
             }
