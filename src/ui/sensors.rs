@@ -35,14 +35,15 @@ impl <'a> Sensors <'a> {
 
             self.cache.clear();
             for (idx, key) in sensorinfo.chips.keys().enumerate() {
+                let y = self.pos.y + 1 + idx as u16;
                 self.cache.push(
                     (
                         format!(
                             "{}\x1b[1K{}\x1b[37m{}{}\x1b[91m[ \x1b[92m",
-                            cursor::MoveTo(self.pos.x + 23, self.pos.y + 1 + idx as u16),
-                            cursor::MoveTo(self.pos.x, self.pos.y + 1 + idx as u16),
+                            cursor::MoveTo(self.pos.x + 23, y),
+                            cursor::MoveTo(self.pos.x, y),
                             key,
-                            cursor::MoveTo(self.pos.x + 15, self.pos.y + 1 + idx as u16),
+                            cursor::MoveTo(self.pos.x + 15, y),
                         ),
                         0
                     )
@@ -63,9 +64,11 @@ impl <'a> Sensors <'a> {
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<bool> {
         if let Ok(sensorinfo) = self.system.sensorinfo.lock() {
+            // Trigger cache rebuild if lengths aren't equal
             if self.cache.len() != sensorinfo.chips.len() {
                 return Ok(true);
             }
+
             for (idx, val) in sensorinfo.chips.values().enumerate() {
                 unsafe {
                     let cache = self.cache.get_unchecked_mut(idx);
