@@ -410,7 +410,7 @@ pub fn convert_with_padding(buffer: &mut String, num: i64, padding: usize) -> Re
 // Customized version of https://github.com/sfackler/rust-log-panics
 fn custom_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
-        let backtrace = backtrace::Backtrace::default();
+        let backtrace = backtrace::Backtrace::new();
 
         let thread = std::thread::current();
         let thread = thread.name().unwrap_or("<unnamed>");
