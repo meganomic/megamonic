@@ -119,7 +119,6 @@ impl <'ui> Ui <'ui> {
     fn init(&mut self) -> Result<()> {
         // Initialize custom panic hook
         custom_panic_hook();
-        //custom_panic::init();
 
         // Disable all hotkeys and stuff.
         terminal::enable_raw_mode()?;
