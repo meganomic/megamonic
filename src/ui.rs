@@ -1,6 +1,8 @@
 use crossterm::{terminal, execute, queue, cursor, style::Print};
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
+use std::{ panic, thread };
+use backtrace::Backtrace;
 use anyhow::{ Context, Result };
 
 mod time;
@@ -32,8 +34,6 @@ use self::sensors::Sensors as Sensors;
 
 mod gpu;
 use gpu::Gpu as Gpu;
-
-use crate::custom_panic;
 
 static mut _CUMULATIVE_BENCHMARK: u128 = 0;
 static mut _CUMULATIVE_COUNT: u128 = 0;
@@ -120,7 +120,8 @@ impl <'ui> Ui <'ui> {
 
     fn init(&mut self) -> Result<()> {
         // Initialize custom panic hook
-        custom_panic::init();
+        custom_panic_hook();
+        //custom_panic::init();
 
         // Disable all hotkeys and stuff.
         terminal::enable_raw_mode()?;
@@ -406,4 +407,49 @@ pub fn convert_with_padding(buffer: &mut String, num: i64, padding: usize) -> Re
     }
 
     Ok(())
+}
+
+fn custom_panic_hook() {
+    panic::set_hook(Box::new(|info| {
+        let backtrace = Backtrace::default();
+
+        let thread = thread::current();
+        let thread = thread.name().unwrap_or("<unnamed>");
+
+        let msg = match info.payload().downcast_ref::<&'static str>() {
+            Some(s) => *s,
+            None => match info.payload().downcast_ref::<String>() {
+                Some(s) => &**s,
+                None => "Box<Any>",
+            },
+        };
+
+        let _ = execute!(std::io::stdout(),
+                    terminal::Clear(terminal::ClearType::All),
+                    terminal::LeaveAlternateScreen,
+                    terminal::EnableLineWrap,
+                    cursor::Show
+                );
+
+        let _ = terminal::disable_raw_mode();
+
+        match info.location() {
+            Some(location) => {
+                println!(
+                    "panic thread '{}' panicked at '{}': {}:{}{:?}",
+                    thread,
+                    msg,
+                    location.file(),
+                    location.line(),
+                    backtrace
+                );
+            }
+            None => println!(
+                "panic thread '{}' panicked at '{}'{:?}",
+                thread,
+                msg,
+                backtrace
+            ),
+        }
+    }));
 }
