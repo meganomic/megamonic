@@ -435,16 +435,17 @@ fn custom_panic_hook() {
         match info.location() {
             Some(location) => {
                 println!(
-                    "panic thread '{}' panicked at '{}': {}:{}{:?}",
+                    "panic thread '{}' panicked at '{}': {}:{}:{}\n{:?}",
                     thread,
                     msg,
                     location.file(),
                     location.line(),
+                    location.column(),
                     backtrace
                 );
             }
             None => println!(
-                "panic thread '{}' panicked at '{}'{:?}",
+                "panic thread '{}' panicked at '{}'\n{:?}",
                 thread,
                 msg,
                 backtrace
