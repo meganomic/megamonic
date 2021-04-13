@@ -33,6 +33,8 @@ use self::sensors::Sensors as Sensors;
 mod gpu;
 use gpu::Gpu as Gpu;
 
+use crate::custom_panic;
+
 static mut _CUMULATIVE_BENCHMARK: u128 = 0;
 static mut _CUMULATIVE_COUNT: u128 = 0;
 
@@ -117,6 +119,9 @@ impl <'ui> Ui <'ui> {
     }
 
     fn init(&mut self) -> Result<()> {
+        // Initialize custom panic hook
+        custom_panic::init();
+
         // Disable all hotkeys and stuff.
         terminal::enable_raw_mode()?;
 

@@ -1,8 +1,9 @@
 use anyhow::{ bail, ensure, Context, Result };
-
 use clap::{ App, AppSettings, Arg, value_t };
-
 use std::sync::atomic;
+
+mod custom_panic;
+
 mod system;
 
 #[macro_use]
