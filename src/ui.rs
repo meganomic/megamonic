@@ -1,8 +1,6 @@
 use crossterm::{terminal, execute, queue, cursor, style::Print};
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
-use std::{ panic, thread };
-use backtrace::Backtrace;
 use anyhow::{ Context, Result };
 
 mod time;
@@ -410,10 +408,10 @@ pub fn convert_with_padding(buffer: &mut String, num: i64, padding: usize) -> Re
 }
 
 fn custom_panic_hook() {
-    panic::set_hook(Box::new(|info| {
-        let backtrace = Backtrace::default();
+    std::panic::set_hook(Box::new(|info| {
+        let backtrace = backtrace::Backtrace::default();
 
-        let thread = thread::current();
+        let thread = std::thread::current();
         let thread = thread.name().unwrap_or("<unnamed>");
 
         let msg = match info.payload().downcast_ref::<&'static str>() {
