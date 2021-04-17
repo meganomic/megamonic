@@ -226,7 +226,7 @@ impl Processes {
                                 if process.alive {
                                     process_entry.into_mut()
                                 } else {
-                                    process_entry.remove();
+                                    process_entry.remove_entry();
                                     continue;
                                 }
                             }
