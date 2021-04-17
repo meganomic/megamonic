@@ -117,9 +117,6 @@ impl <'ui> Ui <'ui> {
     }
 
     fn init(&mut self) -> Result<()> {
-        // Initialize custom panic hook
-        crate::custom_panic_hook();
-
         // Disable all hotkeys and stuff.
         terminal::enable_raw_mode()?;
 
@@ -131,6 +128,9 @@ impl <'ui> Ui <'ui> {
             terminal::DisableLineWrap,
             cursor::Hide,
         )?;
+
+        // Initialize custom panic hook
+        crate::custom_panic_hook();
 
         Ok(())
     }
