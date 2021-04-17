@@ -23,8 +23,6 @@ pub fn custom_panic_hook() {
             "0".to_string()
         };
 
-        let backtrace = backtrace::Backtrace::new();
-
         let thread = std::thread::current();
         let name = thread.name().unwrap_or("<unnamed>");
 
@@ -64,7 +62,7 @@ pub fn custom_panic_hook() {
                     }
                 }
                 _ => {
-                    let _ = println!("\n{:?}", backtrace);
+                    let _ = println!("\n{:?}", backtrace::Backtrace::new());
                 },
             }
         //};
