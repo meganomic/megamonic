@@ -118,7 +118,7 @@ impl <'ui> Ui <'ui> {
 
     fn init(&mut self) -> Result<()> {
         // Initialize custom panic hook
-        custom_panic_hook();
+        crate::custom_panic_hook();
 
         // Disable all hotkeys and stuff.
         terminal::enable_raw_mode()?;
@@ -404,51 +404,4 @@ pub fn convert_with_padding(buffer: &mut String, num: i64, padding: usize) -> Re
     }
 
     Ok(())
-}
-
-// Customized version of https://github.com/sfackler/rust-log-panics
-fn custom_panic_hook() {
-    std::panic::set_hook(Box::new(|info| {
-        let backtrace = backtrace::Backtrace::new();
-
-        let thread = std::thread::current();
-        let thread = thread.name().unwrap_or("<unnamed>");
-
-        let msg = match info.payload().downcast_ref::<&'static str>() {
-            Some(s) => *s,
-            None => match info.payload().downcast_ref::<String>() {
-                Some(s) => &**s,
-                None => "Box<Any>",
-            },
-        };
-
-        let _ = execute!(std::io::stdout(),
-                    terminal::Clear(terminal::ClearType::All),
-                    terminal::LeaveAlternateScreen,
-                    terminal::EnableLineWrap,
-                    cursor::Show
-                );
-
-        let _ = terminal::disable_raw_mode();
-
-        match info.location() {
-            Some(location) => {
-                println!(
-                    "panic thread '{}' panicked at '{}': {}:{}:{}\n{:?}",
-                    thread,
-                    msg,
-                    location.file(),
-                    location.line(),
-                    location.column(),
-                    backtrace
-                );
-            }
-            None => println!(
-                "panic thread '{}' panicked at '{}'\n{:?}",
-                thread,
-                msg,
-                backtrace
-            ),
-        }
-    }));
 }

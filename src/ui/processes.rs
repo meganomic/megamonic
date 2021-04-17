@@ -75,7 +75,7 @@ impl <'a> Processes <'a> {
 
                 // Check if there actually is a PSS value
                 // If there isn't it probably requires root access, use RSS instead
-                if smaps && val.pss != -1{
+                if smaps && val.pss != -1 {
                     convert_with_padding_proc(&mut self.memory, val.pss, 4, true)?;
                 } else {
                     convert_with_padding_proc(&mut self.memory, val.rss, 4, false)?;
@@ -143,6 +143,8 @@ impl <'a> Processes <'a> {
             // Save the length of the longest PID in the cache so we can check if it changes
             // In which case we need to rebuild the cache
             self.pidlen = pidlen;
+        } else {
+            panic!("Process thread has panicked!");
         }
 
         Ok(())

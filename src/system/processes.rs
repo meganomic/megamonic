@@ -1,133 +1,49 @@
-mod process;
-use super::{cpu, Config};
-use anyhow::{bail, anyhow, Context, Result};
-use std::sync::{Arc, Mutex, mpsc, atomic };
+use anyhow::{ ensure, bail, anyhow, Context, Result };
+use std::sync::{ Arc, Mutex, mpsc, atomic };
 use std::io::prelude::*;
 use std::fmt::Write as fmtWrite;
-use std::collections::{ HashMap, HashSet, hash_map::Entry };
+use rustc_hash::{ FxHashSet, FxHashMap };
+use std::collections::hash_map::Entry;
 
-#[derive(Default)]
+mod process;
+use super::{cpu, Config};
+
+// Size of 'Processes.buffer_directories' used for getdents64()
+const BUF_SIZE: usize = 1024 * 1024;
+
+// CStr pointer to /proc
+const PROC_PATH: *const u8 = b"/proc\0" as *const u8;
+
+#[repr(C)]
+struct LinuxDirent64T {
+    /// 64-bit inode number.
+    pub d_ino: u64,
+
+    /// 64-bit offset to next structure.
+    pub d_off: u64,
+
+    /// Size of this dirent.
+    pub d_reclen: u16,
+
+    /// File type.
+    pub d_type: u8,
+
+    /// Filename (null-terminated).
+    pub d_name: [u8; 4096],
+}
+
+//#[derive(Default)]
 pub struct Processes {
-    pub processes: HashMap<u32, process::Process>,
+    pub processes: FxHashMap<u32, process::Process>,
     pub rebuild: bool,
     buffer: String,
-    ignored: HashSet<u32>,
+    buffer_vector: Vec::<u8>,
+    ignored: FxHashSet<u32>,
 }
 
 impl Processes {
-    pub fn update_pids(&mut self, config: &Arc<Config>) -> Result<()> {
-        // Trigger rebuild if 'show all processes' option is changed
-        let all_processes = config.all.load(atomic::Ordering::Relaxed);
-        if all_processes != self.rebuild {
-            self.rebuild = all_processes;
-            self.processes.clear();
-            self.ignored.clear();
-        }
-
-        let entries = std::fs::read_dir("/proc/").context("Can't read /proc/")?;
-
-        for entry in entries {
-            // Only directory names made up of numbers will pass
-            if let Ok(pid) = entry
-                .context("IO error while reading /proc/")?
-                .file_name()
-                .to_str()
-                .ok_or_else(||anyhow!("Entry in /proc/ contains illegal unicode"))?
-                .parse::<u32>()
-            {
-                if !self.ignored.contains(&pid) {
-                    // Don't add it if we already have it
-                    if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
-                        // If cmdline can't be opened it probably means that the process has terminated, skip it.
-                        self.buffer.clear();
-                        write!(&mut self.buffer, "/proc/{}/cmdline", pid)?;
-                        if let Ok(mut f) = std::fs::File::open(&self.buffer) {
-                            self.buffer.clear();
-                            f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/cmdline", pid))?;
-                        } else {
-                            continue
-                        };
-
-                        // Limit the results to actual programs unless 'all-processes' is enabled
-                        // pid == 1 is weird so make an extra check
-                        if !self.buffer.is_empty() && pid != 1 {
-                            // Cancer code that is very hacky and don't work for all cases
-                            // For instance, if a directory name has spaces or slashes in it, it breaks.
-                            let mut split = self.buffer.split(&['\0', ' '][..]);
-                            let executable = split.next()
-                                .ok_or_else(||anyhow!("Parsing error in /proc/[pid]/cmdline"))?
-                                .rsplit('/')
-                                .next()
-                                .ok_or_else(||anyhow!("Parsing error in /proc/[pid]/cmdline"))?
-                                .to_string();
-
-                            let cmdline = split
-                                .fold(
-                                    String::new(),
-                                    |mut o, i|
-                                    {
-                                        o.push(' ');
-                                        o.push_str(i);
-                                        o
-                                    }
-                                );
-
-                            process_entry.insert(
-                                process::Process::new(
-                                    pid,
-                                    executable,
-                                    cmdline,
-                                    false
-                                )
-                            );
-                        } else {
-                            // If 'all-processes' is enabled add everything
-                            if all_processes {
-                                // If stat can't be opened it means the process has terminated, skip it.
-                                self.buffer.clear();
-                                write!(&mut self.buffer, "/proc/{}/stat", pid)?;
-                                let executable = if let Ok(mut f) = std::fs::File::open(&self.buffer) {
-                                    self.buffer.clear();
-                                    f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/stat", pid))?;
-                                    self.buffer[
-                                        self.buffer.find('(')
-                                        .ok_or_else(||
-                                            anyhow!("Can't find '('")
-                                            .context("Can't parse /proc/[pid]/stat"))?
-                                        ..self.buffer.find(')')
-                                        .ok_or_else(||
-                                            anyhow!("Can't find ')'")
-                                            .context("Can't parse /proc/[pid]/stat"))?+1
-                                    ].to_string()
-                                } else {
-                                    continue
-                                };
-
-                                process_entry.insert(
-                                    process::Process::new(
-                                        pid,
-                                        executable,
-                                        String::new(),
-                                        true
-                                    )
-                                );
-                            } else {
-                                // Otherwise add it to the ignore list
-                                self.ignored.insert(pid);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     pub fn update(&mut self, cpuinfo: &Arc<Mutex<cpu::Cpuinfo>>, config: &Arc<Config>) -> Result<()> {
         //let now = std::time::Instant::now();
-        self.update_pids(config)?;
-        //eprintln!("{}", now.elapsed().as_nanos());
 
         let (cpu_count, totald) = if let Ok(cpu) = cpuinfo.lock() {
             (cpu.cpu_count as f32, cpu.totald)
@@ -137,26 +53,221 @@ impl Processes {
 
         let topmode = config.topmode.load(atomic::Ordering::Relaxed);
         let smaps = config.smaps.load(atomic::Ordering::Relaxed);
+        let all_processes = config.all.load(atomic::Ordering::Relaxed);
 
-        for val in self.processes.values_mut() {
-            //let now = std::time::Instant::now();
-            val.update(&mut self.buffer, smaps)?;
-            //eprintln!("{}", now.elapsed().as_nanos());
+        // Trigger rebuild if 'show all processes' option is changed
+        if all_processes != self.rebuild {
+            self.rebuild = all_processes;
+            self.processes.clear();
+            self.ignored.clear();
+        }
 
-            if topmode {
-                if val.work > totald {
-                    val.cpu_avg = 100.0 * cpu_count;
-                } else {
-                    val.cpu_avg = (val.work as f32 / totald as f32) * 100.0 *  cpu_count;
+        // Open directory
+        let fd: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 2, // SYS_OPEN
+                in("rdi") PROC_PATH,
+                in("rsi") 16, // O_DIRECTORY
+                in("rdx") 0,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") fd,
+            );
+        }
+
+        // Check if there's an error, panic if there is!
+        assert!(fd >= 0, "Can't open /proc");
+
+        loop {
+            // getdents64 system call
+            let nread: i32;
+            unsafe {
+                asm!("syscall",
+                    in("rax") 217, // SYS_GETDENTS64
+                    in("rdi") fd,
+                    in("rsi") self.buffer_vector.as_mut_ptr(),
+                    in("rdx") BUF_SIZE,
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") nread,
+                );
+            }
+
+            // If there is an error panic
+            assert!(nread >= 0);
+
+            // If nread == 0 that means we have read all entries
+            if nread == 0 {
+                break;
+            }
+
+            let buf_box_ptr = self.buffer_vector.as_ptr() as usize;
+
+            let mut bpos: usize = 0;
+            while bpos < nread as usize {
+                let d = (buf_box_ptr + bpos) as *mut LinuxDirent64T;
+                let d_ref = unsafe { &(*d) };
+
+                bpos += d_ref.d_reclen as usize;
+
+                // If the entry isn't a directory, skip to the next one
+                if d_ref.d_type != 4 {
+                    continue;
                 }
-            } else if val.work > totald {
-                val.cpu_avg = 100.0;
-            } else {
-                val.cpu_avg = (val.work as f32 / totald as f32) * 100.0;
+
+                // Only directory names made up of numbers will pass
+                if let Ok(pid) = btoi::btou(&d_ref.d_name
+                    .split(|v| *v == 0)
+                    .next()
+                    .expect("Something is broken with the getdents64() code!")
+                ) {
+                    if !self.ignored.contains(&pid) {
+                        // Don't add it if we already have it
+                        //if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
+                        let entry = match self.processes.entry(pid) {
+                            Entry::Vacant(process_entry) => {
+                                // If cmdline can't be opened it probably means that the process has terminated, skip it.
+                                self.buffer.clear();
+                                write!(&mut self.buffer, "/proc/{}/cmdline", pid)?;
+                                if let Ok(mut f) = std::fs::File::open(&self.buffer) {
+                                    self.buffer.clear();
+                                    f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/cmdline", pid))?;
+                                } else {
+                                    continue
+                                };
+
+                                // Limit the results to actual programs unless 'all-processes' is enabled
+                                // pid == 1 is weird so make an extra check
+                                if !self.buffer.is_empty() && pid != 1 {
+                                    // Cancer code that is very hacky and don't work for all cases
+                                    // For instance, if a directory name has spaces or slashes in it, it breaks.
+                                    let mut split = self.buffer.split(&['\0', ' '][..]);
+                                    let executable = split.next()
+                                        .expect("Parsing error in /proc/[pid]/cmdline")
+                                        .rsplit('/')
+                                        .next()
+                                        .ok_or_else(||anyhow!("Parsing error in /proc/[pid]/cmdline"))?
+                                        .to_string();
+
+                                    let cmdline = split
+                                        .fold(
+                                            String::new(),
+                                            |mut o, i|
+                                            {
+                                                o.push(' ');
+                                                o.push_str(i);
+                                                o
+                                            }
+                                        );
+
+                                    let mut process = process::Process::new(
+                                            pid,
+                                            executable,
+                                            cmdline,
+                                            false
+                                        );
+                                    process.update(&mut self.buffer_vector, smaps)?;
+
+                                    if process.alive {
+                                        process_entry.insert(process)
+                                    } else {
+                                        continue;
+                                    }
+                                } else {
+                                    // If 'all-processes' is enabled add everything
+                                    if all_processes {
+                                        // If stat can't be opened it means the process has terminated, skip it.
+                                        self.buffer.clear();
+                                        write!(&mut self.buffer, "/proc/{}/stat", pid)?;
+                                        let executable = if let Ok(mut f) = std::fs::File::open(&self.buffer) {
+                                            self.buffer.clear();
+                                            f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/stat", pid))?;
+                                            self.buffer[
+                                                self.buffer.find('(')
+                                                .ok_or_else(||
+                                                    anyhow!("Can't find '('")
+                                                    .context("Can't parse /proc/[pid]/stat"))?
+                                                ..self.buffer.find(')')
+                                                .ok_or_else(||
+                                                    anyhow!("Can't find ')'")
+                                                    .context("Can't parse /proc/[pid]/stat"))?+1
+                                            ].to_string()
+                                        } else {
+                                            continue
+                                        };
+
+                                        let mut process =
+                                            process::Process::new(
+                                                pid,
+                                                executable,
+                                                String::new(),
+                                                true
+                                            );
+
+                                        process.update(&mut self.buffer_vector, smaps)?;
+
+                                        if process.alive {
+                                            process_entry.insert(process)
+                                        } else {
+                                            continue;
+                                        }
+                                    } else {
+                                        // Otherwise add it to the ignore list
+                                        self.ignored.insert(pid);
+                                        continue;
+                                    }
+                                }
+                            },
+                            Entry::Occupied(mut process_entry) => {
+                                let process = process_entry.get_mut();
+                                process.update(&mut self.buffer_vector, smaps)?;
+
+                                if process.alive {
+                                    process_entry.into_mut()
+                                } else {
+                                    process_entry.remove();
+                                    continue;
+                                }
+                            }
+
+                        };
+
+                        //entry.update(&mut self.buffer, smaps)?;
+                        //eprintln!("{}", now.elapsed().as_nanos());
+
+                        if topmode {
+                            if entry.work > totald {
+                                entry.cpu_avg = 100.0 * cpu_count;
+                            } else {
+                                entry.cpu_avg = (entry.work as f32 / totald as f32) * 100.0 *  cpu_count;
+                            }
+                        } else if entry.work > totald {
+                            entry.cpu_avg = 100.0;
+                        } else {
+                            entry.cpu_avg = (entry.work as f32 / totald as f32) * 100.0;
+                        }
+                    }
+                }
             }
         }
 
-        self.processes.retain(|_,v| v.alive);
+        // Close file
+        let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 3, // SYS_CLOSE
+                in("rdi") fd,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") ret,
+            );
+        }
+
+        // Check if there's an error, panic if there is!
+        assert!(ret == 0);
+
+        //self.processes.retain(|_,v| v.alive);
 
         //eprintln!("{}", now.elapsed().as_nanos());
         Ok(())
@@ -212,9 +323,23 @@ impl Processes {
     }
 }
 
+impl Default for Processes {
+    fn default() -> Self {
+
+        Self {
+            processes: FxHashMap::default(),
+            rebuild: false,
+            buffer: String::new(),
+            buffer_vector: Vec::with_capacity(BUF_SIZE),
+            ignored: FxHashSet::default(),
+        }
+    }
+}
+
 pub fn start_thread(internal: Arc<Mutex<Processes>>, cpuinfo: Arc<Mutex<cpu::Cpuinfo>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
-    std::thread::spawn(move || {
+    std::thread::Builder::new().name("Processes".to_string()).spawn(move || {
         let (lock, cvar) = &*exit;
+        crate::custom_panic_hook();
         'outer: loop {
             match internal.lock() {
                 Ok(mut val) => {
@@ -255,5 +380,5 @@ pub fn start_thread(internal: Arc<Mutex<Processes>>, cpuinfo: Arc<Mutex<cpu::Cpu
                 break;
             }
         }
-    })
+    }).expect("Couldn't spawn Processes thread")
 }

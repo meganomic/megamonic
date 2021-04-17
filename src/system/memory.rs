@@ -45,7 +45,7 @@ impl Memory {
 }
 
 pub fn start_thread(internal: Arc<Mutex<Memory>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
-    std::thread::spawn(move || {
+    std::thread::Builder::new().name("Memory".to_string()).spawn(move || {
         let (lock, cvar) = &*exit;
         'outer: loop {
             match internal.lock() {
@@ -86,5 +86,5 @@ pub fn start_thread(internal: Arc<Mutex<Memory>>, tx: mpsc::Sender::<u8>, exit: 
                 break;
             }
         }
-    })
+    }).expect("Couldn't spawn Memory thread")
 }

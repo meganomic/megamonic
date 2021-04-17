@@ -7,7 +7,7 @@ pub struct Time {
 }
 
 pub fn start_thread(internal: Arc<Time>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
-    std::thread::spawn(move || {
+    std::thread::Builder::new().name("Time".to_string()).spawn(move || {
         let sleepy = Duration::from_millis(1000);
 
         let (lock, cvar) = &*exit;
@@ -72,5 +72,5 @@ pub fn start_thread(internal: Arc<Time>, tx: mpsc::Sender::<u8>, exit: Arc<(std:
             }
 
         }
-    })
+    }).expect("Couldn't spawn Time thread")
 }

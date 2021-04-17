@@ -1,5 +1,67 @@
-use anyhow::{anyhow, Context, Result};
-use std::io::prelude::*;
+use anyhow::{anyhow, ensure, Result};
+use std::ffi::CString;
+
+#[inline(always)]
+fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<()> {
+    // Clear the buffer
+    buffer.clear();
+
+    // Open file
+    let fd: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 2, // SYS_OPEN
+            in("rdi") path,
+            in("rsi") 0, // O_RDONLY
+            in("rdx") 0,
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") fd,
+         );
+    }
+
+    // Check if there's an error
+    ensure!(fd >= 0);
+
+    // Read file into buffer
+    let n_read: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 0, // SYS_READ
+            in("rdi") fd,
+            in("rsi") buffer.as_mut_ptr(),
+            in("rdx") buffer.capacity(),
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") n_read,
+         );
+    }
+
+    // Check if there's an error
+    ensure!(n_read > 0, "Can't read file or it's empty.");
+
+    // Set buffer length to however many bytes was read
+    unsafe {
+        buffer.set_len(n_read as usize);
+    }
+
+    // Close file
+    let ret: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 3, // SYS_CLOSE
+            in("rdi") fd,
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") ret,
+        );
+    }
+
+    // Check if there's an error, panic if there is!
+    assert!(ret == 0);
+
+    Ok(())
+}
 
 #[derive(Default)]
 pub struct Process {
@@ -8,8 +70,8 @@ pub struct Process {
     pub cmdline: String,
     pub executable: String,
 
-    stat_file: String,
-    smaps_file: String,
+    stat_file: CString,
+    smaps_file: CString,
 
     // /proc/stat
     pub pid: u32,        // 1
@@ -34,102 +96,111 @@ pub struct Process {
 
 impl Process {
     pub fn new(pid: u32, executable: String, cmdline: String, not_executable: bool) -> Self {
-
         Self {
             pid,
             executable,
             cmdline,
-            stat_file: format!("/proc/{}/stat", pid),
-            smaps_file: format!("/proc/{}/smaps_rollup", pid),
+            stat_file: unsafe { CString::from_vec_unchecked(format!("/proc/{}/stat", pid).into_bytes()) },
+            smaps_file: unsafe { CString::from_vec_unchecked(format!("/proc/{}/smaps_rollup", pid).into_bytes()) },
             alive: true,
             not_executable,
             ..Default::default()
         }
     }
 
-    pub fn update(&mut self, buffer: &mut String, smaps: bool) -> Result<()> {
-        if let Ok(mut file) = std::fs::File::open(&self.stat_file) {
-            buffer.clear();
-            if file.read_to_string(buffer).is_ok() {
-                let old_total = self.total;
+    pub fn update(&mut self, buffer: &mut Vec::<u8>, smaps: bool) -> Result<()> {
+        //let now = std::time::Instant::now();
 
-                let mut split = buffer[
-                        buffer.find(')')
-                        .ok_or_else(||
-                            anyhow!("Can't find ')'")
-                            .context("Can't parse /proc/[pid]/stat"))?
-                        ..buffer.len()
-                    ].split_ascii_whitespace();
-
-                self.utime = split.nth(11)
-                    .ok_or_else(||anyhow!("Can't parse 'utime' from /proc/[pid]/stat"))?
-                    .parse::<u64>()
-                    .context("Can't parse 'utime' from /proc/[pid]/stat")?;
-
-                self.stime = split.next()
-                    .ok_or_else(||anyhow!("Can't parse 'stime' from /proc/[pid]/stat"))?
-                    .parse::<u64>()
-                    .context("Can't parse 'stime' from /proc/[pid]/stat")?;
-
-                self.cutime = split.next()
-                    .ok_or_else(||anyhow!("Can't parse 'cutime' from /proc/[pid]/stat"))?
-                    .parse::<u64>()
-                    .context("Can't parse 'cutime' from /proc/[pid]/stat")?;
-
-                self.cstime = split.next()
-                    .ok_or_else(||anyhow!("Can't parse 'cstime' from /proc/[pid]/stat"))?
-                    .parse::<u64>()
-                    .context("Can't parse 'cstime' from /proc/[pid]/stat")?;
-
-                self.rss = split.nth(7)
-                    .ok_or_else(||anyhow!("Can't parse 'rss' from /proc/[pid]/stat"))?
-                    .parse::<i64>()
-                    .context("Can't parse 'rss' from /proc/[pid]/stat")?
-                    * 4096;
-
-                self.total = self.utime + self.stime + self.cutime + self.cstime;
-
-                // If old_total is 0 it means we don't have anything to compare to. So work is 0.
-                self.work = if old_total != 0 {
-                    self.total - old_total
-                } else {
-                    0
-                };
-
-                if smaps {
-                    self.update_smaps(buffer)?;
-                }
-
-            } else {
-                self.alive = false;
-            }
-        } else {
+        if open_and_read(buffer, self.stat_file.as_ptr()).is_err() {
             self.alive = false;
+            return Ok(());
         }
 
-        Ok(())
-    }
+        let old_total = self.total;
 
-    pub fn update_smaps(&mut self, buffer: &mut String) -> Result<()> {
-        buffer.clear();
-        if let Ok(mut file) = std::fs::File::open(&self.smaps_file) {
-            if file.read_to_string(buffer).is_ok() {
-                self.pss = buffer.lines()
+
+        // Find position of first ')' character
+        let pos = memchr::memchr(41, buffer.as_slice()).expect("The stat_file is funky! It has no ')' character!");
+
+        //let mut shoe = buffer.split(|v| *v == 41).last().unwrap();
+        //eprintln!("SHOE: {:?}", shoe);
+
+
+        // Split on ')' then on ' '
+        let mut split = buffer.split_at(pos).1.split(|v| *v == 32);
+        //eprintln!("{:?}", split.nth(1).unwrap());
+
+            //eprintln!("KORV: {:?}", korv);
+        self.utime = btoi::btou(split.nth(11).expect("Can't parse 'utime' from /proc/[pid]/stat")).expect("Can't parse utime!");
+
+        //eprintln!("utime: {:?}", self.utime);
+
+        self.stime = btoi::btou(split.next().expect("Can't parse 'stime' from /proc/[pid]/stat")).expect("Can't parse stime!");
+
+            //eprintln!("stime: {:?}", self.stime);
+
+        self.cutime = btoi::btou(split.next().expect("Can't parse 'cutime' from /proc/[pid]/stat")).expect("Can't parse cutime!");
+
+            //eprintln!("cutime: {:?}", self.cutime);
+
+        self.cstime = btoi::btou(split.next().expect("Can't parse 'cstime' from /proc/[pid]/stat")).expect("Can't parse cstime!");
+
+            //eprintln!("cstime: {:?}", self.cstime);
+
+        self.rss = btoi::btou::<i64>(split.nth(7).expect("Can't parse 'rss' from /proc/[pid]/stat")).expect("Can't parse rss!") * 4096;
+
+            //eprintln!("rss: {:?}", self.rss);
+
+        self.total = self.utime + self.stime + self.cutime + self.cstime;
+
+        // If old_total is 0 it means we don't have anything to compare to. So work is 0.
+        self.work = if old_total != 0 {
+            self.total - old_total
+        } else {
+            0
+        };
+
+        if smaps {
+            if open_and_read(buffer, self.smaps_file.as_ptr()).is_ok() {
+                let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
+                self.pss = btoi::btou::<i64>(data.lines()
                     .nth(2)
-                    .ok_or_else(||anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
+                    .expect("Can't parse 'pss' from /proc/[pid]/smaps_rollup")
                     .split_ascii_whitespace()
                     .nth(1)
-                    .ok_or_else(||anyhow!("Can't parse 'pss' from /proc/[pid]/smaps_rollup"))?
-                    .parse::<i64>()
-                    .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup")?
+                    .expect("Can't parse 'pss' from /proc/[pid]/smaps_rollup").as_bytes())
+                    .expect("Can't convert 'pss' to a number")
                     * 1024;
             } else {
                 self.pss = -1;
             }
-        } else {
-            self.pss = -1;
+
         }
 
+        //eprintln!("{}", now.elapsed().as_nanos());
         Ok(())
     }
+
+    /*pub fn update_smaps(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
+
+        if open_and_read(buffer, self.smaps_file.as_ptr()).is_err() {
+            self.pss = -1;
+            return Ok(());
+        }
+
+        let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
+        self.pss = btoi::btou::<i64>(data.lines()
+            .nth(2)
+            .expect("Can't parse 'pss' from /proc/[pid]/smaps_rollup")
+            .split_ascii_whitespace()
+            .nth(1)
+            .expect("Can't parse 'pss' from /proc/[pid]/smaps_rollup").as_bytes())
+            .expect("Can't convert 'pss' to a number")
+            /*.parse::<i64>()
+            .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup")?*/
+            * 1024;
+
+
+        Ok(())
+    }*/
 }

@@ -9,7 +9,7 @@ pub struct Events {
 }
 
 pub fn start_thread(internal: Arc<Mutex<Events>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
-    std::thread::spawn(move || {
+    std::thread::Builder::new().name("Events".to_string()).spawn(move || {
         let (lock, _) = &*exit;
         loop {
             if let Ok(polling) = poll(std::time::Duration::from_millis(1000)) {
@@ -99,5 +99,5 @@ pub fn start_thread(internal: Arc<Mutex<Events>>, config: Arc<Config>, tx: mpsc:
                 break;
             }
         }
-    })
+    }).expect("Couldn't spawn Events thread")
 }
