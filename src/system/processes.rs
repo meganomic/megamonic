@@ -125,7 +125,7 @@ impl Processes {
                     if !self.ignored.contains(&pid) {
                         // Don't add it if we already have it
                         //if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
-                        let entry = match self.processes.entry(pid) {
+                        let process = match self.processes.entry(pid) {
                             Entry::Vacant(process_entry) => {
                                 // If cmdline can't be opened it probably means that the process has terminated, skip it.
                                 self.buffer.clear();
@@ -237,15 +237,15 @@ impl Processes {
                         //eprintln!("{}", now.elapsed().as_nanos());
 
                         if topmode {
-                            if entry.work > totald {
-                                entry.cpu_avg = 100.0 * cpu_count;
+                            if process.work > totald {
+                                process.cpu_avg = 100.0 * cpu_count;
                             } else {
-                                entry.cpu_avg = (entry.work as f32 / totald as f32) * 100.0 *  cpu_count;
+                                process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
                             }
-                        } else if entry.work > totald {
-                            entry.cpu_avg = 100.0;
+                        } else if process.work > totald {
+                            process.cpu_avg = 100.0;
                         } else {
-                            entry.cpu_avg = (entry.work as f32 / totald as f32) * 100.0;
+                            process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
                         }
                     }
                 }
