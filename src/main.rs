@@ -17,10 +17,10 @@ static mut _CUMULATIVE_COUNT: u128 = 0;
 // Customized version of https://github.com/sfackler/rust-log-panics
 pub fn custom_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
-        let backtrace_env = if let Some(var) = std::env::var_os("RUST_BACKTRACE") {
-            var.into_string().unwrap()
+        let backtrace_env = if std::env::var_os("RUST_BACKTRACE").is_some() {
+            1
         } else {
-            "0".to_string()
+            0
         };
 
         let thread = std::thread::current();
@@ -46,28 +46,21 @@ pub fn custom_panic_hook() {
             },
         };
 
-        let location = info.location().unwrap();
+        println!("thread '{}' panicked at '{}', {}", name, msg, info.location().unwrap());
 
-        //let write = |err: &mut dyn std::io::Write| {
-            let _ = println!("thread '{}' panicked at '{}', {}", name, msg, location);
+        static FIRST_PANIC: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
-            static FIRST_PANIC: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
-
-            match backtrace_env.as_str() {
-                "0" => {
-                    if FIRST_PANIC.swap(false, std::sync::atomic::Ordering::SeqCst) {
-                        let _ = println!(
-                            "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
-                        );
-                    }
+        match backtrace_env {
+            0 => {
+                if FIRST_PANIC.swap(false, std::sync::atomic::Ordering::SeqCst) {
+                    println!("note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n");
                 }
-                _ => {
-                    let _ = println!("\n{:?}", backtrace::Backtrace::new());
-                },
             }
-        //};
+            _ => {
+                println!("\n{:?}", backtrace::Backtrace::new());
+            },
+        }
 
-        //write(&mut std::io::stdout());
     }));
 }
 
