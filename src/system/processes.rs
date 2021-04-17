@@ -1,4 +1,4 @@
-use anyhow::{ ensure, bail, anyhow, Context, Result };
+use anyhow::{ bail, anyhow, Context, Result };
 use std::sync::{ Arc, Mutex, mpsc, atomic };
 use std::io::prelude::*;
 use std::fmt::Write as fmtWrite;
