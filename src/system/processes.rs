@@ -37,6 +37,7 @@ pub struct Processes {
     pub processes: FxHashMap<u32, process::Process>,
     pub rebuild: bool,
     buffer: String,
+    buffer_vector_dirs: Vec::<u8>,
     buffer_vector: Vec::<u8>,
     ignored: FxHashSet<u32>,
 }
@@ -86,7 +87,7 @@ impl Processes {
                 asm!("syscall",
                     in("rax") 217, // SYS_GETDENTS64
                     in("rdi") fd,
-                    in("rsi") self.buffer_vector.as_mut_ptr(),
+                    in("rsi") self.buffer_vector_dirs.as_mut_ptr(),
                     in("rdx") BUF_SIZE,
                     out("rcx") _,
                     out("r11") _,
@@ -102,7 +103,7 @@ impl Processes {
                 break;
             }
 
-            let buf_box_ptr = self.buffer_vector.as_ptr() as usize;
+            let buf_box_ptr = self.buffer_vector_dirs.as_ptr() as usize;
 
             let mut bpos: usize = 0;
             while bpos < nread as usize {
@@ -134,7 +135,7 @@ impl Processes {
                                     self.buffer.clear();
                                     f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/cmdline", pid))?;
                                 } else {
-                                    continue
+                                    continue;
                                 };
 
                                 // Limit the results to actual programs unless 'all-processes' is enabled
@@ -194,7 +195,7 @@ impl Processes {
                                                     .context("Can't parse /proc/[pid]/stat"))?+1
                                             ].to_string()
                                         } else {
-                                            continue
+                                            continue;
                                         };
 
                                         let mut process =
@@ -330,7 +331,8 @@ impl Default for Processes {
             processes: FxHashMap::default(),
             rebuild: false,
             buffer: String::new(),
-            buffer_vector: Vec::with_capacity(BUF_SIZE),
+            buffer_vector_dirs: Vec::with_capacity(BUF_SIZE),
+            buffer_vector: Vec::with_capacity(1000),
             ignored: FxHashSet::default(),
         }
     }
