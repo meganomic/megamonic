@@ -113,6 +113,7 @@ impl Process {
 
         if open_and_read(buffer, self.stat_file.as_ptr()).is_err() {
             self.alive = false;
+            return;
         }
 
         let old_total = self.total;
