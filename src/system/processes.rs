@@ -35,6 +35,7 @@ struct LinuxDirent64T {
 //#[derive(Default)]
 pub struct Processes {
     pub processes: FxHashMap<u32, process::Process>,
+    pub maxpidlen: usize,
     pub rebuild: bool,
     buffer: String,
     buffer_vector_dirs: Vec::<u8>,
@@ -109,15 +110,16 @@ impl Processes {
                     continue;
                 }
 
-                // Only directory names made up of numbers will pass
-                if let Ok(pid) = btoi::btou(&d_ref.d_name
+                // Saved so we can get the length of the PID later
+                let pid_cstr = d_ref.d_name
                     .split(|v| *v == 0)
                     .next()
-                    .expect("Something is broken with the getdents64() code!")
-                ) {
+                    .expect("Something is broken with the getdents64() code!");
+
+                // Only directory names made up of numbers will pass
+                if let Ok(pid) = btoi::btou(pid_cstr) {
                     if !self.ignored.contains(&pid) {
                         // Don't add it if we already have it
-                        //if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
                         if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
                             // If cmdline can't be opened it probably means that the process has terminated, skip it.
                             self.buffer.clear();
@@ -194,6 +196,12 @@ impl Processes {
                                     continue;
                                 }
                             }
+
+                            // Save the length of the longest PID
+                            let current_pid_len = pid_cstr.len();
+                            if self.maxpidlen < current_pid_len {
+                                self.maxpidlen = current_pid_len;
+                            }
                         }
                     }
                 }
@@ -251,36 +259,8 @@ impl Processes {
 
     pub fn cpu_sort(&self) -> (usize, Vec::<&process::Process>) {
         let mut sorted = Vec::new();
-        let mut pidlen = 0;
 
         for val in self.processes.values() {
-            /*
-            1 = 10
-            2 = 9
-            5 = 8
-            8 = 7
-            12 = 6
-            15 = 5
-            18 = 4
-            22 = 3
-            25 = 2
-            28 = 1
-            */
-            // What is the longest PID when converted to a string?
-            match val.pid.leading_zeros() {
-                0..=1 => if pidlen < 10 { pidlen = 10 },
-                2..=4 => if pidlen < 9 { pidlen = 9 },
-                5..=7 => if pidlen < 8 { pidlen = 8 },
-                8..=11 => if pidlen < 7 { pidlen = 7 },
-                12..=14 => if pidlen < 6 { pidlen = 6 },
-                15..=17 => if pidlen < 5 { pidlen = 5 },
-                18..=21 => if pidlen < 4 { pidlen = 4 },
-                22..=24 => if pidlen < 3 { pidlen = 3 },
-                25..=27 => if pidlen < 2 { pidlen = 2 },
-                28..=31 => if pidlen < 1 { pidlen = 1 },
-                _ => pidlen = 10, // This should never happen
-            }
-
             // Multiply it so it can be sorted
             sorted.push(val);
         }
@@ -295,15 +275,15 @@ impl Processes {
             }
         });
 
-        (pidlen, sorted)
+        (self.maxpidlen, sorted)
     }
 }
 
 impl Default for Processes {
     fn default() -> Self {
-
         Self {
             processes: FxHashMap::default(),
+            maxpidlen: 0,
             rebuild: false,
             buffer: String::new(),
             buffer_vector_dirs: Vec::with_capacity(BUF_SIZE),
