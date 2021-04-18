@@ -20,7 +20,7 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<()> {
          );
     }
 
-    // Check if there's an error
+    // If there's an error it's 99.999% certain it's because the process has terminated
     ensure!(fd >= 0);
 
     // Read file into buffer
@@ -38,7 +38,7 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<()> {
     }
 
     // Check if there's an error
-    ensure!(n_read > 0, "Can't read file or it's empty.");
+    assert!(n_read > 0, "SYS_READ return code: {}", n_read);
 
     // Set buffer length to however many bytes was read
     unsafe {
@@ -58,7 +58,7 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<()> {
     }
 
     // Check if there's an error, panic if there is!
-    assert!(ret == 0);
+    assert!(ret == 0, "SYS_CLOSE return code: {}", ret);
 
     Ok(())
 }
@@ -178,27 +178,4 @@ impl Process {
 
         //eprintln!("{}", now.elapsed().as_nanos());
     }
-
-    /*pub fn update_smaps(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
-
-        if open_and_read(buffer, self.smaps_file.as_ptr()).is_err() {
-            self.pss = -1;
-            return Ok(());
-        }
-
-        let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
-        self.pss = btoi::btou::<i64>(data.lines()
-            .nth(2)
-            .expect("Can't parse 'pss' from /proc/[pid]/smaps_rollup")
-            .split_ascii_whitespace()
-            .nth(1)
-            .expect("Can't parse 'pss' from /proc/[pid]/smaps_rollup").as_bytes())
-            .expect("Can't convert 'pss' to a number")
-            /*.parse::<i64>()
-            .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup")?*/
-            * 1024;
-
-
-        Ok(())
-    }*/
 }
