@@ -16,8 +16,8 @@ pub struct Swap <'a> {
     cache: (String, String, String),
     buffer: (String, String, String),
 
-    total: i64,
-    free: i64,
+    total: u64,
+    free: u64,
 }
 
 impl <'a> Swap <'a> {
@@ -60,17 +60,16 @@ impl <'a> Swap <'a> {
     }
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-        if let Ok(val) = self.system.swapinfo.lock() {
-            if self.total != val.total {
-                self.total = val.total;
-                convert_with_padding(&mut self.buffer.0, val.total, 4)?;
+        if let Ok(val) = self.system.memoryinfo.lock() {
+            if self.total != val.swap_total {
+                //self.total = val.swap_total;
+                convert_with_padding(&mut self.buffer.0, val.swap_total, 4)?;
             }
 
-            if self.free != val.free {
-                self.free = val.free;
-                convert_with_padding(&mut self.buffer.1, val.used, 4)?;
-                convert_with_padding(&mut self.buffer.2, val.free, 4)?;
-
+            if self.free != val.swap_free {
+                //self.free = val.swap_free;
+                convert_with_padding(&mut self.buffer.1, val.swap_used, 4)?;
+                convert_with_padding(&mut self.buffer.2, val.swap_free, 4)?;
             }
 
             write!(stdout, "{}{}{}{}{}{}\x1b[38;5;244m ]\x1b[0m",

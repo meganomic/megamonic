@@ -4,9 +4,12 @@ use std::io::prelude::*;
 
 #[derive(Default, Clone)]
 pub struct Memory {
-    pub total: i64,
-    pub free: i64,
-    pub used: i64,
+    pub mem_total: u64,
+    pub mem_free: u64,
+    pub mem_used: u64,
+    pub swap_total: u64,
+    pub swap_free: u64,
+    pub swap_used: u64,
     buffer: String
 }
 
@@ -20,25 +23,45 @@ impl Memory {
 
         let mut lines = self.buffer.lines();
 
-        self.total = lines.next()
+        self.mem_total = lines.next()
             .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 1"))?
             .split_ascii_whitespace()
             .nth(1)
             .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
-            .parse::<i64>()
+            .parse::<u64>()
             .context("Can't parse /proc/meminfo: 3")?
             * 1024;
 
-        self.free = lines.nth(1)
+        self.mem_free = lines.nth(1)
             .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 1"))?
             .split_ascii_whitespace()
             .nth(1)
             .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
-            .parse::<i64>()
+            .parse::<u64>()
             .context("Can't parse /proc/meminfo: 3")?
             * 1024;
 
-        self.used = self.total - self.free;
+        self.swap_total = lines.nth(11)
+            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 1"))?
+            .split_ascii_whitespace()
+            .nth(1)
+            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
+            .parse::<u64>()
+            .context("Can't parse /proc/meminfo: 3")?
+            * 1024;
+
+        self.swap_free = lines.next()
+            .expect("Can't parse /proc/meminfo: 1")
+            .split_ascii_whitespace()
+            .nth(1)
+            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
+            .parse::<u64>()
+            .context("Can't parse /proc/meminfo: 3")?
+            * 1024;
+
+        self.mem_used = self.mem_total - self.mem_free;
+
+        self.swap_used = self.swap_total - self.swap_free;
 
         Ok(())
     }

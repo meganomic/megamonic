@@ -61,17 +61,15 @@ impl <'a> Overview <'a> {
         }
 
         if let Ok(memoryinfo) = self.system.memoryinfo.lock() {
-            let mem_use = (memoryinfo.used as f32 / memoryinfo.total as f32) * 100.0;
+            let mem_use = (memoryinfo.mem_used as f32 / memoryinfo.mem_total as f32) * 100.0;
 
             if mem_use < 100.0 {
                     write!(stdout, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.1, mem_use)?;
             } else if mem_use >= 100.0 {
                     write!(stdout, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.1, mem_use)?;
             }
-        }
 
-        if let Ok(swapinfo) = self.system.swapinfo.lock() {
-            let swap_use = (swapinfo.used as f32 / swapinfo.total as f32) * 100.0;
+            let swap_use = (memoryinfo.swap_used as f32 / memoryinfo.swap_total as f32) * 100.0;
 
             if swap_use < 100.0 {
                     write!(stdout, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.2, swap_use)?;

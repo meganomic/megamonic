@@ -16,8 +16,8 @@ pub struct Memory <'a> {
     cache: (String, String, String),
     buffer: (String, String, String),
 
-    total: i64,
-    free: i64
+    total: u64,
+    free: u64
 }
 
 impl <'a> Memory <'a> {
@@ -61,13 +61,13 @@ impl <'a> Memory <'a> {
 
     pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
         if let Ok(val) = self.system.memoryinfo.lock() {
-            if self.total != val.total {
-                convert_with_padding(&mut self.buffer.0, val.total, 4)?;
+            if self.total != val.mem_total {
+                convert_with_padding(&mut self.buffer.0, val.mem_total, 4)?;
             }
 
-            if self.free != val.free {
-                convert_with_padding(&mut self.buffer.1, val.used, 4)?;
-                convert_with_padding(&mut self.buffer.2, val.free, 4)?;
+            if self.free != val.mem_free {
+                convert_with_padding(&mut self.buffer.1, val.mem_used, 4)?;
+                convert_with_padding(&mut self.buffer.2, val.mem_free, 4)?;
             }
 
             write!(stdout, "{}{}{}{}{}{}\x1b[38;5;244m ]\x1b[0m",

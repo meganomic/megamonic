@@ -223,14 +223,18 @@ impl <'ui> Ui <'ui> {
                     if self.terminal_size.x > (self.memory.pos.x + self.memory.size.x) && self.terminal_size.y > (self.memory.pos.y + self.memory.size.y) {
                         self.memory.draw(&mut self.stdout)?;
                     }
-                },
 
-                // Swap
-                5 => {
                     if self.terminal_size.x > (self.swap.pos.x + self.swap.size.x) && self.terminal_size.y > (self.swap.pos.y + self.swap.size.y)  {
                         self.swap.draw(&mut self.stdout)?;
                     }
                 },
+
+                // Swap
+                /*5 => {
+                    if self.terminal_size.x > (self.swap.pos.x + self.swap.size.x) && self.terminal_size.y > (self.swap.pos.y + self.swap.size.y)  {
+                        self.swap.draw(&mut self.stdout)?;
+                    }
+                },*/
 
                 // Sensors
                 6 => {
@@ -366,12 +370,9 @@ impl <'ui> Ui <'ui> {
 }
 
 // Convert to pretty bytes with specified right alignment
-pub fn convert_with_padding(buffer: &mut String, num: i64, padding: usize) -> Result<()> {
+pub fn convert_with_padding(buffer: &mut String, num: u64, padding: usize) -> Result<()> {
     buffer.clear();
-    if num == -1 {
-        write!(buffer, "Error")?;
-        return Ok(());
-    }
+
     if num == 0 {
         write!(buffer, "{:>pad$.0} b", num, pad=padding+1)?;
         return Ok(());

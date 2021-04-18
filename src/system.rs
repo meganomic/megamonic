@@ -4,7 +4,6 @@ use std::thread;
 pub mod cpu;
 mod loadavg;
 mod memory;
-mod swap;
 mod sensors;
 mod network;
 mod processes;
@@ -29,7 +28,6 @@ pub struct System {
     pub cpuinfo: Arc<Mutex<cpu::Cpuinfo>>,
     pub loadavg: Arc<Mutex<loadavg::Loadavg>>,
     pub memoryinfo: Arc<Mutex<memory::Memory>>,
-    pub swapinfo: Arc<Mutex<swap::Swap>>,
     pub sensorinfo: Arc<Mutex<sensors::Sensors>>,
     pub networkinfo: Arc<Mutex<network::Network>>,
     pub processinfo: Arc<Mutex<processes::Processes>>,
@@ -120,18 +118,6 @@ impl System {
         self.threads.push(
             memory::start_thread(
                 Arc::clone(&self.memoryinfo),
-                mtx.clone(),
-                Arc::clone(&self.exit),
-                Arc::clone(&self.error),
-                sleepy
-            )
-        );
-
-        // Read /proc/swaps
-        //thread::sleep(stagger);  // Stagger the threads
-        self.threads.push(
-            swap::start_thread(
-                Arc::clone(&self.swapinfo),
                 mtx.clone(),
                 Arc::clone(&self.exit),
                 Arc::clone(&self.error),
