@@ -226,21 +226,23 @@ impl Processes {
 
         let buf = &mut self.buffer_vector;
         self.processes.retain(|_,process| {
-            process.update(buf, smaps);
-
-            if topmode {
-                if process.work > totald {
-                    process.cpu_avg = 100.0 * cpu_count;
+            if process.update(buf, smaps) {
+                if topmode {
+                    if process.work > totald {
+                        process.cpu_avg = 100.0 * cpu_count;
+                    } else {
+                        process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
+                    }
+                } else if process.work > totald {
+                    process.cpu_avg = 100.0;
                 } else {
-                    process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
+                    process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
                 }
-            } else if process.work > totald {
-                process.cpu_avg = 100.0;
-            } else {
-                process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
-            }
 
-            process.alive
+                true
+            } else {
+                false
+            }
         });
 
         //eprintln!("{}", now.elapsed().as_nanos());

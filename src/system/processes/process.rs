@@ -90,8 +90,6 @@ pub struct Process {
     //pub tasks : std::collections::HashSet<u32>,
 
     pub not_executable: bool,
-
-    pub alive: bool,
 }
 
 impl Process {
@@ -102,18 +100,17 @@ impl Process {
             cmdline,
             stat_file: unsafe { CString::from_vec_unchecked(format!("/proc/{}/stat", pid).into_bytes()) },
             smaps_file: unsafe { CString::from_vec_unchecked(format!("/proc/{}/smaps_rollup", pid).into_bytes()) },
-            alive: true,
             not_executable,
             ..Default::default()
         }
     }
 
-    pub fn update(&mut self, buffer: &mut Vec::<u8>, smaps: bool) {
+    pub fn update(&mut self, buffer: &mut Vec::<u8>, smaps: bool) -> bool{
         //let now = std::time::Instant::now();
 
         if open_and_read(buffer, self.stat_file.as_ptr()).is_err() {
-            self.alive = false;
-            return;
+            //self.alive = false;
+            return false;
         }
 
         let old_total = self.total;
@@ -176,6 +173,8 @@ impl Process {
             }
 
         }
+
+        return true;
 
         //eprintln!("{}", now.elapsed().as_nanos());
     }
