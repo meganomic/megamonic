@@ -27,16 +27,16 @@ pub fn custom_panic_hook() {
         let name = thread.name().unwrap_or("<unnamed>");
 
         // If the main thread panics reset the terminal
-        if name == "main" {
-            let _ = execute!(std::io::stdout(),
-                        terminal::Clear(terminal::ClearType::All),
-                        terminal::LeaveAlternateScreen,
-                        terminal::EnableLineWrap,
-                        cursor::Show
-                    );
+        //if name == "main" {
+        let _ = execute!(std::io::stdout(),
+                    //terminal::Clear(terminal::ClearType::All),
+                    terminal::LeaveAlternateScreen,
+                    terminal::EnableLineWrap,
+                    cursor::Show
+                );
 
-            let _ = terminal::disable_raw_mode();
-        }
+        let _ = terminal::disable_raw_mode();
+        //}
 
         let msg = match info.payload().downcast_ref::<&'static str>() {
             Some(s) => *s,
