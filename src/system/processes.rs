@@ -1,4 +1,4 @@
-use anyhow::{ bail, anyhow, Context, Result };
+use anyhow::{ bail, Context, Result };
 use std::sync::{ Arc, Mutex, mpsc, atomic };
 use std::io::prelude::*;
 use std::fmt::Write as fmtWrite;
@@ -126,131 +126,83 @@ impl Processes {
                     if !self.ignored.contains(&pid) {
                         // Don't add it if we already have it
                         //if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
-                        match self.processes.entry(pid) {
-                            Entry::Vacant(process_entry) => {
-                                // If cmdline can't be opened it probably means that the process has terminated, skip it.
+                        if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
+                            // If cmdline can't be opened it probably means that the process has terminated, skip it.
+                            self.buffer.clear();
+                            write!(&mut self.buffer, "/proc/{}/cmdline", pid).expect("Error writing to buffer");
+                            if let Ok(mut f) = std::fs::File::open(&self.buffer) {
                                 self.buffer.clear();
-                                write!(&mut self.buffer, "/proc/{}/cmdline", pid).expect("Error writing to buffer");
-                                if let Ok(mut f) = std::fs::File::open(&self.buffer) {
+                                f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/cmdline", pid))?;
+                            } else {
+                                continue;
+                            };
+
+                            // Limit the results to actual programs unless 'all-processes' is enabled
+                            // pid == 1 is weird so make an extra check
+                            if !self.buffer.is_empty() && pid != 1 {
+                                // Cancer code that is very hacky and don't work for all cases
+                                // For instance, if a directory name has spaces or slashes in it, it breaks.
+                                let mut split = self.buffer.split(&['\0', ' '][..]);
+                                let executable = split.next()
+                                    .expect("Parsing error in /proc/[pid]/cmdline")
+                                    .rsplit('/')
+                                    .next()
+                                    .expect("Parsing error in /proc/[pid]/cmdline")
+                                    .to_string();
+
+                                let cmdline = split
+                                    .fold(
+                                        String::new(),
+                                        |mut o, i|
+                                        {
+                                            o.push(' ');
+                                            o.push_str(i);
+                                            o
+                                        }
+                                    );
+
+                                process_entry.insert(
+                                    process::Process::new(
+                                        pid,
+                                        executable,
+                                        cmdline,
+                                        false
+                                    )
+                                );
+                            } else {
+                                // If 'all-processes' is enabled add everything
+                                if all_processes {
+                                    // If stat can't be opened it means the process has terminated, skip it.
                                     self.buffer.clear();
-                                    f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/cmdline", pid))?;
-                                } else {
-                                    continue;
-                                };
-
-                                // Limit the results to actual programs unless 'all-processes' is enabled
-                                // pid == 1 is weird so make an extra check
-                                if !self.buffer.is_empty() && pid != 1 {
-                                    // Cancer code that is very hacky and don't work for all cases
-                                    // For instance, if a directory name has spaces or slashes in it, it breaks.
-                                    let mut split = self.buffer.split(&['\0', ' '][..]);
-                                    let executable = split.next()
-                                        .expect("Parsing error in /proc/[pid]/cmdline")
-                                        .rsplit('/')
-                                        .next()
-                                        .expect("Parsing error in /proc/[pid]/cmdline")
-                                        .to_string();
-
-                                    let cmdline = split
-                                        .fold(
-                                            String::new(),
-                                            |mut o, i|
-                                            {
-                                                o.push(' ');
-                                                o.push_str(i);
-                                                o
-                                            }
-                                        );
-
-                                    process_entry.insert(process::Process::new(
-                                            pid,
-                                            executable,
-                                            cmdline,
-                                            false
-                                        ));
-                                    /*process.update(&mut self.buffer_vector, smaps)?;
-
-                                    if process.alive {
-                                        process_entry.insert(process)
+                                    write!(&mut self.buffer, "/proc/{}/stat", pid).expect("Error writing to buffer");
+                                    let executable = if let Ok(mut f) = std::fs::File::open(&self.buffer) {
+                                        self.buffer.clear();
+                                        f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/stat", pid))?;
+                                        self.buffer[
+                                            self.buffer.find('(')
+                                            .expect("Can't parse /proc/[pid]/stat for exetuable name")
+                                            ..self.buffer.find(')')
+                                            .expect("Can't parse /proc/[pid]/stat for exetuable name")
+                                        ].to_string()
                                     } else {
                                         continue;
-                                    }*/
-                                } else {
-                                    // If 'all-processes' is enabled add everything
-                                    if all_processes {
-                                        // If stat can't be opened it means the process has terminated, skip it.
-                                        self.buffer.clear();
-                                        write!(&mut self.buffer, "/proc/{}/stat", pid).expect("Error writing to buffer");
-                                        let executable = if let Ok(mut f) = std::fs::File::open(&self.buffer) {
-                                            self.buffer.clear();
-                                            f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/stat", pid))?;
-                                            self.buffer[
-                                                self.buffer.find('(')
-                                                .expect("Can't parse /proc/[pid]/stat for exetuable name")
-                                                ..self.buffer.find(')')
-                                                .expect("Can't parse /proc/[pid]/stat for exetuable name")
-                                            ].to_string()
-                                        } else {
-                                            continue;
-                                        };
+                                    };
 
-                                        process_entry.insert(process::Process::new(
+                                    process_entry.insert(
+                                        process::Process::new(
                                             pid,
                                             executable,
                                             String::new(),
                                             true
-                                        ));
-
-                                        /*let mut process =
-                                            process::Process::new(
-                                                pid,
-                                                executable,
-                                                String::new(),
-                                                true
-                                            );
-
-                                        process.update(&mut self.buffer_vector, smaps)?;
-
-                                        if process.alive {
-                                            process_entry.insert(process)
-                                        } else {
-                                            continue;
-                                        }*/
-                                    } else {
-                                        // Otherwise add it to the ignore list
-                                        self.ignored.insert(pid);
-                                        continue;
-                                    }
-                                }
-                            },
-                            Entry::Occupied(mut process_entry) => {
-                                /*let process = process_entry.get_mut();
-                                process.update(&mut self.buffer_vector, smaps)?;
-
-                                if process.alive {
-                                    process_entry.into_mut()
+                                        )
+                                    );
                                 } else {
-                                    process_entry.remove_entry();
+                                    // Otherwise add it to the ignore list
+                                    self.ignored.insert(pid);
                                     continue;
-                                }*/
+                                }
                             }
-
                         }
-
-                        //entry.update(&mut self.buffer, smaps)?;
-                        //eprintln!("{}", now.elapsed().as_nanos());
-
-                        /*if topmode {
-                            if process.work > totald {
-                                process.cpu_avg = 100.0 * cpu_count;
-                            } else {
-                                process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
-                            }
-                        } else if process.work > totald {
-                            process.cpu_avg = 100.0;
-                        } else {
-                            process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
-                        }*/
                     }
                 }
             }
@@ -271,8 +223,9 @@ impl Processes {
         // Check if there's an error, panic if there is!
         assert!(ret == 0, "SYS_CLOSE return code: {}", ret);
 
-        for process in self.processes.values_mut() {
-            process.update(&mut self.buffer_vector, smaps)?;
+        let buf = &mut self.buffer_vector;
+        self.processes.retain(|_,process| {
+            process.update(buf, smaps);
 
             if topmode {
                 if process.work > totald {
@@ -285,8 +238,9 @@ impl Processes {
             } else {
                 process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
             }
-        }
-        self.processes.retain(|_,v| v.alive);
+
+            process.alive
+        });
 
         //eprintln!("{}", now.elapsed().as_nanos());
         Ok(())
