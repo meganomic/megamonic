@@ -108,12 +108,11 @@ impl Process {
         }
     }
 
-    pub fn update(&mut self, buffer: &mut Vec::<u8>, smaps: bool) -> Result<()> {
+    pub fn update(&mut self, buffer: &mut Vec::<u8>, smaps: bool) {
         //let now = std::time::Instant::now();
 
         if open_and_read(buffer, self.stat_file.as_ptr()).is_err() {
             self.alive = false;
-            return Ok(());
         }
 
         let old_total = self.total;
@@ -178,7 +177,6 @@ impl Process {
         }
 
         //eprintln!("{}", now.elapsed().as_nanos());
-        Ok(())
     }
 
     /*pub fn update_smaps(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
