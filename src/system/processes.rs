@@ -46,14 +46,6 @@ impl Processes {
     pub fn update(&mut self, cpuinfo: &Arc<Mutex<cpu::Cpuinfo>>, config: &Arc<Config>) -> Result<()> {
         //let now = std::time::Instant::now();
 
-        let (cpu_count, totald) = if let Ok(cpu) = cpuinfo.lock() {
-            (cpu.cpu_count as f32, cpu.totald)
-        } else {
-            bail!("Cpuinfo lock is poisoned!");
-        };
-
-        let topmode = config.topmode.load(atomic::Ordering::Relaxed);
-        let smaps = config.smaps.load(atomic::Ordering::Relaxed);
         let all_processes = config.all.load(atomic::Ordering::Relaxed);
 
         // Trigger rebuild if 'show all processes' option is changed
@@ -222,6 +214,15 @@ impl Processes {
 
         // Check if there's an error, panic if there is!
         assert!(ret == 0, "SYS_CLOSE return code: {}", ret);
+
+        let (cpu_count, totald) = if let Ok(cpu) = cpuinfo.lock() {
+            (cpu.cpu_count as f32, cpu.totald)
+        } else {
+            bail!("Cpuinfo lock is poisoned!");
+        };
+
+        let topmode = config.topmode.load(atomic::Ordering::Relaxed);
+        let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
         let buf = &mut self.buffer_vector;
         self.processes.retain(|_,process| {
