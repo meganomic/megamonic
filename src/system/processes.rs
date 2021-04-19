@@ -238,31 +238,27 @@ impl Processes {
         self.processes.retain(|_,process| {
             let res = process.update(buf, smaps);
             if let Ok(val) = res {
-
-                    if val {
-                        if topmode {
-                            if process.work > totald {
-                                process.cpu_avg = 100.0 * cpu_count;
-                            } else {
-                                process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
-                            }
-                        } else if process.work > totald {
-                            process.cpu_avg = 100.0;
+                if val {
+                    if topmode {
+                        if process.work > totald {
+                            process.cpu_avg = 100.0 * cpu_count;
                         } else {
-                            process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
+                            process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
                         }
-
-                        true
+                    } else if process.work > totald {
+                        process.cpu_avg = 100.0;
                     } else {
-                        false
+                        process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
                     }
 
-                }
-                else {
-                    ret = res;
+                    true
+                } else {
                     false
                 }
-
+            } else {
+                ret = res;
+                false
+            }
         });
 
         ensure!(ret.is_ok(), "process.update() returned with a failure state!\n{:?}\n", ret);

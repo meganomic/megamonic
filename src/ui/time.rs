@@ -36,9 +36,9 @@ impl <'a> Time <'a> {
         ));
     }
 
-    pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
+    pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
         let time_string = self.gettime();
-        write!(stdout, "{}{}", &self.cache, &time_string)?;
+        write!(buffer, "{}{}", &self.cache, &time_string)?;
 
         Ok(())
     }

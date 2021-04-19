@@ -59,7 +59,7 @@ impl <'a> Memory <'a> {
         Ok(())
     }
 
-    pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
+    pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
         if let Ok(val) = self.system.memoryinfo.lock() {
             if self.total != val.mem_total {
                 convert_with_padding(&mut self.buffer.0, val.mem_total, 4)?;
@@ -73,7 +73,7 @@ impl <'a> Memory <'a> {
             bail!("memoryinfo lock is poisoned!");
         }
 
-        write!(stdout, "{}{}{}{}{}{}\x1b[38;5;244m ]\x1b[0m",
+        write!(buffer, "{}{}{}{}{}{}\x1b[38;5;244m ]\x1b[0m",
             &self.cache.0,
             &self.buffer.0,
             &self.cache.1,

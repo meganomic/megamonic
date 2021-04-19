@@ -51,12 +51,12 @@ impl <'a> Overview <'a> {
         Ok(())
     }
 
-    pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
+    pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
         if let Ok(cpuinfo) = self.system.cpuinfo.lock() {
             if cpuinfo.cpu_avg < 100.0 {
-                    write!(stdout, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.0, cpuinfo.cpu_avg)?;
+                    write!(buffer, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.0, cpuinfo.cpu_avg)?;
             } else if cpuinfo.cpu_avg >= 100.0 {
-                    write!(stdout, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.0, cpuinfo.cpu_avg)?;
+                    write!(buffer, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.0, cpuinfo.cpu_avg)?;
             }
         } else {
             bail!("cpuinfo lock is poisoned!");
@@ -66,17 +66,17 @@ impl <'a> Overview <'a> {
             let mem_use = (memoryinfo.mem_used as f32 / memoryinfo.mem_total as f32) * 100.0;
 
             if mem_use < 100.0 {
-                    write!(stdout, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.1, mem_use)?;
+                    write!(buffer, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.1, mem_use)?;
             } else if mem_use >= 100.0 {
-                    write!(stdout, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.1, mem_use)?;
+                    write!(buffer, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.1, mem_use)?;
             }
 
             let swap_use = (memoryinfo.swap_used as f32 / memoryinfo.swap_total as f32) * 100.0;
 
             if swap_use < 100.0 {
-                    write!(stdout, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.2, swap_use)?;
+                    write!(buffer, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.2, swap_use)?;
             } else if swap_use >= 100.0 {
-                    write!(stdout, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.2, swap_use)?;
+                    write!(buffer, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.2, swap_use)?;
             }
         } else {
             bail!("memoryinfo lock is poisoned!");

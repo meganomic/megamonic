@@ -123,6 +123,7 @@ pub struct Ui <'ui> {
     paused: bool,
 
     stdout: std::io::Stdout,
+    buffer: Vec::<u8>,
     system: &'ui super::system::System,
 
     time: Time <'ui>,
@@ -144,6 +145,7 @@ impl <'ui> Ui <'ui> {
         let mut ui = Self {
             paused: false,
             stdout: std::io::stdout(),
+            buffer: Vec::new(),
             system,
             terminal_size: XY { x: tsizex, y: tsizey },
 
@@ -207,6 +209,7 @@ impl <'ui> Ui <'ui> {
     }
 
     pub fn rebuild_cache(&mut self) -> Result<()> {
+        self.buffer.clear();
         self.time.pos.y = self.terminal_size.y;
         self.time.rebuild_cache();
 
@@ -217,45 +220,48 @@ impl <'ui> Ui <'ui> {
         self.memory.rebuild_cache()?;
         self.swap.rebuild_cache()?;
         self.processes.rebuild_cache(&self.terminal_size);
-        self.processes.draw_static(&mut self.stdout)?;
+        self.processes.draw_static(&mut self.buffer)?;
 
         // The following objects rely on the position of the previous ones
         // So don't do anything silly.
         self.network.rebuild_cache()?;
-        self.network.draw_static(&mut self.stdout)?;
+        self.network.draw_static(&mut self.buffer)?;
 
         self.sensors.pos.y = self.network.size.y + self.network.pos.y;
         self.sensors.rebuild_cache()?;
-        self.sensors.draw_static(&mut self.stdout)?;
+        self.sensors.draw_static(&mut self.buffer)?;
 
         self.gpu.pos.y = self.sensors.pos.y + self.sensors.size.y;
         self.gpu.rebuild_cache();
-        self.gpu.draw_static(&mut self.stdout)?;
+        self.gpu.draw_static(&mut self.buffer)?;
+
+        std::io::stdout().write(&self.buffer)?;
 
         Ok(())
     }
 
     pub fn update (&mut self, item: u8) -> Result<()> {
         if !self.paused {
+            self.buffer.clear();
             match item {
                 // Time
                 1 => {
                     if self.terminal_size.x > self.time.size.x {
-                        self.time.draw(&mut self.stdout)?;
+                        self.time.draw(&mut self.buffer)?;
                     }
                 },
 
                 // Load average
                 2 => {
                     if self.terminal_size.x > (self.loadavg.size.x + self.loadavg.pos.x) && self.terminal_size.y > self.loadavg.size.y  {
-                        self.loadavg.draw(&mut self.stdout)?;
+                        self.loadavg.draw(&mut self.buffer)?;
                     }
                 },
 
                 // Overview
                 3 => {
                     if self.terminal_size.x > (self.overview.size.x + self.overview.pos.x) && self.terminal_size.y > (self.overview.size.y + self.overview.pos.y) {
-                        self.overview.draw(&mut self.stdout)?;
+                        self.overview.draw(&mut self.buffer)?;
                     }
 
                     if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
@@ -271,11 +277,11 @@ impl <'ui> Ui <'ui> {
                 // Memory
                 4 => {
                     if self.terminal_size.x > (self.memory.pos.x + self.memory.size.x) && self.terminal_size.y > (self.memory.pos.y + self.memory.size.y) {
-                        self.memory.draw(&mut self.stdout)?;
+                        self.memory.draw(&mut self.buffer)?;
                     }
 
                     if self.terminal_size.x > (self.swap.pos.x + self.swap.size.x) && self.terminal_size.y > (self.swap.pos.y + self.swap.size.y)  {
-                        self.swap.draw(&mut self.stdout)?;
+                        self.swap.draw(&mut self.buffer)?;
                     }
                 },
 
@@ -289,7 +295,7 @@ impl <'ui> Ui <'ui> {
                 // Sensors
                 6 => {
                     if self.terminal_size.x > self.sensors.size.x && self.terminal_size.y > (self.network.size.y + self.sensors.size.y + self.overview.size.y) as u16 {
-                        if self.sensors.draw(&mut self.stdout)? {
+                        if self.sensors.draw(&mut self.buffer)? {
                             self.rebuild()?;
                         }
                     }
@@ -298,7 +304,7 @@ impl <'ui> Ui <'ui> {
                 // Network
                 7 => {
                     if self.terminal_size.x > self.network.size.x  && self.terminal_size.y > (self.network.size.y + self.overview.size.y) as u16 {
-                        if self.network.draw(&mut self.stdout)? {
+                        if self.network.draw(&mut self.buffer)? {
                             self.rebuild()?;
                         }
                     }
@@ -308,7 +314,7 @@ impl <'ui> Ui <'ui> {
                 8 => {
                     //let now = std::time::Instant::now();
                     if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
-                        self.processes.draw(&mut self.stdout, &self.terminal_size)?;
+                        self.processes.draw(&mut self.buffer, &self.terminal_size)?;
                     }
                     //eprintln!("{}", now.elapsed().as_micros());
                     //_draw_benchmark!(self.stdout, now, self.terminal_size.x, self.terminal_size.y);
@@ -318,7 +324,7 @@ impl <'ui> Ui <'ui> {
                 9 => {
                     if self.terminal_size.x > (self.gpu.pos.x + self.gpu.size.x) && self.terminal_size.y > (self.gpu.pos.y + self.gpu.size.y)  {
                         //let now = std::time::Instant::now();
-                        self.gpu.draw(&mut self.stdout)?;
+                        self.gpu.draw(&mut self.buffer)?;
                         //eprintln!("{}", now.elapsed().as_nanos());
                         //_draw_benchmark!(self.stdout, now, self.terminal_size.x, self.terminal_size.y);
                     }
@@ -347,9 +353,10 @@ impl <'ui> Ui <'ui> {
 
                 _ => (),
             }
-        }
 
-        self.stdout.flush()?;
+            self.stdout.flush()?;
+            std::io::stdout().write(&self.buffer)?;
+        }
 
         Ok(())
     }
@@ -364,7 +371,7 @@ impl <'ui> Ui <'ui> {
         }
 
         if self.terminal_size.x > (self.hostinfo.size.x + self.time.size.x) {
-            self.hostinfo.draw(&mut self.stdout)?;
+            self.hostinfo.draw(&mut self.buffer)?;
         }
 
         Ok(())

@@ -1,4 +1,4 @@
-use crossterm::{ cursor, queue, style::Print };
+use crossterm::cursor;
 use std::io::Write;
 use anyhow::{ bail, Result };
 
@@ -56,17 +56,16 @@ impl <'a> Sensors <'a> {
         Ok(())
     }
 
-    pub fn draw_static(&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-        queue!(
-            stdout,
-            cursor::MoveTo(self.pos.x, self.pos.y),
-            Print("\x1b[95mSensors\x1b[0m")
+    pub fn draw_static(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
+        write!(
+            buffer, "{}\x1b[95mSensors\x1b[0m",
+            cursor::MoveTo(self.pos.x, self.pos.y)
         )?;
 
         Ok(())
     }
 
-    pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<bool> {
+    pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<bool> {
         if let Ok(sensorinfo) = self.system.sensorinfo.lock() {
             // Trigger cache rebuild if lengths aren't equal
             if self.cache.len() != sensorinfo.chips.len() {
@@ -79,7 +78,7 @@ impl <'a> Sensors <'a> {
 
                     // Don't update the value if it hasn't changed
                     if cache.1 != *val {
-                        write!(stdout, "{}{} C\x1b[91m ]\x1b[0m", &cache.0, val)?;
+                        write!(buffer, "{}{} C\x1b[91m ]\x1b[0m", &cache.0, val)?;
                         cache.1 = *val;
                     }
                 }

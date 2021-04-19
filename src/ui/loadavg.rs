@@ -48,12 +48,12 @@ impl <'a> Loadavg <'a> {
         Ok(())
     }
 
-    pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
+    pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
         if let Ok(loadavg) = self.system.loadavg.lock() {
             let len = loadavg.min1.len().max(loadavg.min5.len().max(loadavg.min15.len()));
             self.size.x = len as u16 + 12;
 
-            write!(stdout, "{}{:>pad$}{}{:>pad$}{}{:>pad$}\x1b[91m ]\x1b[0m",
+            write!(buffer, "{}{:>pad$}{}{:>pad$}{}{:>pad$}\x1b[91m ]\x1b[0m",
                 &self.cache.0,
                 &loadavg.min1,
                 &self.cache.1,

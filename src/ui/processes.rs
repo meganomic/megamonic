@@ -1,4 +1,4 @@
-use crossterm::{ cursor, queue, style::Print };
+use crossterm::cursor;
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ bail, Result };
@@ -45,17 +45,16 @@ impl <'a> Processes <'a> {
         }
     }
 
-    pub fn draw_static(&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-        queue!(
-            stdout,
+    pub fn draw_static(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
+        write!(
+            buffer, "{}\x1b[95mProcesses\x1b[0m",
             cursor::MoveTo(self.pos.x, self.pos.y),
-            Print("\x1b[95mProcesses\x1b[0m")
         )?;
 
         Ok(())
     }
 
-    pub fn draw(&mut self, stdout: &mut std::io::Stdout, terminal_size: &XY) -> Result<()> {
+    pub fn draw(&mut self, buffer: &mut Vec::<u8>, terminal_size: &XY) -> Result<()> {
         let smaps = self.system.config.smaps.load(atomic::Ordering::Relaxed);
 
         if let Ok(processinfo) = self.system.processinfo.lock() {
@@ -85,7 +84,7 @@ impl <'a> Processes <'a> {
                     // This is needed because of rounding errors. There's probably a better way
                     let max_length = (terminal_size.x - self.pos.x - 19) as usize;
                     if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
-                        write!(stdout,
+                        write!(buffer,
                             "{}\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ {}{}",
                             &self.cache1.get_unchecked(idx),
                             val.cpu_avg,
@@ -102,7 +101,7 @@ impl <'a> Processes <'a> {
                             )
                         )?;
                     } else if val.cpu_avg >= 99.5 {
-                        write!(stdout,
+                        write!(buffer,
                             "{}\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ {}{}",
                             &self.cache1.get_unchecked(idx),
                             val.cpu_avg,
@@ -119,7 +118,7 @@ impl <'a> Processes <'a> {
                             )
                         )?;
                     } else {
-                        write!(stdout,
+                        write!(buffer,
                             "{}\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ {}{}",
                             &self.cache1.get_unchecked(idx),
                             val.cpu_avg,
@@ -138,6 +137,7 @@ impl <'a> Processes <'a> {
                     }
                 }
             }
+
             //eprintln!("{}", now.elapsed().as_nanos());
 
             // Save the length of the longest PID in the cache so we can check if it changes

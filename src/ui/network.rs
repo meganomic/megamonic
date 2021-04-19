@@ -1,4 +1,4 @@
-use crossterm::{ cursor, queue, style::Print };
+use crossterm::cursor;
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ bail, Result};
@@ -77,15 +77,14 @@ impl <'a> Network <'a> {
         Ok(())
     }
 
-    pub fn draw_static(&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-        queue!(stdout,
-            cursor::MoveTo(self.pos.x, self.pos.y),
-            Print("\x1b[95mNetwork\x1b[0m"),
+    pub fn draw_static(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
+        write!(buffer, "{}\x1b[95mNetwork\x1b[0m",
+            cursor::MoveTo(self.pos.x, self.pos.y)
         )?;
         Ok(())
     }
 
-    pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<bool> {
+    pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<bool> {
         if let Ok(networkinfo) = self.system.networkinfo.lock() {
             // Trigger cache rebuild if lengths don't match
             if self.cache.len() != networkinfo.stats.len() {
@@ -100,12 +99,12 @@ impl <'a> Network <'a> {
                     convert_speed(&mut self.buffer_speed, val.recv, freq)?;
 
                     if val.recv != 0 {
-                        write!(stdout, "{}{}\x1b[37m Rx\x1b[0m",
+                        write!(buffer, "{}{}\x1b[37m Rx\x1b[0m",
                             &self.cache.get_unchecked(count).0,
                             &self.buffer_speed,
                         )?;
                     } else {
-                        write!(stdout, "{}{}\x1b[37m Rx\x1b[0m",
+                        write!(buffer, "{}{}\x1b[37m Rx\x1b[0m",
                             &self.cache.get_unchecked(count).1,
                             &self.buffer_speed,
                         )?;
@@ -116,12 +115,12 @@ impl <'a> Network <'a> {
 
                     if val.sent != 0 {
 
-                        write!(stdout, "{}{}\x1b[37m Tx\x1b[0m",
+                        write!(buffer, "{}{}\x1b[37m Tx\x1b[0m",
                             &self.cache.get_unchecked(count).2,
                             &self.buffer_speed,
                         )?;
                     } else {
-                        write!(stdout, "{}{}\x1b[37m Tx\x1b[0m",
+                        write!(buffer, "{}{}\x1b[37m Tx\x1b[0m",
                             &self.cache.get_unchecked(count).3,
                             &self.buffer_speed,
                         )?;

@@ -1,5 +1,8 @@
-use crossterm::{ cursor, queue, style::{ SetColors, Print } };
+use crossterm::{ cursor, style::SetColors };
 use anyhow::Result;
+
+use std::io::Write as ioWrite;
+//use std::fmt::Write as fmtWrite;
 
 use crate::system::System as System;
 use super::XY as XY;
@@ -48,10 +51,10 @@ impl <'a> Hostinfo <'a> {
         );
     }
 
-    pub fn draw (&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-        queue!(
-            stdout,
-            Print(&self.cache),
+    pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
+        write!(
+            buffer, "{}",
+            &self.cache,
         )?;
 
         Ok(())

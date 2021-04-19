@@ -1,4 +1,4 @@
-use crossterm::{ cursor, queue, style::Print };
+use crossterm::cursor;
 use std::io::Write;
 use anyhow::{ bail, Result };
 
@@ -63,24 +63,22 @@ impl <'a> Gpu <'a> {
 
     }
 
-    pub fn draw_static(&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
-        queue!(
-            stdout,
+    pub fn draw_static(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
+        write!(
+            buffer, "{}\x1b[95mGpu\x1b[0m",
             cursor::MoveTo(self.pos.x, self.pos.y),
-            Print("\x1b[95mGpu\x1b[0m"),
-            //Print(&self.cache1)
         )?;
 
         Ok(())
     }
 
     // 2550 -> 2050
-    pub fn draw(&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
+    pub fn draw(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
         if let Ok(val) = self.system.gpuinfo.lock() {
             if val.mem_used < 100.0 {
-                write!(stdout, "{}{:>3}{}{:>4}{}{:>4}{}{:>4.1}%\x1b[91m ]\x1b[0m", &self.cache1, val.temp, &self.cache2, val.gpu_load, &self.cache3, val.mem_load, &self.cache4, val.mem_used)?;
+                write!(buffer, "{}{:>3}{}{:>4}{}{:>4}{}{:>4.1}%\x1b[91m ]\x1b[0m", &self.cache1, val.temp, &self.cache2, val.gpu_load, &self.cache3, val.mem_load, &self.cache4, val.mem_used)?;
             } else {
-                write!(stdout, "{}{:>3}{}{:>4}{}{:>4}{}{:>4.0}%\x1b[91m ]\x1b[0m", &self.cache1, val.temp, &self.cache2, val.gpu_load, &self.cache3, val.mem_load, &self.cache4, val.mem_used)?;
+                write!(buffer, "{}{:>3}{}{:>4}{}{:>4}{}{:>4.0}%\x1b[91m ]\x1b[0m", &self.cache1, val.temp, &self.cache2, val.gpu_load, &self.cache3, val.mem_load, &self.cache4, val.mem_used)?;
             }
         } else {
             bail!("gpuinfo lock is poisoned!");
