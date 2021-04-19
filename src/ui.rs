@@ -1,4 +1,4 @@
-use crossterm::{terminal, execute, queue, cursor, style::Print};
+use crossterm::{ terminal, execute, cursor };
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ Context, Result };
@@ -32,34 +32,6 @@ use self::sensors::Sensors as Sensors;
 
 mod gpu;
 use gpu::Gpu as Gpu;
-
-static mut _CUMULATIVE_BENCHMARK: u128 = 0;
-static mut _CUMULATIVE_COUNT: u128 = 0;
-
-macro_rules! _draw_benchmark {
-    ($stdout:expr, $now:expr, $x:expr, $y:expr) => {
-        // update benchmark
-        let shoe = $now.elapsed().as_nanos();
-        unsafe {
-        _CUMULATIVE_BENCHMARK += shoe;
-        _CUMULATIVE_COUNT += 1;
-        let tid = (_CUMULATIVE_BENCHMARK / _CUMULATIVE_COUNT).to_string() + " " + _CUMULATIVE_COUNT.to_string().as_str();
-
-        queue!(
-            $stdout,
-            // Clear line to end
-            cursor::MoveTo($x - 5 - tid.len() as u16, $y),
-            Print("\x1b[0K"),
-
-            cursor::MoveTo(
-                $x - 4 - tid.len() as u16,
-                $y
-            ),
-            Print(&format!("μs: {}", tid))
-        )?;
-        }
-    }
-}
 
 // Customized version of https://github.com/sfackler/rust-log-panics
 fn custom_panic_hook() {
@@ -174,7 +146,7 @@ impl <'ui> Ui <'ui> {
 
         // Setup the terminal screen
         execute!(
-            self.stdout,
+            std::io::stdout(),
             terminal::EnterAlternateScreen,
             terminal::Clear(terminal::ClearType::All),
             terminal::DisableLineWrap,
@@ -188,7 +160,7 @@ impl <'ui> Ui <'ui> {
     }
 
     pub fn exit(&mut self) -> Result<()> {
-        execute!(self.stdout,
+        execute!(std::io::stdout(),
             terminal::Clear(terminal::ClearType::All),
             terminal::LeaveAlternateScreen,
             terminal::EnableLineWrap,
@@ -209,7 +181,9 @@ impl <'ui> Ui <'ui> {
     }
 
     pub fn rebuild_cache(&mut self) -> Result<()> {
-        self.buffer.clear();
+        //self.buffer.clear();
+        write!(self.buffer, "{}", terminal::Clear(terminal::ClearType::All))?;
+
         self.time.pos.y = self.terminal_size.y;
         self.time.rebuild_cache();
 
@@ -235,14 +209,13 @@ impl <'ui> Ui <'ui> {
         self.gpu.rebuild_cache();
         self.gpu.draw_static(&mut self.buffer)?;
 
-        std::io::stdout().write(&self.buffer)?;
+        //std::io::stdout().write(&self.buffer)?;
 
         Ok(())
     }
 
     pub fn update (&mut self, item: u8) -> Result<()> {
         if !self.paused {
-            self.buffer.clear();
             match item {
                 // Time
                 1 => {
@@ -266,10 +239,7 @@ impl <'ui> Ui <'ui> {
 
                     if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
                         if let Ok(cpuinfo) = self.system.cpuinfo.lock() {
-                            queue!(self.stdout,
-                                //cursor::MoveTo(40, 5),
-                                Print(&format!("\x1b[6;41H\x1b[0K\x1b[38;5;244m{}\x1b[0m", &cpuinfo.governor))
-                            )?;
+                            write!(self.buffer, "\x1b[6;41H\x1b[0K\x1b[38;5;244m{}\x1b[0m", &cpuinfo.governor)?;
                         }
                     }
                 },
@@ -354,24 +324,23 @@ impl <'ui> Ui <'ui> {
                 _ => (),
             }
 
+            self.stdout.write_all(&self.buffer)?;
             self.stdout.flush()?;
-            std::io::stdout().write(&self.buffer)?;
+            self.buffer.clear();
         }
 
         Ok(())
     }
 
     pub fn rebuild(&mut self) -> Result<()> {
-        queue!(self.stdout, terminal::Clear(terminal::ClearType::All))?;
-
         self.rebuild_cache()?;
-
-        for i in 1..=12 {
-            self.update(i)?;
-        }
 
         if self.terminal_size.x > (self.hostinfo.size.x + self.time.size.x) {
             self.hostinfo.draw(&mut self.buffer)?;
+        }
+
+        for i in 1..=12 {
+            self.update(i)?;
         }
 
         Ok(())
@@ -379,14 +348,12 @@ impl <'ui> Ui <'ui> {
 
     fn toggle_topmode(&mut self) -> Result<()> {
         if self.system.config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
-            queue!(self.stdout,
-                cursor::MoveTo(36, 5),
-                Print("\x1b[38;5;244mt\x1b[0m")
+            write!(self.buffer, "{}\x1b[38;5;244mt\x1b[0m",
+                cursor::MoveTo(36, 5)
             )?;
         } else {
-            queue!(self.stdout,
-                cursor::MoveTo(36, 5),
-                Print(" ")
+            write!(self.buffer, "{} ",
+                cursor::MoveTo(36, 5)
             )?;
         }
 
@@ -395,14 +362,12 @@ impl <'ui> Ui <'ui> {
 
     fn toggle_smaps(&mut self) -> Result<()> {
         if self.system.config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
-            queue!(self.stdout,
-                cursor::MoveTo(37, 5),
-                Print("\x1b[38;5;244ms\x1b[0m")
+            write!(self.buffer, "{}\x1b[38;5;244ms\x1b[0m",
+                cursor::MoveTo(37, 5)
             )?;
         } else {
-            queue!(self.stdout,
-                cursor::MoveTo(37, 5),
-                Print(" ")
+            write!(self.buffer, "{} ",
+                cursor::MoveTo(37, 5)
             )?;
         }
 
@@ -411,14 +376,12 @@ impl <'ui> Ui <'ui> {
 
     fn toggle_all_processes(&mut self) -> Result<()> {
         if self.system.config.all.load(std::sync::atomic::Ordering::Relaxed) {
-            queue!(self.stdout,
-                cursor::MoveTo(38, 5),
-                Print("\x1b[38;5;244ma\x1b[0m")
+            write!(self.buffer, "{}\x1b[38;5;244ma\x1b[0m",
+                cursor::MoveTo(38, 5)
             )?;
         } else {
-            queue!(self.stdout,
-                cursor::MoveTo(38, 5),
-                Print(" ")
+            write!(self.buffer, "{} ",
+                cursor::MoveTo(38, 5)
             )?;
         }
 

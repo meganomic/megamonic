@@ -166,16 +166,21 @@ impl Process {
         };
 
         if smaps {
-            if open_and_read(buffer, self.smaps_file.as_ptr()).is_ok() {
-                let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
-                self.pss = btoi::btou::<i64>(data.lines()
-                    .nth(2)
-                    .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, before whitespace")?
-                    .split_ascii_whitespace()
-                    .nth(1)
-                    .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, after whitespace")?.as_bytes())
-                    .context("Can't convert 'pss' to a number")?
-                    * 1024;
+            buffer.clear();
+            if let Ok(res) = open_and_read(buffer, self.smaps_file.as_ptr()) {
+                if res {
+                    let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
+                    self.pss = btoi::btou::<i64>(data.lines()
+                        .nth(2)
+                        .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, before whitespace")?
+                        .split_ascii_whitespace()
+                        .nth(1)
+                        .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, after whitespace")?.as_bytes())
+                        .context("Can't convert 'pss' to a number")?
+                        * 1024;
+                 } else {
+                    self.pss = -1;
+                 }
             } else {
                 self.pss = -1;
             }

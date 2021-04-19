@@ -8,9 +8,6 @@ mod system;
 
 mod ui;
 
-static mut _CUMULATIVE_BENCHMARK: u128 = 0;
-static mut _CUMULATIVE_COUNT: u128 = 0;
-
 fn main() -> Result<()> {
     let options = App::new("Megamonic")
         .setting(AppSettings::ColoredHelp)
