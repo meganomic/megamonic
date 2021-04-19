@@ -1,7 +1,7 @@
 use crossterm::{ terminal, execute, cursor };
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
-use anyhow::{ Context, Result };
+use anyhow::{ ensure, Context, Result };
 
 mod time;
 use time::Time as Time;
@@ -48,7 +48,7 @@ fn custom_panic_hook() {
         // If the main thread panics reset the terminal
         //if name == "main" {
         let _ = execute!(std::io::stdout(),
-                    //terminal::Clear(terminal::ClearType::All),
+                    terminal::Clear(terminal::ClearType::All),
                     terminal::LeaveAlternateScreen,
                     terminal::EnableLineWrap,
                     cursor::Show
@@ -94,7 +94,6 @@ pub struct Ui <'ui> {
 
     paused: bool,
 
-    stdout: std::io::Stdout,
     buffer: Vec::<u8>,
     system: &'ui super::system::System,
 
@@ -116,7 +115,6 @@ impl <'ui> Ui <'ui> {
 
         let mut ui = Self {
             paused: false,
-            stdout: std::io::stdout(),
             buffer: Vec::new(),
             system,
             terminal_size: XY { x: tsizex, y: tsizey },
@@ -135,7 +133,10 @@ impl <'ui> Ui <'ui> {
 
         ui.init().context("Error occured while initializting UI")?;
 
-        ui.rebuild().context("Error occured while building UI")?;
+        if let Err(err) = ui.rebuild().context("Error occured while building UI") {
+            ui.exit()?;
+            return Err(err);
+        }
 
         Ok(ui)
     }
@@ -324,8 +325,25 @@ impl <'ui> Ui <'ui> {
                 _ => (),
             }
 
-            self.stdout.write_all(&self.buffer)?;
-            self.stdout.flush()?;
+            // Read file into buffer
+            let ret: i32;
+            unsafe {
+                asm!("syscall",
+                    in("rax") 1, // SYS_WRITE
+                    in("rdi") 1,
+                    in("rsi") self.buffer.as_ptr(),
+                    in("rdx") self.buffer.len(),
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") ret,
+                );
+            }
+
+            // Check if there's an error
+            ensure!(ret as usize == self.buffer.len(), "SYS_WRITE return code: {}", ret);
+
+            /*self.stdout.write_all(&self.buffer)?;
+            self.stdout.flush()?;*/
             self.buffer.clear();
         }
 
