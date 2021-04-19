@@ -1,6 +1,6 @@
 use crossterm::cursor;
 use std::io::Write;
-use anyhow::Result;
+use anyhow::{ bail, Result };
 
 use std::fmt::Write as fmtWrite;
 
@@ -58,6 +58,8 @@ impl <'a> Overview <'a> {
             } else if cpuinfo.cpu_avg >= 100.0 {
                     write!(stdout, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.0, cpuinfo.cpu_avg)?;
             }
+        } else {
+            bail!("cpuinfo lock is poisoned!");
         }
 
         if let Ok(memoryinfo) = self.system.memoryinfo.lock() {
@@ -76,6 +78,8 @@ impl <'a> Overview <'a> {
             } else if swap_use >= 100.0 {
                     write!(stdout, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.2, swap_use)?;
             }
+        } else {
+            bail!("memoryinfo lock is poisoned!");
         }
 
         Ok(())

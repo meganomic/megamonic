@@ -1,6 +1,6 @@
 use crossterm::{ cursor, queue, style::Print };
 use std::io::Write;
-use anyhow::Result;
+use anyhow::{ bail, Result };
 
 use crate::system::System as System;
 use super::XY as XY;
@@ -29,7 +29,7 @@ impl <'a> Sensors <'a> {
         }
     }
 
-    pub fn rebuild_cache (&mut self) {
+    pub fn rebuild_cache (&mut self) -> Result<()> {
         if let Ok(sensorinfo) = self.system.sensorinfo.lock() {
             self.size.y = sensorinfo.chips.len() as u16 + 2;
 
@@ -49,7 +49,11 @@ impl <'a> Sensors <'a> {
                     )
                 );
             }
+        } else {
+            bail!("sensorinfo lock is poisoned!");
         }
+
+        Ok(())
     }
 
     pub fn draw_static(&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
@@ -80,6 +84,8 @@ impl <'a> Sensors <'a> {
                     }
                 }
             }
+        } else {
+            bail!("sensorinfo lock is poisoned!");
         }
 
         Ok(false)

@@ -221,11 +221,11 @@ impl <'ui> Ui <'ui> {
 
         // The following objects rely on the position of the previous ones
         // So don't do anything silly.
-        self.network.rebuild_cache();
+        self.network.rebuild_cache()?;
         self.network.draw_static(&mut self.stdout)?;
 
         self.sensors.pos.y = self.network.size.y + self.network.pos.y;
-        self.sensors.rebuild_cache();
+        self.sensors.rebuild_cache()?;
         self.sensors.draw_static(&mut self.stdout)?;
 
         self.gpu.pos.y = self.sensors.pos.y + self.sensors.size.y;

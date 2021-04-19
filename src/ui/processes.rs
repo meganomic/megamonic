@@ -1,7 +1,7 @@
 use crossterm::{ cursor, queue, style::Print };
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
-use anyhow::Result;
+use anyhow::{ bail, Result };
 use std::sync::atomic;
 
 use crate::system::System as System;
@@ -144,7 +144,7 @@ impl <'a> Processes <'a> {
             // In which case we need to rebuild the cache
             self.pidlen = pidlen;
         } else {
-            panic!("Process thread has panicked!");
+            bail!("processinfo lock is poisoned!");
         }
 
         Ok(())

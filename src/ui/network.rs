@@ -1,7 +1,7 @@
 use crossterm::{ cursor, queue, style::Print };
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
-use anyhow::Result;
+use anyhow::{ bail, Result};
 use std::sync::atomic;
 
 use crate::system::System as System;
@@ -33,7 +33,7 @@ impl <'a> Network <'a> {
         }
     }
 
-    pub fn rebuild_cache (&mut self) {
+    pub fn rebuild_cache (&mut self) -> Result<()> {
         if let Ok(networkinfo) = self.system.networkinfo.lock() {
             self.size.y = networkinfo.stats.len() as u16 * 2 + 2;
             let mut count: u16 = 0;
@@ -70,7 +70,11 @@ impl <'a> Network <'a> {
                 count += 2;
             }
 
+        } else {
+            bail!("networkinfo lock is poisoned!");
         }
+
+        Ok(())
     }
 
     pub fn draw_static(&mut self, stdout: &mut std::io::Stdout) -> Result<()> {
@@ -124,6 +128,8 @@ impl <'a> Network <'a> {
                     }
                 }
             }
+        } else {
+            bail!("networkinfo lock is poisoned!");
         }
 
         Ok(false)

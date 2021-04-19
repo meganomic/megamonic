@@ -1,6 +1,6 @@
 use crossterm::cursor;
 use std::io::Write;
-use anyhow::Result;
+use anyhow::{ bail, Result };
 
 use std::fmt::Write as fmtWrite;
 
@@ -62,6 +62,8 @@ impl <'a> Loadavg <'a> {
                 &loadavg.min15,
                 pad=len
             )?;
+        } else {
+            bail!("loadavg lock is poisoned!");
         }
 
         Ok(())

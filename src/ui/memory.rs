@@ -1,6 +1,6 @@
 use crossterm::cursor;
 use std::io::Write;
-use anyhow::Result;
+use anyhow::{ bail, Result };
 
 use std::fmt::Write as fmtWrite;
 
@@ -69,16 +69,18 @@ impl <'a> Memory <'a> {
                 convert_with_padding(&mut self.buffer.1, val.mem_used, 4)?;
                 convert_with_padding(&mut self.buffer.2, val.mem_free, 4)?;
             }
-
-            write!(stdout, "{}{}{}{}{}{}\x1b[38;5;244m ]\x1b[0m",
-                &self.cache.0,
-                &self.buffer.0,
-                &self.cache.1,
-                &self.buffer.1,
-                &self.cache.2,
-                &self.buffer.2
-            )?;
+        } else {
+            bail!("memoryinfo lock is poisoned!");
         }
+
+        write!(stdout, "{}{}{}{}{}{}\x1b[38;5;244m ]\x1b[0m",
+            &self.cache.0,
+            &self.buffer.0,
+            &self.cache.1,
+            &self.buffer.1,
+            &self.cache.2,
+            &self.buffer.2
+        )?;
 
         Ok(())
     }

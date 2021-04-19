@@ -1,6 +1,6 @@
 use crossterm::{ cursor, queue, style::Print };
 use std::io::Write;
-use anyhow::Result;
+use anyhow::{ bail, Result };
 
 use crate::system::System as System;
 use super::XY as XY;
@@ -82,6 +82,8 @@ impl <'a> Gpu <'a> {
             } else {
                 write!(stdout, "{}{:>3}{}{:>4}{}{:>4}{}{:>4.0}%\x1b[91m ]\x1b[0m", &self.cache1, val.temp, &self.cache2, val.gpu_load, &self.cache3, val.mem_load, &self.cache4, val.mem_used)?;
             }
+        } else {
+            bail!("gpuinfo lock is poisoned!");
         }
 
         Ok(())
