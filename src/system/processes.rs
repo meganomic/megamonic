@@ -1,4 +1,4 @@
-use anyhow::{ ensure, Context, Result };
+use anyhow::{ bail, ensure, Context, Result };
 use std::sync::{ Arc, Mutex, mpsc, atomic };
 use std::io::prelude::*;
 use std::fmt::Write as fmtWrite;
@@ -223,9 +223,11 @@ impl Processes {
         // Check if there's an error
         ensure!(ret == 0, "SYS_CLOSE return code: {}", ret);
 
-        let (cpu_count, totald) = cpuinfo.lock()
-            .map(|val| (val.cpu_count as f32, val.totald))
-            .expect("Cpuinfo lock is poisoned!");
+        let (cpu_count, totald) = if let Ok(val) = cpuinfo.lock() {
+            (val.cpu_count as f32, val.totald)
+        } else {
+            bail!("Cpuinfo lock is poisoned!");
+        };
 
         let topmode = config.topmode.load(atomic::Ordering::Relaxed);
         let smaps = config.smaps.load(atomic::Ordering::Relaxed);
