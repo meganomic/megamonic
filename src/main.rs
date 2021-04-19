@@ -80,16 +80,23 @@ fn main() -> Result<()> {
             eprintln!("{:?}", err);
         }
 
-        return Ok(());
+        bail!("An error occured while starting!");
     }
 
     let mut ui = ui::Ui::new(&system)?;
+
+    let mut error: Option<anyhow::Error> = None;
 
     // Main loop
     for event in rx.iter() {
         match event {
             // Update UI element
-            1..=13 => ui.update(event).context("Error occured while updating UI")?,
+            1..=13 => {
+                if let Err(err) = ui.update(event).context("Error occured while updating UI") {
+                    error = Some(err);
+                    break;
+                }
+            },
 
             // This is a error event incase one of the threads break.
             99 => {
@@ -108,18 +115,26 @@ fn main() -> Result<()> {
 
             // resize
             105 => {
-                if let Ok(val) = system.events.lock() {
+                if let Ok(val) =  system.events.lock() {
                     ui.terminal_size.x = val.tsizex;
                     ui.terminal_size.y = val.tsizey;
                 } else {
-                    break;
+                    panic!("Event lock is poisoned!");
                 }
 
-                ui.rebuild().context("Error occured while rebuilding UI")?;
+                if let Err(err) = ui.rebuild() {
+                    error = Some(err);
+                    break;
+                }
             },
 
             // Rebuild UI if user pressed r
-            106 => ui.rebuild().context("Error occured while rebuilding UI")?,
+            106 => {
+                if let Err(err) = ui.rebuild() {
+                    error = Some(err);
+                    break;
+                }
+            },
 
             // Exit - Someone pressed Q or ctrl+c
             255 => break,
@@ -130,6 +145,10 @@ fn main() -> Result<()> {
     }
 
     ui.exit()?;
+
+    if let Some(err) = error {
+        eprintln!("{:#?}", err);
+    }
 
     // Stop monitoring threads
     system.stop();

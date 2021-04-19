@@ -263,7 +263,7 @@ impl Processes {
 
         });
 
-        ensure!(ret.is_ok(), "process.update() returned with a failure state!\n{:#?}\n", ret);
+        ensure!(ret.is_ok(), "process.update() returned with a failure state!\n{:?}\n", ret);
 
         //eprintln!("{}", now.elapsed().as_nanos());
         Ok(())

@@ -62,7 +62,7 @@ macro_rules! _draw_benchmark {
 }
 
 // Customized version of https://github.com/sfackler/rust-log-panics
-pub fn custom_panic_hook() {
+fn custom_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
         let backtrace_env = if std::env::var_os("RUST_BACKTRACE").is_some() {
             1
