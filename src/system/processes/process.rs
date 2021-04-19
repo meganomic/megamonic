@@ -1,8 +1,8 @@
-use anyhow::{ ensure, Result };
+use anyhow::{ ensure, Context, Result };
 use std::ffi::CString;
 
 #[inline(always)]
-fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<()> {
+fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
     // Clear the buffer
     buffer.clear();
 
@@ -21,7 +21,10 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<()> {
     }
 
     // If there's an error it's 99.999% certain it's because the process has terminated
-    ensure!(fd >= 0);
+    if fd < 0 {
+        return Ok(false);
+    }
+    //ensure!(fd >= 0);
 
     // Read file into buffer
     let n_read: i32;
@@ -38,7 +41,7 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<()> {
     }
 
     // Check if there's an error
-    assert!(n_read > 0, "SYS_READ return code: {}", n_read);
+    ensure!(n_read > 0, "SYS_READ return code: {}", n_read);
 
     // Set buffer length to however many bytes was read
     unsafe {
@@ -58,9 +61,9 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<()> {
     }
 
     // Check if there's an error, panic if there is!
-    assert!(ret == 0, "SYS_CLOSE return code: {}", ret);
+    ensure!(ret == 0, "SYS_CLOSE return code: {}", ret);
 
-    Ok(())
+    Ok(true)
 }
 
 #[derive(Default)]
@@ -105,19 +108,24 @@ impl Process {
         }
     }
 
-    pub fn update(&mut self, buffer: &mut Vec::<u8>, smaps: bool) -> bool{
+    pub fn update(&mut self, buffer: &mut Vec::<u8>, smaps: bool) -> Result<bool> {
         //let now = std::time::Instant::now();
 
-        if open_and_read(buffer, self.stat_file.as_ptr()).is_err() {
-            //self.alive = false;
-            return false;
+        let ret = open_and_read(buffer, self.stat_file.as_ptr());
+
+        if let Ok(val) = ret {
+            if !val {
+                return Ok(false);
+            }
+        } else {
+            return ret.context("open_and_read returned with a failure code!");
         }
 
         let old_total = self.total;
 
 
         // Find position of first ')' character
-        let pos = memchr::memchr(41, buffer.as_slice()).expect("The stat_file is funky! It has no ')' character!");
+        let pos = memchr::memchr(41, buffer.as_slice()).context("The stat_file is funky! It has no ')' character!")?;
 
         //let mut shoe = buffer.split(|v| *v == 41).last().unwrap();
         //eprintln!("SHOE: {:?}", shoe);
@@ -128,23 +136,23 @@ impl Process {
         //eprintln!("{:?}", split.nth(1).unwrap());
 
             //eprintln!("KORV: {:?}", korv);
-        self.utime = btoi::btou(split.nth(11).expect("Can't parse 'utime' from /proc/[pid]/stat")).expect("Can't parse utime!");
+        self.utime = btoi::btou(split.nth(11).context("Can't parse 'utime' from /proc/[pid]/stat")?).context("Can't convert utime to a number!")?;
 
         //eprintln!("utime: {:?}", self.utime);
 
-        self.stime = btoi::btou(split.next().expect("Can't parse 'stime' from /proc/[pid]/stat")).expect("Can't parse stime!");
+        self.stime = btoi::btou(split.next().context("Can't parse 'stime' from /proc/[pid]/stat")?).context("Can't convert stime to a number!")?;
 
             //eprintln!("stime: {:?}", self.stime);
 
-        self.cutime = btoi::btou(split.next().expect("Can't parse 'cutime' from /proc/[pid]/stat")).expect("Can't parse cutime!");
+        self.cutime = btoi::btou(split.next().context("Can't parse 'cutime' from /proc/[pid]/stat")?).context("Can't convert cutime to a number!")?;
 
             //eprintln!("cutime: {:?}", self.cutime);
 
-        self.cstime = btoi::btou(split.next().expect("Can't parse 'cstime' from /proc/[pid]/stat")).expect("Can't parse cstime!");
+        self.cstime = btoi::btou(split.next().context("Can't parse 'cstime' from /proc/[pid]/stat")?).context("Can't convert cstime to a number!")?;
 
             //eprintln!("cstime: {:?}", self.cstime);
 
-        self.rss = btoi::btou::<i64>(split.nth(7).expect("Can't parse 'rss' from /proc/[pid]/stat")).expect("Can't parse rss!") * 4096;
+        self.rss = btoi::btou::<i64>(split.nth(7).context("Can't parse 'rss' from /proc/[pid]/stat")?).context("Can't convert rss to a number!")? * 4096;
 
             //eprintln!("rss: {:?}", self.rss);
 
@@ -162,11 +170,11 @@ impl Process {
                 let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
                 self.pss = btoi::btou::<i64>(data.lines()
                     .nth(2)
-                    .expect("Can't parse 'pss' from /proc/[pid]/smaps_rollup")
+                    .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, before whitespace")?
                     .split_ascii_whitespace()
                     .nth(1)
-                    .expect("Can't parse 'pss' from /proc/[pid]/smaps_rollup").as_bytes())
-                    .expect("Can't convert 'pss' to a number")
+                    .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, after whitespace")?.as_bytes())
+                    .context("Can't convert 'pss' to a number")?
                     * 1024;
             } else {
                 self.pss = -1;
@@ -174,7 +182,7 @@ impl Process {
 
         }
 
-        return true;
+        return Ok(true);
 
         //eprintln!("{}", now.elapsed().as_nanos());
     }

@@ -4,65 +4,12 @@ use anyhow::{ bail, ensure, Context, Result };
 use clap::{ App, AppSettings, Arg, value_t };
 use std::sync::atomic;
 
-use crossterm::{terminal, execute, cursor};
-
 mod system;
 
-#[macro_use]
 mod ui;
 
 static mut _CUMULATIVE_BENCHMARK: u128 = 0;
 static mut _CUMULATIVE_COUNT: u128 = 0;
-
-// Customized version of https://github.com/sfackler/rust-log-panics
-pub fn custom_panic_hook() {
-    std::panic::set_hook(Box::new(|info| {
-        let backtrace_env = if std::env::var_os("RUST_BACKTRACE").is_some() {
-            1
-        } else {
-            0
-        };
-
-        let thread = std::thread::current();
-        let name = thread.name().unwrap_or("<unnamed>");
-
-        // If the main thread panics reset the terminal
-        //if name == "main" {
-        let _ = execute!(std::io::stdout(),
-                    //terminal::Clear(terminal::ClearType::All),
-                    terminal::LeaveAlternateScreen,
-                    terminal::EnableLineWrap,
-                    cursor::Show
-                );
-
-        let _ = terminal::disable_raw_mode();
-        //}
-
-        let msg = match info.payload().downcast_ref::<&'static str>() {
-            Some(s) => *s,
-            None => match info.payload().downcast_ref::<String>() {
-                Some(s) => &s[..],
-                None => "Box<Any>",
-            },
-        };
-
-        println!("thread '{}' panicked at '{}', {}", name, msg, info.location().unwrap());
-
-        static FIRST_PANIC: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
-
-        match backtrace_env {
-            0 => {
-                if FIRST_PANIC.swap(false, std::sync::atomic::Ordering::SeqCst) {
-                    println!("note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n");
-                }
-            }
-            _ => {
-                println!("\n{:?}", backtrace::Backtrace::new());
-            },
-        }
-
-    }));
-}
 
 fn main() -> Result<()> {
     let options = App::new("Megamonic")

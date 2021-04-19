@@ -1,4 +1,4 @@
-use anyhow::{ Context, Result };
+use anyhow::{ ensure, Context, Result };
 use std::sync::{ Arc, Mutex, mpsc, atomic };
 use std::io::prelude::*;
 use std::fmt::Write as fmtWrite;
@@ -71,7 +71,7 @@ impl Processes {
         }
 
         // Check if there's an error, panic if there is!
-        assert!(fd >= 0, "SYS_OPEN return code: {}", fd);
+        ensure!(fd >= 0, "SYS_OPEN return code: {}", fd);
 
         loop {
             // getdents64 system call
@@ -89,7 +89,7 @@ impl Processes {
             }
 
             // If there is an error panic
-            assert!(nread >= 0, "SYS_GETDENTS64 return code: {}", nread);
+            ensure!(nread >= 0, "SYS_GETDENTS64 return code: {}", nread);
 
             // If nread == 0 that means we have read all entries
             if nread == 0 {
@@ -114,7 +114,7 @@ impl Processes {
                 let pid_cstr = d_ref.d_name
                     .split(|v| *v == 0)
                     .next()
-                    .expect("Something is broken with the getdents64() code!");
+                    .context("Something is broken with the getdents64() code!")?;
 
                 // Only directory names made up of numbers will pass
                 if let Ok(pid) = btoi::btou(pid_cstr) {
@@ -123,7 +123,7 @@ impl Processes {
                         if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
                             // If cmdline can't be opened it probably means that the process has terminated, skip it.
                             self.buffer.clear();
-                            write!(&mut self.buffer, "/proc/{}/cmdline", pid).expect("Error writing to buffer");
+                            write!(&mut self.buffer, "/proc/{}/cmdline", pid).context("Error writing to buffer")?;
                             if let Ok(mut f) = std::fs::File::open(&self.buffer) {
                                 self.buffer.clear();
                                 f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/cmdline", pid))?;
@@ -138,10 +138,10 @@ impl Processes {
                                 // For instance, if a directory name has spaces or slashes in it, it breaks.
                                 let mut split = self.buffer.split(&['\0', ' '][..]);
                                 let executable = split.next()
-                                    .expect("Parsing error in /proc/[pid]/cmdline")
+                                    .context("Parsing error in /proc/[pid]/cmdline")?
                                     .rsplit('/')
                                     .next()
-                                    .expect("Parsing error in /proc/[pid]/cmdline")
+                                    .context("Parsing error in /proc/[pid]/cmdline")?
                                     .to_string();
 
                                 let cmdline = split
@@ -168,15 +168,15 @@ impl Processes {
                                 if all_processes {
                                     // If stat can't be opened it means the process has terminated, skip it.
                                     self.buffer.clear();
-                                    write!(&mut self.buffer, "/proc/{}/stat", pid).expect("Error writing to buffer");
+                                    write!(&mut self.buffer, "/proc/{}/stat", pid).context("Error writing to buffer")?;
                                     let executable = if let Ok(mut f) = std::fs::File::open(&self.buffer) {
                                         self.buffer.clear();
                                         f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/stat", pid))?;
                                         self.buffer[
                                             self.buffer.find('(')
-                                            .expect("Can't parse /proc/[pid]/stat for exetuable name")
+                                            .context("Can't parse /proc/[pid]/stat for exetuable name")?
                                             ..self.buffer.find(')')
-                                            .expect("Can't parse /proc/[pid]/stat for exetuable name")
+                                            .context("Can't parse /proc/[pid]/stat for exetuable name")?
                                         ].to_string()
                                     } else {
                                         continue;
@@ -220,8 +220,8 @@ impl Processes {
             );
         }
 
-        // Check if there's an error, panic if there is!
-        assert!(ret == 0, "SYS_CLOSE return code: {}", ret);
+        // Check if there's an error
+        ensure!(ret == 0, "SYS_CLOSE return code: {}", ret);
 
         let (cpu_count, totald) = cpuinfo.lock()
             .map(|val| (val.cpu_count as f32, val.totald))
@@ -231,25 +231,39 @@ impl Processes {
         let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
         let buf = &mut self.buffer_vector;
+
+        let mut ret: Result<bool> = Ok(false);
         self.processes.retain(|_,process| {
-            if process.update(buf, smaps) {
-                if topmode {
-                    if process.work > totald {
-                        process.cpu_avg = 100.0 * cpu_count;
+            let res = process.update(buf, smaps);
+            if let Ok(val) = res {
+
+                    if val {
+                        if topmode {
+                            if process.work > totald {
+                                process.cpu_avg = 100.0 * cpu_count;
+                            } else {
+                                process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
+                            }
+                        } else if process.work > totald {
+                            process.cpu_avg = 100.0;
+                        } else {
+                            process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
+                        }
+
+                        true
                     } else {
-                        process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
+                        false
                     }
-                } else if process.work > totald {
-                    process.cpu_avg = 100.0;
-                } else {
-                    process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
+
+                }
+                else {
+                    ret = res;
+                    false
                 }
 
-                true
-            } else {
-                false
-            }
         });
+
+        ensure!(ret.is_ok(), "process.update() returned with a failure state!\n{:#?}\n", ret);
 
         //eprintln!("{}", now.elapsed().as_nanos());
         Ok(())
@@ -294,7 +308,6 @@ impl Default for Processes {
 pub fn start_thread(internal: Arc<Mutex<Processes>>, cpuinfo: Arc<Mutex<cpu::Cpuinfo>>, config: Arc<Config>, tx: mpsc::Sender::<u8>, exit: Arc<(Mutex<bool>, std::sync::Condvar)>, error: Arc<Mutex<Vec::<anyhow::Error>>>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
     std::thread::Builder::new().name("Processes".to_string()).spawn(move || {
         let (lock, cvar) = &*exit;
-        crate::custom_panic_hook();
         'outer: loop {
             match internal.lock() {
                 Ok(mut val) => {
