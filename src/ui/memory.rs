@@ -73,14 +73,15 @@ impl <'a> Memory <'a> {
             bail!("memoryinfo lock is poisoned!");
         }
 
-        write!(buffer, "{}{}{}{}{}{}\x1b[38;5;244m ]\x1b[0m",
-            &self.cache.0,
-            &self.buffer.0,
-            &self.cache.1,
-            &self.buffer.1,
-            &self.cache.2,
-            &self.buffer.2
-        )?;
+        let _ = buffer.write_vectored(&[
+            std::io::IoSlice::new(self.cache.0.as_bytes()),
+            std::io::IoSlice::new(self.buffer.0.as_bytes()),
+            std::io::IoSlice::new(self.cache.1.as_bytes()),
+            std::io::IoSlice::new(self.buffer.1.as_bytes()),
+            std::io::IoSlice::new(self.cache.2.as_bytes()),
+            std::io::IoSlice::new(self.buffer.2.as_bytes()),
+            std::io::IoSlice::new(b"\x1b[38;5;244m ]\x1b[0m")
+        ]);
 
         Ok(())
     }
