@@ -186,7 +186,7 @@ impl Process {
 
         }
 
-        return Ok(true);
+        Ok(true)
 
         //eprintln!("{}", now.elapsed().as_nanos());
     }
