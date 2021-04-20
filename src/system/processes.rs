@@ -71,7 +71,7 @@ impl Processes {
         }
 
         // Check if there's an error, panic if there is!
-        ensure!(fd >= 0, "SYS_OPEN return code: {}", fd);
+        ensure!(!fd.is_negative(), "SYS_OPEN return code: {}", fd);
 
         loop {
             // getdents64 system call
@@ -89,7 +89,7 @@ impl Processes {
             }
 
             // If there is an error panic
-            ensure!(nread >= 0, "SYS_GETDENTS64 return code: {}", nread);
+            ensure!(!nread.is_negative(), "SYS_GETDENTS64 return code: {}", nread);
 
             // If nread == 0 that means we have read all entries
             if nread == 0 {
@@ -133,7 +133,7 @@ impl Processes {
 
                             // Limit the results to actual programs unless 'all-processes' is enabled
                             // pid == 1 is weird so make an extra check
-                            if !self.buffer.is_empty() && pid != 1 {
+                            if !self.buffer.is_empty() & (pid != 1) {
                                 // Cancer code that is very hacky and don't work for all cases
                                 // For instance, if a directory name has spaces or slashes in it, it breaks.
                                 let mut split = self.buffer.split(&['\0', ' '][..]);

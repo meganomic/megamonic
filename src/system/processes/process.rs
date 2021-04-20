@@ -21,10 +21,9 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
     }
 
     // If there's an error it's 99.999% certain it's because the process has terminated
-    if fd < 0 {
+    if fd.is_negative() {
         return Ok(false);
     }
-    //ensure!(fd >= 0);
 
     // Read file into buffer
     let n_read: i32;
@@ -41,7 +40,7 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
     }
 
     // Check if there's an error
-    ensure!(n_read > 0, "SYS_READ return code: {}", n_read);
+    ensure!(n_read.is_positive(), "SYS_READ return code: {}", n_read);
 
     // Set buffer length to however many bytes was read
     unsafe {
