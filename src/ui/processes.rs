@@ -15,7 +15,8 @@ pub struct Processes <'a> {
     pidlen: usize,
     cache1: Vec::<String>,
     cache2: std::collections::HashMap<u32, String>,
-    memory: String,
+    cpu_buffer: String,
+    memory_buffer: String,
 }
 
 impl <'a> Processes <'a> {
@@ -24,7 +25,8 @@ impl <'a> Processes <'a> {
             system,
             cache1: Vec::<String>::new(),
             cache2: std::collections::HashMap::new(),
-            memory: String::new(),
+            cpu_buffer: String::new(),
+            memory_buffer: String::new(),
             pos,
             size: XY { x: 0, y: 4 },
             pidlen: 0,
@@ -75,55 +77,29 @@ impl <'a> Processes <'a> {
                 // Check if there actually is a PSS value
                 // If there isn't it probably requires root access, use RSS instead
                 if smaps && val.pss != -1 {
-                    convert_with_padding_proc(&mut self.memory, val.pss, 4, true)?;
+                    convert_with_padding_proc(&mut self.memory_buffer, val.pss, 4, true);
                 } else {
-                    convert_with_padding_proc(&mut self.memory, val.rss, 4, false)?;
+                    convert_with_padding_proc(&mut self.memory_buffer, val.rss, 4, false);
                 }
 
                 unsafe {
                     // This is needed because of rounding errors. There's probably a better way
-                    let max_length = (terminal_size.x - self.pos.x - 19) as usize;
+                    self.cpu_buffer.clear();
                     if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
-                        write!(buffer,
-                            "{}\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ {}{}",
-                            &self.cache1.get_unchecked(idx),
-                            val.cpu_avg,
-                            &self.memory,
-                            &self.cache2.entry(val.pid).or_insert_with(||
-                                maxstr(
-                                    &val.executable,
-                                    &val.cmdline,
-                                    val.not_executable,
-                                    val.pid,
-                                    pidlen,
-                                    max_length
-                                )
-                            )
-                        )?;
+                        let _ = write!(self.cpu_buffer, "\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
                     } else if val.cpu_avg >= 99.5 {
-                        write!(buffer,
-                            "{}\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ {}{}",
-                            &self.cache1.get_unchecked(idx),
-                            val.cpu_avg,
-                            &self.memory,
-                            &self.cache2.entry(val.pid).or_insert_with(||
-                                maxstr(
-                                    &val.executable,
-                                    &val.cmdline,
-                                    val.not_executable,
-                                    val.pid,
-                                    pidlen,
-                                    max_length
-                                )
-                            )
-                        )?;
+                        let _ = write!(self.cpu_buffer, "\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
                     } else {
-                        write!(buffer,
-                            "{}\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ {}{}",
-                            &self.cache1.get_unchecked(idx),
-                            val.cpu_avg,
-                            &self.memory,
-                            &self.cache2.entry(val.pid).or_insert_with(||
+                        let _ = write!(self.cpu_buffer, "\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
+                    }
+
+                    let max_length = (terminal_size.x - self.pos.x - 19) as usize;
+
+                    let ioslice = &[
+                            std::io::IoSlice::new(self.cache1.get_unchecked(idx).as_bytes()),
+                            std::io::IoSlice::new(self.cpu_buffer.as_bytes()),
+                            std::io::IoSlice::new(self.memory_buffer.as_bytes()),
+                            std::io::IoSlice::new(self.cache2.entry(val.pid).or_insert_with(||
                                 maxstr(
                                     &val.executable,
                                     &val.cmdline,
@@ -132,10 +108,12 @@ impl <'a> Processes <'a> {
                                     pidlen,
                                     max_length
                                 )
-                            )
-                        )?;
-                    }
+                            ).as_bytes())
+                        ];
+
+                        buffer.write_vectored(ioslice)?;
                 }
+
             }
 
             //eprintln!("{}", now.elapsed().as_nanos());
@@ -183,7 +161,7 @@ fn maxstr(exec: &str, cmd: &str, is_not_exec: bool, pid: u32, pidlen: usize, max
 }
 
 // Special handling for 0 memory for processe list
-fn convert_with_padding_proc(buffer: &mut String, num: i64, padding: usize, blue: bool) -> Result<()> {
+fn convert_with_padding_proc(buffer: &mut String, num: i64, padding: usize, blue: bool) {
     buffer.clear();
 
     let color = if blue {
@@ -193,8 +171,8 @@ fn convert_with_padding_proc(buffer: &mut String, num: i64, padding: usize, blue
     };
 
     if num == 0 {
-        write!(buffer, "{}  {:>pad$}", color, "-", pad=padding+1)?;
-        return Ok(());
+        let _ = write!(buffer, "{}  {:>pad$}", color, "-", pad=padding+1);
+        return;
     }
     // convert it to a f64 type to we can use ln() and stuff on it.
     let num = num as f64;
@@ -214,14 +192,12 @@ fn convert_with_padding_proc(buffer: &mut String, num: i64, padding: usize, blue
 
     // Different behaviour for different units
     match unit {
-        "b" => write!(buffer, "{}{:>pad$.0} {}", color, pretty_bytes, unit, pad=padding+1)?,
-        "Kb" | "Mb" => write!(buffer, "{}{:>pad$.0} {}", color, pretty_bytes, unit, pad=padding)?,
+        "b" => { let _ = write!(buffer, "{}{:>pad$.0} {}", color, pretty_bytes, unit, pad=padding+1); },
+        "Kb" | "Mb" => { let _ = write!(buffer, "{}{:>pad$.0} {}", color, pretty_bytes, unit, pad=padding); },
         "Gb" => {
-            if pretty_bytes >= 10.0 { write!(buffer, "{}{:>pad$.1} {}", color, pretty_bytes, unit, pad=padding)?; }
-            else { write!(buffer, "{}{:>pad$.2} {}", color, pretty_bytes, unit, pad=padding)?; }
+            if pretty_bytes >= 10.0 { let _ = write!(buffer, "{}{:>pad$.1} {}", color, pretty_bytes, unit, pad=padding); }
+            else { let _ = write!(buffer, "{}{:>pad$.2} {}", color, pretty_bytes, unit, pad=padding); }
         },
-        _ => write!(buffer, "{}{:>pad$.1} {}", color, pretty_bytes, unit, pad=padding)?,
-    }
-
-    Ok(())
+        _ => { let _ = write!(buffer, "{}{:>pad$.1} {}", color, pretty_bytes, unit, pad=padding); },
+    };
 }
