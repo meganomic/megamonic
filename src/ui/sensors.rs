@@ -73,14 +73,12 @@ impl <'a> Sensors <'a> {
             }
 
             for (idx, val) in sensorinfo.chips.values().enumerate() {
-                unsafe {
-                    let cache = self.cache.get_unchecked_mut(idx);
+                let cache = unsafe { self.cache.get_unchecked_mut(idx) };
 
-                    // Don't update the value if it hasn't changed
-                    if cache.1 != *val {
-                        write!(buffer, "{}{} C\x1b[91m ]\x1b[0m", &cache.0, val)?;
-                        cache.1 = *val;
-                    }
+                // Don't update the value if it hasn't changed
+                if cache.1 != *val {
+                    write!(buffer, "{}{} C\x1b[91m ]\x1b[0m", &cache.0, val)?;
+                    cache.1 = *val;
                 }
             }
         } else {

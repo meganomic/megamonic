@@ -94,37 +94,35 @@ impl <'a> Network <'a> {
             let freq = self.system.config.frequency.load(atomic::Ordering::Relaxed);
 
             for (count, val) in networkinfo.stats.values().enumerate() {
-                unsafe {
-                    self.buffer_speed.clear();
-                    convert_speed(&mut self.buffer_speed, val.recv, freq)?;
+                self.buffer_speed.clear();
+                convert_speed(&mut self.buffer_speed, val.recv, freq)?;
 
-                    if val.recv != 0 {
-                        write!(buffer, "{}{}\x1b[37m Rx\x1b[0m",
-                            &self.cache.get_unchecked(count).0,
-                            &self.buffer_speed,
-                        )?;
-                    } else {
-                        write!(buffer, "{}{}\x1b[37m Rx\x1b[0m",
-                            &self.cache.get_unchecked(count).1,
-                            &self.buffer_speed,
-                        )?;
-                    }
+                if val.recv != 0 {
+                    write!(buffer, "{}{}\x1b[37m Rx\x1b[0m",
+                        unsafe { &self.cache.get_unchecked(count).0 },
+                        &self.buffer_speed,
+                    )?;
+                } else {
+                    write!(buffer, "{}{}\x1b[37m Rx\x1b[0m",
+                        unsafe { &self.cache.get_unchecked(count).1 },
+                        &self.buffer_speed,
+                    )?;
+                }
 
-                    self.buffer_speed.clear();
-                    convert_speed(&mut self.buffer_speed, val.sent, freq)?;
+                self.buffer_speed.clear();
+                convert_speed(&mut self.buffer_speed, val.sent, freq)?;
 
-                    if val.sent != 0 {
+                if val.sent != 0 {
 
-                        write!(buffer, "{}{}\x1b[37m Tx\x1b[0m",
-                            &self.cache.get_unchecked(count).2,
-                            &self.buffer_speed,
-                        )?;
-                    } else {
-                        write!(buffer, "{}{}\x1b[37m Tx\x1b[0m",
-                            &self.cache.get_unchecked(count).3,
-                            &self.buffer_speed,
-                        )?;
-                    }
+                    write!(buffer, "{}{}\x1b[37m Tx\x1b[0m",
+                        unsafe { &self.cache.get_unchecked(count).2 },
+                        &self.buffer_speed,
+                    )?;
+                } else {
+                    write!(buffer, "{}{}\x1b[37m Tx\x1b[0m",
+                        unsafe { &self.cache.get_unchecked(count).3 },
+                        &self.buffer_speed,
+                    )?;
                 }
             }
         } else {
