@@ -79,7 +79,7 @@ impl <'a> Processes <'a> {
 
                 // Check if there actually is a PSS value
                 // If there isn't it probably requires root access, use RSS instead
-                if smaps && val.pss != -1 {
+                if smaps & (val.pss != -1) {
                     convert_with_padding_proc(&mut self.memory_buffer, val.pss, "\x1b[94m");
                 } else {
                     convert_with_padding_proc(&mut self.memory_buffer, val.rss, "\x1b[92m");

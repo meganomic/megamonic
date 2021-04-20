@@ -77,7 +77,7 @@ impl <'a> Sensors <'a> {
 
                 // Don't update the value if it hasn't changed
                 if cache.1 != *val {
-                    write!(buffer, "{}{} C\x1b[91m ]\x1b[0m", &cache.0, val)?;
+                    let _ = write!(buffer, "{}{} C\x1b[91m ]\x1b[0m", &cache.0, val);
                     cache.1 = *val;
                 }
             }
