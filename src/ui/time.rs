@@ -38,7 +38,11 @@ impl <'a> Time <'a> {
 
     pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
         let time_string = self.gettime();
-        write!(buffer, "{}{}", &self.cache, &time_string)?;
+
+        let _ = buffer.write_vectored(&[
+            std::io::IoSlice::new(self.cache.as_bytes()),
+            std::io::IoSlice::new(time_string.as_bytes()),
+        ]);
 
         Ok(())
     }

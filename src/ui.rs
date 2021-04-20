@@ -346,7 +346,7 @@ impl <'ui> Ui <'ui> {
         self.rebuild_cache()?;
 
         if self.terminal_size.x > (self.hostinfo.size.x + self.time.size.x) {
-            self.hostinfo.draw(&mut self.buffer)?;
+            self.hostinfo.draw(&mut self.buffer);
         }
 
         for i in 1..=12 {

@@ -1,5 +1,4 @@
 use crossterm::{ cursor, style::SetColors };
-use anyhow::Result;
 
 use std::io::Write as ioWrite;
 //use std::fmt::Write as fmtWrite;
@@ -51,12 +50,7 @@ impl <'a> Hostinfo <'a> {
         );
     }
 
-    pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
-        write!(
-            buffer, "{}",
-            &self.cache,
-        )?;
-
-        Ok(())
+    pub fn draw (&mut self, buffer: &mut Vec::<u8>) {
+        let _ = buffer.write(self.cache.as_bytes());
     }
 }
