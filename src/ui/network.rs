@@ -13,7 +13,8 @@ pub struct Network <'a> {
     pub size: XY,
 
     cache: Vec::<(String, String, String, String)>,
-    buffer_speed: String
+    buffer_speed1: String,
+    buffer_speed2: String
 }
 
 impl <'a> Network <'a> {
@@ -27,7 +28,8 @@ impl <'a> Network <'a> {
         Self {
             system,
             cache: Vec::new(),
-            buffer_speed: String::new(),
+            buffer_speed1: String::new(),
+            buffer_speed2: String::new(),
             pos,
             size: XY { x: 23, y }
         }
@@ -94,36 +96,32 @@ impl <'a> Network <'a> {
             let freq = self.system.config.frequency.load(atomic::Ordering::Relaxed);
 
             for (count, val) in networkinfo.stats.values().enumerate() {
-                self.buffer_speed.clear();
-                convert_speed(&mut self.buffer_speed, val.recv, freq)?;
+                self.buffer_speed1.clear();
+                convert_speed(&mut self.buffer_speed1, val.recv, freq)?;
 
-                if val.recv != 0 {
-                    write!(buffer, "{}{}\x1b[37m Rx\x1b[0m",
-                        unsafe { &self.cache.get_unchecked(count).0 },
-                        &self.buffer_speed,
-                    )?;
+                let cache1 = if val.recv != 0 {
+                    unsafe { self.cache.get_unchecked(count).0.as_bytes() }
                 } else {
-                    write!(buffer, "{}{}\x1b[37m Rx\x1b[0m",
-                        unsafe { &self.cache.get_unchecked(count).1 },
-                        &self.buffer_speed,
-                    )?;
-                }
+                    unsafe { self.cache.get_unchecked(count).1.as_bytes() }
+                };
 
-                self.buffer_speed.clear();
-                convert_speed(&mut self.buffer_speed, val.sent, freq)?;
+                self.buffer_speed2.clear();
+                convert_speed(&mut self.buffer_speed2, val.sent, freq)?;
 
-                if val.sent != 0 {
-
-                    write!(buffer, "{}{}\x1b[37m Tx\x1b[0m",
-                        unsafe { &self.cache.get_unchecked(count).2 },
-                        &self.buffer_speed,
-                    )?;
+                let cache2 = if val.sent != 0 {
+                    unsafe { self.cache.get_unchecked(count).2.as_bytes() }
                 } else {
-                    write!(buffer, "{}{}\x1b[37m Tx\x1b[0m",
-                        unsafe { &self.cache.get_unchecked(count).3 },
-                        &self.buffer_speed,
-                    )?;
-                }
+                    unsafe { self.cache.get_unchecked(count).3.as_bytes() }
+                };
+
+                let _ = buffer.write_vectored(&[
+                    std::io::IoSlice::new(cache1),
+                    std::io::IoSlice::new(self.buffer_speed1.as_bytes()),
+                    std::io::IoSlice::new(b"\x1b[37m Rx\x1b[0m"),
+                    std::io::IoSlice::new(cache2),
+                    std::io::IoSlice::new(self.buffer_speed2.as_bytes()),
+                    std::io::IoSlice::new(b"\x1b[37m Tx\x1b[0m")
+                ]);
             }
         } else {
             bail!("networkinfo lock is poisoned!");
