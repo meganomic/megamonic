@@ -1,4 +1,4 @@
-use crossterm::{ terminal, execute, cursor };
+use crossterm::terminal;
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ ensure, Context, Result };
@@ -47,12 +47,10 @@ fn custom_panic_hook() {
 
         // If the main thread panics reset the terminal
         //if name == "main" {
-        let _ = execute!(std::io::stdout(),
-                    terminal::Clear(terminal::ClearType::All),
-                    terminal::LeaveAlternateScreen,
-                    terminal::EnableLineWrap,
-                    cursor::Show
-                );
+        let mut stdout = std::io::stdout();
+
+        let _ = write!(stdout, "\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h");
+        let _ = stdout.flush();
 
         let _ = terminal::disable_raw_mode();
         //}
@@ -145,14 +143,11 @@ impl <'ui> Ui <'ui> {
         // Disable all hotkeys and stuff.
         terminal::enable_raw_mode()?;
 
+        let mut stdout = std::io::stdout();
+
         // Setup the terminal screen
-        execute!(
-            std::io::stdout(),
-            terminal::EnterAlternateScreen,
-            terminal::Clear(terminal::ClearType::All),
-            terminal::DisableLineWrap,
-            cursor::Hide,
-        )?;
+        write!(stdout, "\x1b[?1049h\x1b[2J\x1b[?25l\x1b[?7l")?;
+        stdout.flush()?;
 
         // Initialize custom panic hook
         custom_panic_hook();
@@ -161,12 +156,11 @@ impl <'ui> Ui <'ui> {
     }
 
     pub fn exit(&mut self) -> Result<()> {
-        execute!(std::io::stdout(),
-            terminal::Clear(terminal::ClearType::All),
-            terminal::LeaveAlternateScreen,
-            terminal::EnableLineWrap,
-            cursor::Show
-        )?;
+        let mut stdout = std::io::stdout();
+
+        // Setup the terminal screen
+        write!(stdout, "\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h")?;
+        stdout.flush()?;
 
         terminal::disable_raw_mode()?;
 
@@ -182,8 +176,8 @@ impl <'ui> Ui <'ui> {
     }
 
     pub fn rebuild_cache(&mut self) -> Result<()> {
-        //self.buffer.clear();
-        write!(self.buffer, "{}", terminal::Clear(terminal::ClearType::All))?;
+        // Clear screen
+        write!(self.buffer, "\x1b[2J")?;
 
         self.time.pos.y = self.terminal_size.y;
         self.time.rebuild_cache();
@@ -209,8 +203,6 @@ impl <'ui> Ui <'ui> {
         self.gpu.pos.y = self.sensors.pos.y + self.sensors.size.y;
         self.gpu.rebuild_cache();
         self.gpu.draw_static(&mut self.buffer)?;
-
-        //std::io::stdout().write(&self.buffer)?;
 
         Ok(())
     }
@@ -366,13 +358,9 @@ impl <'ui> Ui <'ui> {
 
     fn toggle_topmode(&mut self) -> Result<()> {
         if self.system.config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
-            write!(self.buffer, "{}\x1b[38;5;244mt\x1b[0m",
-                cursor::MoveTo(36, 5)
-            )?;
+            write!(self.buffer, "\x1b[6;37H\x1b[38;5;244mt\x1b[0m")?;
         } else {
-            write!(self.buffer, "{} ",
-                cursor::MoveTo(36, 5)
-            )?;
+            write!(self.buffer, "\x1b[6;37H ")?;
         }
 
         Ok(())
@@ -380,13 +368,9 @@ impl <'ui> Ui <'ui> {
 
     fn toggle_smaps(&mut self) -> Result<()> {
         if self.system.config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
-            write!(self.buffer, "{}\x1b[38;5;244ms\x1b[0m",
-                cursor::MoveTo(37, 5)
-            )?;
+            write!(self.buffer, "\x1b[6;38H\x1b[38;5;244ms\x1b[0m")?;
         } else {
-            write!(self.buffer, "{} ",
-                cursor::MoveTo(37, 5)
-            )?;
+            write!(self.buffer, "\x1b[6;38H ")?;
         }
 
         Ok(())
@@ -394,13 +378,9 @@ impl <'ui> Ui <'ui> {
 
     fn toggle_all_processes(&mut self) -> Result<()> {
         if self.system.config.all.load(std::sync::atomic::Ordering::Relaxed) {
-            write!(self.buffer, "{}\x1b[38;5;244ma\x1b[0m",
-                cursor::MoveTo(38, 5)
-            )?;
+            write!(self.buffer, "\x1b[6;39H\x1b[38;5;244ma\x1b[0m")?;
         } else {
-            write!(self.buffer, "{} ",
-                cursor::MoveTo(38, 5)
-            )?;
+            write!(self.buffer, "\x1b[6;39H ")?;
         }
 
         Ok(())
