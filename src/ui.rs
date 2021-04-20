@@ -219,18 +219,18 @@ impl <'ui> Ui <'ui> {
 
                 // Load average
                 2 => {
-                    if (self.terminal_size.x > (self.loadavg.size.x + self.loadavg.pos.x)) & (self.terminal_size.y > self.loadavg.size.y)  {
+                    if self.terminal_size.x > (self.loadavg.size.x + self.loadavg.pos.x) && self.terminal_size.y > self.loadavg.size.y  {
                         self.loadavg.draw(&mut self.buffer)?;
                     }
                 },
 
                 // Overview
                 3 => {
-                    if (self.terminal_size.x > (self.overview.size.x + self.overview.pos.x)) & (self.terminal_size.y > (self.overview.size.y + self.overview.pos.y)) {
+                    if self.terminal_size.x > (self.overview.size.x + self.overview.pos.x) && self.terminal_size.y > (self.overview.size.y + self.overview.pos.y) {
                         self.overview.draw(&mut self.buffer)?;
                     }
 
-                    if (self.terminal_size.x > (self.processes.pos.x + 22)) & (self.terminal_size.y > (self.processes.pos.y + 3)) {
+                    if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
                         if let Ok(cpuinfo) = self.system.cpuinfo.lock() {
                             write!(self.buffer, "\x1b[6;41H\x1b[0K\x1b[38;5;244m{}\x1b[0m", &cpuinfo.governor)?;
                         }
@@ -239,11 +239,11 @@ impl <'ui> Ui <'ui> {
 
                 // Memory
                 4 => {
-                    if (self.terminal_size.x > (self.memory.pos.x + self.memory.size.x)) & (self.terminal_size.y > (self.memory.pos.y + self.memory.size.y)) {
+                    if self.terminal_size.x > (self.memory.pos.x + self.memory.size.x) && self.terminal_size.y > (self.memory.pos.y + self.memory.size.y) {
                         self.memory.draw(&mut self.buffer)?;
                     }
 
-                    if (self.terminal_size.x > (self.swap.pos.x + self.swap.size.x)) & (self.terminal_size.y > (self.swap.pos.y + self.swap.size.y)) {
+                    if self.terminal_size.x > (self.swap.pos.x + self.swap.size.x) && self.terminal_size.y > (self.swap.pos.y + self.swap.size.y)  {
                         self.swap.draw(&mut self.buffer)?;
                     }
                 },
@@ -257,7 +257,7 @@ impl <'ui> Ui <'ui> {
 
                 // Sensors
                 6 => {
-                    if (self.terminal_size.x > self.sensors.size.x) & (self.terminal_size.y > (self.network.size.y + self.sensors.size.y + self.overview.size.y)) {
+                    if self.terminal_size.x > self.sensors.size.x && self.terminal_size.y > (self.network.size.y + self.sensors.size.y + self.overview.size.y) as u16 {
                         if self.sensors.draw(&mut self.buffer)? {
                             self.rebuild()?;
                         }
@@ -266,7 +266,7 @@ impl <'ui> Ui <'ui> {
 
                 // Network
                 7 => {
-                    if (self.terminal_size.x > self.network.size.x) & (self.terminal_size.y > (self.network.size.y + self.overview.size.y)) {
+                    if self.terminal_size.x > self.network.size.x  && self.terminal_size.y > (self.network.size.y + self.overview.size.y) as u16 {
                         if self.network.draw(&mut self.buffer)? {
                             self.rebuild()?;
                         }
@@ -276,7 +276,7 @@ impl <'ui> Ui <'ui> {
                 // Process list
                 8 => {
                     //let now = std::time::Instant::now();
-                    if (self.terminal_size.x > (self.processes.pos.x + 22)) & (self.terminal_size.y > (self.processes.pos.y + 3)) {
+                    if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
                         self.processes.draw(&mut self.buffer, &self.terminal_size)?;
                     }
                     //eprintln!("{}", now.elapsed().as_micros());
@@ -285,7 +285,7 @@ impl <'ui> Ui <'ui> {
 
                 // Gpu
                 9 => {
-                    if (self.terminal_size.x > (self.gpu.pos.x + self.gpu.size.x)) & (self.terminal_size.y > (self.gpu.pos.y + self.gpu.size.y)) {
+                    if self.terminal_size.x > (self.gpu.pos.x + self.gpu.size.x) && self.terminal_size.y > (self.gpu.pos.y + self.gpu.size.y)  {
                         //let now = std::time::Instant::now();
                         self.gpu.draw(&mut self.buffer)?;
                         //eprintln!("{}", now.elapsed().as_nanos());
@@ -295,21 +295,21 @@ impl <'ui> Ui <'ui> {
 
                 // Topmode
                 10 => {
-                    if (self.terminal_size.x > (self.processes.pos.x + 22)) & (self.terminal_size.y > (self.processes.pos.y + 3)) {
+                    if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
                         self.toggle_topmode();
                     }
                 },
 
                 // smaps
                 11 => {
-                    if (self.terminal_size.x > (self.processes.pos.x + 22)) & (self.terminal_size.y > (self.processes.pos.y + 3)) {
+                    if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
                         self.toggle_smaps();
                     }
                 },
 
                 // all_processes
                 12 => {
-                    if (self.terminal_size.x > (self.processes.pos.x + 22)) & (self.terminal_size.y > (self.processes.pos.y + 3)) {
+                    if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
                         self.toggle_all_processes();
                     }
                 },
