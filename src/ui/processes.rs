@@ -159,6 +159,7 @@ fn maxstr(exec: &str, cmd: &str, is_not_exec: bool, pid: u32, pidlen: usize, max
 }
 
 // Special handling for 0 memory for processe list
+#[inline(always)]
 fn convert_with_padding_proc(buffer: &mut String, num: i64, color: &str) {
     buffer.clear();
 
