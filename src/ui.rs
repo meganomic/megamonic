@@ -296,21 +296,21 @@ impl <'ui> Ui <'ui> {
                 // Topmode
                 10 => {
                     if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
-                        self.toggle_topmode()?;
+                        self.toggle_topmode();
                     }
                 },
 
                 // smaps
                 11 => {
                     if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
-                        self.toggle_smaps()?;
+                        self.toggle_smaps();
                     }
                 },
 
                 // all_processes
                 12 => {
                     if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
-                        self.toggle_all_processes()?;
+                        self.toggle_all_processes();
                     }
                 },
 
@@ -356,34 +356,28 @@ impl <'ui> Ui <'ui> {
         Ok(())
     }
 
-    fn toggle_topmode(&mut self) -> Result<()> {
+    fn toggle_topmode(&mut self) {
         if self.system.config.topmode.load(std::sync::atomic::Ordering::Relaxed) {
-            write!(self.buffer, "\x1b[6;37H\x1b[38;5;244mt\x1b[0m")?;
+            let _ = write!(self.buffer, "\x1b[6;37H\x1b[38;5;244mt\x1b[0m");
         } else {
-            write!(self.buffer, "\x1b[6;37H ")?;
+            let _ = write!(self.buffer, "\x1b[6;37H ");
         }
-
-        Ok(())
     }
 
-    fn toggle_smaps(&mut self) -> Result<()> {
+    fn toggle_smaps(&mut self) {
         if self.system.config.smaps.load(std::sync::atomic::Ordering::Relaxed) {
-            write!(self.buffer, "\x1b[6;38H\x1b[38;5;244ms\x1b[0m")?;
+            let _ = write!(self.buffer, "\x1b[6;38H\x1b[38;5;244ms\x1b[0m");
         } else {
-            write!(self.buffer, "\x1b[6;38H ")?;
+            let _ = write!(self.buffer, "\x1b[6;38H ");
         }
-
-        Ok(())
     }
 
-    fn toggle_all_processes(&mut self) -> Result<()> {
+    fn toggle_all_processes(&mut self) {
         if self.system.config.all.load(std::sync::atomic::Ordering::Relaxed) {
-            write!(self.buffer, "\x1b[6;39H\x1b[38;5;244ma\x1b[0m")?;
+            let _ = write!(self.buffer, "\x1b[6;39H\x1b[38;5;244ma\x1b[0m");
         } else {
-            write!(self.buffer, "\x1b[6;39H ")?;
+            let _ = write!(self.buffer, "\x1b[6;39H ");
         }
-
-        Ok(())
     }
 }
 

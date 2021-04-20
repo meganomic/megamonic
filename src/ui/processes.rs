@@ -64,8 +64,11 @@ impl <'a> Processes <'a> {
 
             // Update cache if the length of PID increases
             if pidlen > self.pidlen {
+                self.pidlen = pidlen;
                 self.cache2.clear();
             }
+
+            let max_length = (terminal_size.x - self.pos.x - 19) as usize;
 
             //let now = std::time::Instant::now();
             for (idx, val) in list.iter().enumerate() {
@@ -77,50 +80,44 @@ impl <'a> Processes <'a> {
                 // Check if there actually is a PSS value
                 // If there isn't it probably requires root access, use RSS instead
                 if smaps && val.pss != -1 {
-                    convert_with_padding_proc(&mut self.memory_buffer, val.pss, 4, true);
+                    convert_with_padding_proc(&mut self.memory_buffer, val.pss, "\x1b[94m");
                 } else {
-                    convert_with_padding_proc(&mut self.memory_buffer, val.rss, 4, false);
+                    convert_with_padding_proc(&mut self.memory_buffer, val.rss, "\x1b[92m");
                 }
 
-                unsafe {
-                    // This is needed because of rounding errors. There's probably a better way
-                    self.cpu_buffer.clear();
-                    if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
-                        let _ = write!(self.cpu_buffer, "\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
-                    } else if val.cpu_avg >= 99.5 {
-                        let _ = write!(self.cpu_buffer, "\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
-                    } else {
-                        let _ = write!(self.cpu_buffer, "\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
-                    }
-
-                    let max_length = (terminal_size.x - self.pos.x - 19) as usize;
-
-                    let ioslice = &[
-                            std::io::IoSlice::new(self.cache1.get_unchecked(idx).as_bytes()),
-                            std::io::IoSlice::new(self.cpu_buffer.as_bytes()),
-                            std::io::IoSlice::new(self.memory_buffer.as_bytes()),
-                            std::io::IoSlice::new(self.cache2.entry(val.pid).or_insert_with(||
-                                maxstr(
-                                    &val.executable,
-                                    &val.cmdline,
-                                    val.not_executable,
-                                    val.pid,
-                                    pidlen,
-                                    max_length
-                                )
-                            ).as_bytes())
-                        ];
-
-                        buffer.write_vectored(ioslice)?;
+                // This is needed because of rounding errors. There's probably a better way
+                self.cpu_buffer.clear();
+                if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
+                    let _ = write!(self.cpu_buffer, "\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
+                } else if val.cpu_avg >= 99.5 {
+                    let _ = write!(self.cpu_buffer, "\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
+                } else {
+                    let _ = write!(self.cpu_buffer, "\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
                 }
 
+                let ioslice = &[
+                    unsafe { std::io::IoSlice::new(self.cache1.get_unchecked(idx).as_bytes()) },
+                    std::io::IoSlice::new(self.cpu_buffer.as_bytes()),
+                    std::io::IoSlice::new(self.memory_buffer.as_bytes()),
+                    std::io::IoSlice::new(self.cache2.entry(val.pid).or_insert_with(||
+                        maxstr(
+                            &val.executable,
+                            &val.cmdline,
+                            val.not_executable,
+                            val.pid,
+                            pidlen,
+                            max_length
+                        )
+                    ).as_bytes())
+                ];
+
+                let _ = buffer.write_vectored(ioslice);
             }
 
             //eprintln!("{}", now.elapsed().as_nanos());
 
             // Save the length of the longest PID in the cache so we can check if it changes
             // In which case we need to rebuild the cache
-            self.pidlen = pidlen;
         } else {
             bail!("processinfo lock is poisoned!");
         }
@@ -161,43 +158,39 @@ fn maxstr(exec: &str, cmd: &str, is_not_exec: bool, pid: u32, pidlen: usize, max
 }
 
 // Special handling for 0 memory for processe list
-fn convert_with_padding_proc(buffer: &mut String, num: i64, padding: usize, blue: bool) {
+fn convert_with_padding_proc(buffer: &mut String, num: i64, color: &str) {
     buffer.clear();
 
-    let color = if blue {
-        "\x1b[94m"
+    if num != 0 {
+        // convert it to a f64 type to we can use ln() and stuff on it.
+        let num = num as f64;
+
+        static UNITS: [&str; 9] = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
+
+        // A kilobyte is 1024 bytes. Fight me!
+        let delimiter = 1024_f64;
+
+        // Magic that makes no sense to me
+        let exponent = (num.ln() / delimiter.ln()).floor() as i32;
+
+        let pretty_bytes = num / delimiter.powi(exponent);
+        //let unit = UNITS[exponent as usize];
+
+        // Different behaviour for different units
+        // They are in order of most commonly used
+        match exponent {
+            2 => { let _ = write!(buffer, "{}{:>4.0} Mb", color, pretty_bytes); },
+            3 => {
+                if pretty_bytes >= 10.0 { let _ = write!(buffer, "{}{:>4.1} Gb", color, pretty_bytes); }
+                else { let _ = write!(buffer, "{}{:>4.2} Gb", color, pretty_bytes); }
+            },
+            1 => { let _ = write!(buffer, "{}{:>4.0} Kb", color, pretty_bytes); },
+            0 => { let _ = write!(buffer, "{}{:>5.0} b", color, pretty_bytes); },
+            _ => {
+                let _ = write!(buffer, "{}{:>4.1} {}", color, pretty_bytes, UNITS[exponent as usize]);
+            },
+        };
     } else {
-        "\x1b[92m"
-    };
-
-    if num == 0 {
-        let _ = write!(buffer, "{}  {:>pad$}", color, "-", pad=padding+1);
-        return;
+        let _ = write!(buffer, "{}  {:>5}", color, "-");
     }
-    // convert it to a f64 type to we can use ln() and stuff on it.
-    let num = num as f64;
-
-    let units = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
-
-    // A kilobyte is 1024 bytes. Fight me!
-    let delimiter = 1024_f64;
-
-    // Magic that makes no sense to me
-    let exponent = std::cmp::min(
-        (num.ln() / delimiter.ln()).floor() as i32,
-        (units.len() - 1) as i32,
-    );
-    let pretty_bytes = num / delimiter.powi(exponent as i32);
-    let unit = units[exponent as usize];
-
-    // Different behaviour for different units
-    match unit {
-        "b" => { let _ = write!(buffer, "{}{:>pad$.0} {}", color, pretty_bytes, unit, pad=padding+1); },
-        "Kb" | "Mb" => { let _ = write!(buffer, "{}{:>pad$.0} {}", color, pretty_bytes, unit, pad=padding); },
-        "Gb" => {
-            if pretty_bytes >= 10.0 { let _ = write!(buffer, "{}{:>pad$.1} {}", color, pretty_bytes, unit, pad=padding); }
-            else { let _ = write!(buffer, "{}{:>pad$.2} {}", color, pretty_bytes, unit, pad=padding); }
-        },
-        _ => { let _ = write!(buffer, "{}{:>pad$.1} {}", color, pretty_bytes, unit, pad=padding); },
-    };
 }
