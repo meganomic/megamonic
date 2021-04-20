@@ -96,7 +96,7 @@ impl <'a> Processes <'a> {
                     let _ = write!(self.cpu_buffer, "\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
                 }
 
-                let ioslice = &[
+                let _ = buffer.write_vectored(&[
                     unsafe { std::io::IoSlice::new(self.cache1.get_unchecked(idx).as_bytes()) },
                     std::io::IoSlice::new(self.cpu_buffer.as_bytes()),
                     std::io::IoSlice::new(self.memory_buffer.as_bytes()),
@@ -110,9 +110,7 @@ impl <'a> Processes <'a> {
                             max_length
                         )
                     ).as_bytes())
-                ];
-
-                let _ = buffer.write_vectored(ioslice);
+                ]);
             }
 
             //eprintln!("{}", now.elapsed().as_nanos());
