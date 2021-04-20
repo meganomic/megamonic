@@ -2,7 +2,7 @@ use anyhow::{ bail, ensure, Context, Result };
 use std::sync::{ Arc, Mutex, mpsc, atomic };
 use std::io::prelude::*;
 use std::fmt::Write as fmtWrite;
-use rustc_hash::{ FxHashSet, FxHashMap };
+use ahash::{ AHashMap, AHashSet };
 use std::collections::hash_map::Entry;
 
 mod process;
@@ -34,13 +34,13 @@ struct LinuxDirent64T {
 
 //#[derive(Default)]
 pub struct Processes {
-    pub processes: FxHashMap<u32, process::Process>,
+    pub processes: AHashMap<u32, process::Process>,
     pub maxpidlen: usize,
     pub rebuild: bool,
     buffer: String,
     buffer_vector_dirs: Vec::<u8>,
     buffer_vector: Vec::<u8>,
-    ignored: FxHashSet<u32>,
+    ignored: AHashSet<u32>,
 }
 
 impl Processes {
@@ -292,13 +292,13 @@ impl Processes {
 impl Default for Processes {
     fn default() -> Self {
         Self {
-            processes: FxHashMap::default(),
+            processes: AHashMap::default(),
             maxpidlen: 0,
             rebuild: false,
             buffer: String::new(),
             buffer_vector_dirs: Vec::with_capacity(BUF_SIZE),
             buffer_vector: Vec::with_capacity(1000),
-            ignored: FxHashSet::default(),
+            ignored: AHashSet::default(),
         }
     }
 }

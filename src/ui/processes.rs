@@ -3,6 +3,7 @@ use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ bail, Result };
 use std::sync::atomic;
+use ahash::AHashMap;
 
 use crate::system::System as System;
 use super::XY as XY;
@@ -14,7 +15,7 @@ pub struct Processes <'a> {
 
     pidlen: usize,
     cache1: Vec::<String>,
-    cache2: std::collections::HashMap<u32, String>,
+    cache2: AHashMap<u32, String>,
     cpu_buffer: String,
     memory_buffer: String,
 }
@@ -24,7 +25,7 @@ impl <'a> Processes <'a> {
         Self {
             system,
             cache1: Vec::<String>::new(),
-            cache2: std::collections::HashMap::new(),
+            cache2: AHashMap::new(),
             cpu_buffer: String::new(),
             memory_buffer: String::new(),
             pos,
