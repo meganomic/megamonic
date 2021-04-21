@@ -382,12 +382,12 @@ impl <'ui> Ui <'ui> {
 }
 
 // Convert to pretty bytes with specified right alignment
-pub fn convert_with_padding(buffer: &mut String, num: u64, padding: usize) -> Result<()> {
+pub fn convert_with_padding(buffer: &mut String, num: u64, padding: usize) {
     buffer.clear();
 
     if num == 0 {
-        write!(buffer, "{:>pad$.0} b", num, pad=padding+1)?;
-        return Ok(());
+        let _ = write!(buffer, "{:>pad$.0} b", num, pad=padding+1);
+        return;
     }
     // convert it to a f64 type to we can use ln() and stuff on it.
     let num = num as f64;
@@ -407,14 +407,12 @@ pub fn convert_with_padding(buffer: &mut String, num: u64, padding: usize) -> Re
 
     // Different behaviour for different units
     match unit {
-        "b" => write!(buffer, "{:>pad$.0} {}", pretty_bytes, unit, pad=padding+1)?,
-        "Kb" | "Mb" => write!(buffer, "{:>pad$.0} {}", pretty_bytes, unit, pad=padding)?,
+        "b" => { let _ = write!(buffer, "{:>pad$.0} {}", pretty_bytes, unit, pad=padding+1); },
+        "Kb" | "Mb" => { let _ = write!(buffer, "{:>pad$.0} {}", pretty_bytes, unit, pad=padding); },
         "Gb" => {
-            if pretty_bytes >= 10.0 { write!(buffer, "{:>pad$.1} {}", pretty_bytes, unit, pad=padding)? }
-            else { write!(buffer, "{:>pad$.2} {}", pretty_bytes, unit, pad=padding)? }
+            if pretty_bytes >= 10.0 { let _ = write!(buffer, "{:>pad$.1} {}", pretty_bytes, unit, pad=padding); }
+            else { let _ = write!(buffer, "{:>pad$.2} {}", pretty_bytes, unit, pad=padding); }
         },
-        _ => write!(buffer, "{:>pad$.1} {}", pretty_bytes, unit, pad=padding)?,
-    }
-
-    Ok(())
+        _ => { let _ = write!(buffer, "{:>pad$.1} {}", pretty_bytes, unit, pad=padding); },
+    };
 }
