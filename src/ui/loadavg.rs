@@ -53,15 +53,28 @@ impl <'a> Loadavg <'a> {
             let len = loadavg.min1.len().max(loadavg.min5.len().max(loadavg.min15.len()));
             self.size.x = len as u16 + 12;
 
-            write!(buffer, "{}{:>pad$}{}{:>pad$}{}{:>pad$}\x1b[91m ]\x1b[0m",
-                &self.cache.0,
-                &loadavg.min1,
-                &self.cache.1,
-                &loadavg.min5,
-                &self.cache.2,
-                &loadavg.min15,
-                pad=len
-            )?;
+            // If they are all the same length write it efficently
+            if loadavg.min1.len() == loadavg.min5.len() && loadavg.min1.len() == loadavg.min15.len() {
+                let _ = buffer.write_vectored(&[
+                    std::io::IoSlice::new(self.cache.0.as_bytes()),
+                    std::io::IoSlice::new(loadavg.min1.as_bytes()),
+                    std::io::IoSlice::new(self.cache.1.as_bytes()),
+                    std::io::IoSlice::new(loadavg.min5.as_bytes()),
+                    std::io::IoSlice::new(self.cache.2.as_bytes()),
+                    std::io::IoSlice::new(loadavg.min15.as_bytes()),
+                    std::io::IoSlice::new(b"\x1b[91m ]\x1b[0m")
+                ]);
+            } else {
+                write!(buffer, "{}{:>pad$}{}{:>pad$}{}{:>pad$}\x1b[91m ]\x1b[0m",
+                    &self.cache.0,
+                    &loadavg.min1,
+                    &self.cache.1,
+                    &loadavg.min5,
+                    &self.cache.2,
+                    &loadavg.min15,
+                    pad=len
+                )?;
+            }
         } else {
             bail!("loadavg lock is poisoned!");
         }
