@@ -8,8 +8,6 @@ pub struct Time {
 
 pub fn start_thread(internal: Arc<Time>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>) -> std::thread::JoinHandle<()> {
     std::thread::Builder::new().name("Time".to_string()).spawn(move || {
-        let sleepy = Duration::from_millis(1000);
-
         let (lock, cvar) = &*exit;
 
         'outer: loop {
@@ -28,30 +26,14 @@ pub fn start_thread(internal: Arc<Time>, tx: mpsc::Sender::<u8>, exit: Arc<(std:
             // Synchronize with actual time
             // It will be about 0.01s out of phase with actual time.
             // Should be accurate enough.
-            if st_subsec > 10000 {
-                if let Ok(mut exitvar) = lock.lock() {
-                    loop {
-                        // Slowly work your way towards ~10000 microseconds after the last Second
-                        if let Ok(result) = cvar.wait_timeout(exitvar, sleepy - (Duration::from_micros(st_subsec as u64) / 10)) {
-                            exitvar = result.0;
+            let sleepy = if st_subsec > 10000 {
+                // Slowly work your way towards ~10000 microseconds after the last Second
+                Duration::from_millis(1000) - (Duration::from_micros(st_subsec as u64) / 10)
+            } else {
+                Duration::from_millis(1000)
+            };
 
-                            if *exitvar {
-                                break 'outer;
-                            }
-
-                            if result.1.timed_out() {
-                                break;
-                            }
-                        } else {
-                            break 'outer;
-                        }
-                    }
-                } else {
-                    break;
-                }
-
-            // If subsec isn't high then wait for a full second
-            } else if let Ok(mut exitvar) = lock.lock() {
+            if let Ok(mut exitvar) = lock.lock() {
                 loop {
                     if let Ok(result) = cvar.wait_timeout(exitvar, sleepy) {
                         exitvar = result.0;
