@@ -44,6 +44,28 @@ const DELIMITER: f64 = 1024_f64;
 const DELIMITER_LN: f64 = 6.93147180559945308431224475498311221599578857421875;
 
 
+// Write to stdout without error checking
+macro_rules! write_to_stdout {
+    ($data:expr) => {
+        // Write to stdout
+        //let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 1, // SYS_WRITE
+                in("rdi") 1,
+                in("rsi") $data.as_ptr(),
+                in("rdx") $data.len(),
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") _,
+            );
+        }
+
+        // Check if there's an error
+        //ensure!(ret as usize == $data.len(), "SYS_WRITE return code: {}", ret);
+    };
+}
+
 // Customized version of https://github.com/sfackler/rust-log-panics
 fn custom_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
@@ -58,10 +80,8 @@ fn custom_panic_hook() {
 
         // If the main thread panics reset the terminal
         //if name == "main" {
-        let mut stdout = std::io::stdout();
 
-        let _ = write!(stdout, "\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h");
-        let _ = stdout.flush();
+        write_to_stdout!("\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h");
 
         let _ = terminal::disable_raw_mode();
         //}
@@ -154,11 +174,8 @@ impl <'ui> Ui <'ui> {
         // Disable all hotkeys and stuff.
         terminal::enable_raw_mode()?;
 
-        let mut stdout = std::io::stdout();
-
         // Setup the terminal screen
-        write!(stdout, "\x1b[?1049h\x1b[2J\x1b[?25l\x1b[?7l")?;
-        stdout.flush()?;
+        write_to_stdout!("\x1b[?1049h\x1b[2J\x1b[?25l\x1b[?7l");
 
         // Initialize custom panic hook
         custom_panic_hook();
@@ -167,11 +184,8 @@ impl <'ui> Ui <'ui> {
     }
 
     pub fn exit(&mut self) -> Result<()> {
-        let mut stdout = std::io::stdout();
-
         // Reset the terminal screen
-        write!(stdout, "\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h")?;
-        stdout.flush()?;
+        write_to_stdout!("\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h");
 
         terminal::disable_raw_mode()?;
 
