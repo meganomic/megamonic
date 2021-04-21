@@ -1,7 +1,7 @@
 use anyhow::{ ensure, Context, Result };
 use std::ffi::CString;
 
-#[inline(always)]
+//#[inline(always)]
 fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
     // Clear the buffer
     buffer.clear();
@@ -39,14 +39,6 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
          );
     }
 
-    // Check if there's an error
-    ensure!(n_read.is_positive(), "SYS_READ return code: {}", n_read);
-
-    // Set buffer length to however many bytes was read
-    unsafe {
-        buffer.set_len(n_read as usize);
-    }
-
     // Close file
     let ret: i32;
     unsafe {
@@ -61,6 +53,13 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
 
     // Check if there's an error, panic if there is!
     ensure!(ret == 0, "SYS_CLOSE return code: {}", ret);
+
+    ensure!(n_read.is_positive(), "SYS_READ return code: {}", n_read);
+
+    // Set buffer length to however many bytes was read
+    unsafe {
+        buffer.set_len(n_read as usize);
+    }
 
     Ok(true)
 }
@@ -165,7 +164,6 @@ impl Process {
         };
 
         if smaps {
-            buffer.clear();
             if let Ok(res) = open_and_read(buffer, self.smaps_file.as_ptr()) {
                 if res {
                     let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
