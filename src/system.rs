@@ -52,12 +52,7 @@ impl System {
         // Update frequency
         let sleepy = std::time::Duration::from_millis(self.config.frequency.load(atomic::Ordering::Relaxed));
 
-        // Stagger the threads so they don't all start at the same time
-        // They will drift around but it shouldn't matter.
-        //let stagger = std::time::Duration::from_millis(250);
-
         // Read /proc/stat
-        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             cpu::start_thread(
                 Arc::clone(&self.cpuinfo),
@@ -69,7 +64,6 @@ impl System {
         );
 
         // Processes
-        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             processes::start_thread(
                 Arc::clone(&self.processinfo),
@@ -102,7 +96,6 @@ impl System {
         );
 
         // Read /proc/loadavg
-        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             loadavg::start_thread(
                 Arc::clone(&self.loadavg),
@@ -114,7 +107,6 @@ impl System {
         );
 
         // Read /proc/meminfo
-        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             memory::start_thread(
                 Arc::clone(&self.memoryinfo),
@@ -126,7 +118,6 @@ impl System {
         );
 
         // Sensors
-        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             sensors::start_thread(
                 Arc::clone(&self.sensorinfo),
@@ -137,7 +128,6 @@ impl System {
         );
 
         // Network
-        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             network::start_thread(
                 Arc::clone(&self.networkinfo),
@@ -149,7 +139,6 @@ impl System {
         );
 
         // GPU
-        //thread::sleep(stagger);  // Stagger the threads
         self.threads.push(
             gpu::start_thread(
                 Arc::clone(&self.gpuinfo),
