@@ -38,7 +38,9 @@ static UNITS: [&str; 9] = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
 
 // A kilobyte is 1024 bytes. Fight me!
 const DELIMITER: f64 = 1024_f64;
-const DELIMITER_LN: f64 = 6.931471805599453094;
+
+// ln(1024)
+const DELIMITER_LN: f64 = 6.93147180559945308431224475498311221599578857421875;
 
 // Customized version of https://github.com/sfackler/rust-log-panics
 fn custom_panic_hook() {
