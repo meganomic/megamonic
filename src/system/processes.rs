@@ -277,12 +277,8 @@ impl Processes {
 
         // Sort by amount of Work, if equal sort by Total Work
         sorted.sort_by(|a, b| {
-            let comparison = b.work.cmp(&a.work);
-            if comparison == std::cmp::Ordering::Equal {
-                b.total.cmp(&a.total)
-            } else {
-                comparison
-            }
+            b.work.cmp(&a.work)
+                .then_with(|| b.total.cmp(&a.total))
         });
 
         (self.maxpidlen, sorted)
