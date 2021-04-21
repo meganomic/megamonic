@@ -278,7 +278,7 @@ impl Processes {
         // Sort by amount of Work, if equal sort by Total Work
         sorted.sort_by(|a, b| {
             b.work.cmp(&a.work)
-                .then_with(|| b.total.cmp(&a.total))
+                .then(b.total.cmp(&a.total))
         });
 
         (self.maxpidlen, sorted)
