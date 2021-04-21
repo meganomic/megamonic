@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex, atomic, Condvar};
 use std::thread;
 
-pub mod cpu;
+mod cpu;
 mod loadavg;
 mod memory;
 mod sensors;
