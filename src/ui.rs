@@ -78,13 +78,10 @@ fn custom_panic_hook() {
         let thread = std::thread::current();
         let name = thread.name().unwrap_or("<unnamed>");
 
-        // If the main thread panics reset the terminal
-        //if name == "main" {
-
+        // Reset the terminal
         write_to_stdout!("\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h");
 
         let _ = terminal::disable_raw_mode();
-        //}
 
         let msg = match info.payload().downcast_ref::<&'static str>() {
             Some(s) => *s,
