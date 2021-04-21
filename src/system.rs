@@ -163,12 +163,10 @@ impl System {
     // This function stops all the monitoring threads
     pub fn stop(&mut self) {
         // Notify all threads that they should exit
-        {
-            let (lock, cvar) = &*self.exit;
-            if let Ok(mut exitvar) = lock.lock() {
-                *exitvar = true;
-                cvar.notify_all();
-            }
+        let (lock, cvar) = &*self.exit;
+        if let Ok(mut exitvar) = lock.lock() {
+            *exitvar = true;
+            cvar.notify_all();
         }
 
         while !self.threads.is_empty() {
