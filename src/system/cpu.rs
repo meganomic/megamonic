@@ -1,6 +1,6 @@
-use anyhow::{anyhow, Context, Result};
-use std::sync::{Arc, Mutex, mpsc};
-use std::io::prelude::*;
+use anyhow::{ anyhow, Context, Result };
+use std::sync::{ Arc, Mutex, mpsc };
+use std::io::Read;
 
 #[derive(Default)]
 struct Cpustats {

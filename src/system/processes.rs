@@ -1,6 +1,6 @@
 use anyhow::{ bail, ensure, Context, Result };
 use std::sync::{ Arc, Mutex, mpsc, atomic };
-use std::io::prelude::*;
+use std::io::Read;
 use std::fmt::Write as fmtWrite;
 use ahash::{ AHashMap, AHashSet };
 use std::collections::hash_map::Entry;

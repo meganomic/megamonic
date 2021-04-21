@@ -1,6 +1,6 @@
-use anyhow::{anyhow, Context, Result};
-use std::sync::{Arc, Mutex, mpsc};
-use std::io::prelude::*;
+use anyhow::{ Context, Result };
+use std::sync::{ Arc, Mutex, mpsc };
+use std::io::Read;
 
 #[derive(Default, Clone)]
 pub struct Memory {
@@ -24,28 +24,28 @@ impl Memory {
         let mut lines = self.buffer.lines();
 
         self.mem_total = lines.next()
-            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 1"))?
+            .context("Can't parse /proc/meminfo: 1")?
             .split_ascii_whitespace()
             .nth(1)
-            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
+            .context("Can't parse /proc/meminfo: 2")?
             .parse::<u64>()
             .context("Can't parse /proc/meminfo: 3")?
             * 1024;
 
         self.mem_free = lines.nth(1)
-            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 1"))?
+            .context("Can't parse /proc/meminfo: 1")?
             .split_ascii_whitespace()
             .nth(1)
-            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
+            .context("Can't parse /proc/meminfo: 2")?
             .parse::<u64>()
             .context("Can't parse /proc/meminfo: 3")?
             * 1024;
 
         self.swap_total = lines.nth(11)
-            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 1"))?
+            .context("Can't parse /proc/meminfo: 1")?
             .split_ascii_whitespace()
             .nth(1)
-            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
+            .context("Can't parse /proc/meminfo: 2")?
             .parse::<u64>()
             .context("Can't parse /proc/meminfo: 3")?
             * 1024;
@@ -54,7 +54,7 @@ impl Memory {
             .expect("Can't parse /proc/meminfo: 1")
             .split_ascii_whitespace()
             .nth(1)
-            .ok_or_else(||anyhow!("Can't parse /proc/meminfo: 2"))?
+            .context("Can't parse /proc/meminfo: 2")?
             .parse::<u64>()
             .context("Can't parse /proc/meminfo: 3")?
             * 1024;

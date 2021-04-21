@@ -1,6 +1,6 @@
-use anyhow::{anyhow, Context, Result};
-use std::sync::{Arc, Mutex, mpsc};
-use std::io::prelude::*;
+use anyhow::{ Context, Result };
+use std::sync::{ Arc, Mutex, mpsc };
+use std::io::Read;
 
 #[derive(Default)]
 pub struct Bandwidth {
@@ -29,15 +29,15 @@ impl Network {
 
             let mut split = line.split_ascii_whitespace();
 
-            let name = split.next().ok_or_else(||anyhow!("Can't parse name from /proc/net/dev"))?.to_string();
+            let name = split.next().context("Can't parse name from /proc/net/dev")?.to_string();
 
             bandwidth.total_recv = split.next()
-                .ok_or_else(||anyhow!("Can't parse total_recv from /proc/net/dev"))?
+                .context("Can't parse total_recv from /proc/net/dev")?
                 .parse::<u64>()
                 .context("Can't parse total_recv from /proc/net/dev")?;
 
             bandwidth.total_sent = split.nth(7)
-                .ok_or_else(||anyhow!("Can't parse total_sent from /proc/net/dev"))?
+                .context("Can't parse total_sent from /proc/net/dev")?
                 .parse::<u64>()
                 .context("Can't parse total_sent from /proc/net/dev")?;
 
