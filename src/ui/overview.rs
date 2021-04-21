@@ -66,21 +66,21 @@ impl <'a> Overview <'a> {
         };
 
         if cpu_avg < 100.0 {
-            write!(buffer, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.0, cpu_avg)?;
+            let _ = write!(buffer, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.0, cpu_avg);
         } else {
-            write!(buffer, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.0, cpu_avg)?;
+            let _ = write!(buffer, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.0, cpu_avg);
         }
 
         if mem_use < 100.0 {
-                write!(buffer, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.1, mem_use)?;
+            let _ = write!(buffer, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.1, mem_use);
         } else {
-                write!(buffer, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.1, mem_use)?;
+            let _ = write!(buffer, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.1, mem_use);
         }
 
         if swap_use < 100.0 {
-                write!(buffer, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.2, swap_use)?;
+            let _ = write!(buffer, "{}{:4.1}%\x1b[91m ]\x1b[0m", &self.cache.2, swap_use);
         } else {
-                write!(buffer, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.2, swap_use)?;
+            let _ = write!(buffer, "{}{:4.0}%\x1b[91m ]\x1b[0m", &self.cache.2, swap_use);
         }
 
         Ok(())
