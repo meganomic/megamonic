@@ -5,10 +5,8 @@ use anyhow::{ bail, Result };
 use std::sync::atomic;
 use ahash::AHashMap;
 
-use crate::system::System as System;
-use super::XY as XY;
-
-use super::{ DELIMITER_LN, DELIMITER, UNITS };
+use crate::system::System;
+use super::{ DELIMITER_LN, DELIMITER, UNITS, XY };
 
 pub struct Processes <'a> {
     pub system: &'a System,

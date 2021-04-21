@@ -4,8 +4,8 @@ use std::fmt::Write as fmtWrite;
 use anyhow::{ bail, Result};
 use std::sync::atomic;
 
-use crate::system::System as System;
-use super::XY as XY;
+use crate::system::System;
+use super::XY;
 
 pub struct Network <'a> {
     pub system: &'a System,

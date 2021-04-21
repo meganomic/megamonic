@@ -3,8 +3,8 @@ use crossterm::{ cursor, style::SetColors };
 use std::io::Write as ioWrite;
 //use std::fmt::Write as fmtWrite;
 
-use crate::system::System as System;
-use super::XY as XY;
+use crate::system::System;
+use super::XY;
 
 pub struct Hostinfo <'a> {
     pub system: &'a System,

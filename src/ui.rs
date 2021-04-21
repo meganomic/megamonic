@@ -4,34 +4,35 @@ use std::fmt::Write as fmtWrite;
 use anyhow::{ ensure, Context, Result };
 
 mod time;
-use time::Time as Time;
+use time::Time;
 
 mod memory;
-use memory::Memory as Memory;
+use memory::Memory;
 
 mod swap;
-use swap::Swap as Swap;
+use swap::Swap;
 
 mod loadavg;
-use loadavg::Loadavg as Loadavg;
+use loadavg::Loadavg;
 
 mod overview;
-use overview::Overview as Overview;
+use overview::Overview;
 
 mod hostinfo;
-use hostinfo::Hostinfo as Hostinfo;
+use hostinfo::Hostinfo;
 
 mod processes;
-use processes::Processes as Processes;
+use processes::Processes;
 
 mod network;
-use network::Network as Network;
+use network::Network;
 
 mod sensors;
-use self::sensors::Sensors as Sensors;
+use self::sensors::Sensors;
 
 mod gpu;
-use gpu::Gpu as Gpu;
+use gpu::Gpu;
+
 
 // These are for used with the conversion functions
 static UNITS: [&str; 9] = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
@@ -41,6 +42,7 @@ const DELIMITER: f64 = 1024_f64;
 
 // ln(1024)
 const DELIMITER_LN: f64 = 6.93147180559945308431224475498311221599578857421875;
+
 
 // Customized version of https://github.com/sfackler/rust-log-panics
 fn custom_panic_hook() {

@@ -4,8 +4,8 @@ use anyhow::{ bail, Result };
 
 use std::fmt::Write as fmtWrite;
 
-use crate::system::System as System;
-use super::XY as XY;
+use crate::system::System;
+use super::XY;
 
 pub struct Loadavg <'a> {
     pub system: &'a System,

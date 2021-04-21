@@ -4,9 +4,8 @@ use anyhow::{ bail, Result };
 
 use std::fmt::Write as fmtWrite;
 
-use crate::system::System as System;
-use super::XY as XY;
-use super::convert_with_padding as convert_with_padding;
+use crate::system::System;
+use super::{ XY, convert_with_padding };
 
 pub struct Swap <'a> {
     pub system: &'a System,

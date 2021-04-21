@@ -2,8 +2,8 @@ use crossterm::cursor;
 use std::io::Write;
 use anyhow::{ bail, Result };
 
-use crate::system::System as System;
-use super::XY as XY;
+use crate::system::System;
+use super::XY;
 
 pub struct Gpu <'a> {
     pub system: &'a System,
