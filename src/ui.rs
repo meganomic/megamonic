@@ -33,6 +33,13 @@ use self::sensors::Sensors as Sensors;
 mod gpu;
 use gpu::Gpu as Gpu;
 
+// These are for used with the conversion functions
+static UNITS: [&str; 9] = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
+
+// A kilobyte is 1024 bytes. Fight me!
+const DELIMITER: f64 = 1024_f64;
+const DELIMITER_LN: f64 = 6.931471805599453094;
+
 // Customized version of https://github.com/sfackler/rust-log-panics
 fn custom_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
@@ -158,7 +165,7 @@ impl <'ui> Ui <'ui> {
     pub fn exit(&mut self) -> Result<()> {
         let mut stdout = std::io::stdout();
 
-        // Setup the terminal screen
+        // Reset the terminal screen
         write!(stdout, "\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h")?;
         stdout.flush()?;
 
@@ -177,7 +184,7 @@ impl <'ui> Ui <'ui> {
 
     pub fn rebuild_cache(&mut self) -> Result<()> {
         // Clear screen
-        write!(self.buffer, "\x1b[2J")?;
+         let _ = write!(self.buffer, "\x1b[2J");
 
         self.time.pos.y = self.terminal_size.y;
         self.time.rebuild_cache();
@@ -317,7 +324,7 @@ impl <'ui> Ui <'ui> {
                 _ => (),
             }
 
-            // Read file into buffer
+            // Write to stdout
             let ret: i32;
             unsafe {
                 asm!("syscall",
@@ -334,8 +341,6 @@ impl <'ui> Ui <'ui> {
             // Check if there's an error
             ensure!(ret as usize == self.buffer.len(), "SYS_WRITE return code: {}", ret);
 
-            /*self.stdout.write_all(&self.buffer)?;
-            self.stdout.flush()?;*/
             self.buffer.clear();
         }
 
@@ -382,37 +387,38 @@ impl <'ui> Ui <'ui> {
 }
 
 // Convert to pretty bytes with specified right alignment
-pub fn convert_with_padding(buffer: &mut String, num: u64, padding: usize) {
+pub fn convert_with_padding(buffer: &mut String, num: u64) {
     buffer.clear();
 
-    if num == 0 {
-        let _ = write!(buffer, "{:>pad$.0} b", num, pad=padding+1);
-        return;
+    if num != 0 {
+        // convert it to a f64 type to we can use ln() and stuff on it.
+        let num = num as f64;
+
+        //static UNITS: [&str; 9] = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
+
+        // A kilobyte is 1024 bytes. Fight me!
+        //let delimiter = 1024_f64;
+
+        // Magic that makes no sense to me
+        let exponent = (num.ln() / DELIMITER_LN).floor() as i32;
+        let pretty_bytes = num / DELIMITER.powi(exponent);
+
+
+        // Different behaviour for different units
+        match exponent {
+            3 => {
+                if pretty_bytes >= 10.0 { let _ = write!(buffer, "{:>4.1} Gb", pretty_bytes); }
+                else { let _ = write!(buffer, "{:>4.2} Gb", pretty_bytes); }
+            },
+            2 => { let _ = write!(buffer, "{:>4.0} Mb", pretty_bytes); },
+            1 => { let _ = write!(buffer, "{:>4.0} Kb", pretty_bytes); },
+            0 => { let _ = write!(buffer, "{:>5.0} b", pretty_bytes); },
+            _ => {
+                let unit = UNITS[exponent as usize];
+                let _ = write!(buffer, "{:>4.1} {}", pretty_bytes, unit);
+            },
+        };
+    } else {
+        let _ = write!(buffer, "{:>5.0} b", num);
     }
-    // convert it to a f64 type to we can use ln() and stuff on it.
-    let num = num as f64;
-
-    let units = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
-
-    // A kilobyte is 1024 bytes. Fight me!
-    let delimiter = 1024_f64;
-
-    // Magic that makes no sense to me
-    let exponent = std::cmp::min(
-        (num.ln() / delimiter.ln()).floor() as i32,
-        (units.len() - 1) as i32,
-    );
-    let pretty_bytes = num / delimiter.powi(exponent as i32);
-    let unit = units[exponent as usize];
-
-    // Different behaviour for different units
-    match unit {
-        "b" => { let _ = write!(buffer, "{:>pad$.0} {}", pretty_bytes, unit, pad=padding+1); },
-        "Kb" | "Mb" => { let _ = write!(buffer, "{:>pad$.0} {}", pretty_bytes, unit, pad=padding); },
-        "Gb" => {
-            if pretty_bytes >= 10.0 { let _ = write!(buffer, "{:>pad$.1} {}", pretty_bytes, unit, pad=padding); }
-            else { let _ = write!(buffer, "{:>pad$.2} {}", pretty_bytes, unit, pad=padding); }
-        },
-        _ => { let _ = write!(buffer, "{:>pad$.1} {}", pretty_bytes, unit, pad=padding); },
-    };
 }

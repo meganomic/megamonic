@@ -63,13 +63,13 @@ impl <'a> Swap <'a> {
         if let Ok(val) = self.system.memoryinfo.lock() {
             if self.total != val.swap_total {
                 self.total = val.swap_total;
-                convert_with_padding(&mut self.buffer.0, val.swap_total, 4);
+                convert_with_padding(&mut self.buffer.0, val.swap_total);
             }
 
             if self.free != val.swap_free {
                 self.free = val.swap_free;
-                convert_with_padding(&mut self.buffer.1, val.swap_used, 4);
-                convert_with_padding(&mut self.buffer.2, val.swap_free, 4);
+                convert_with_padding(&mut self.buffer.1, val.swap_used);
+                convert_with_padding(&mut self.buffer.2, val.swap_free);
             }
         } else {
             bail!("memoryinfo lock is poisoned!");
