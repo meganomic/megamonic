@@ -144,7 +144,10 @@ impl Processes {
                                     .context("Parsing error in /proc/[pid]/cmdline")?
                                     .to_string();
 
-                                let cmdline = split
+
+                                let cmdline: String = split.intersperse(" ").collect();
+
+                                /*let cmdline = split
                                     .fold(
                                         String::new(),
                                         |mut o, i|
@@ -153,7 +156,7 @@ impl Processes {
                                             o.push_str(i);
                                             o
                                         }
-                                    );
+                                    );*/
 
                                 process_entry.insert(
                                     process::Process::new(

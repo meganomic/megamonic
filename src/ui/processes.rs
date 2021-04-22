@@ -150,10 +150,10 @@ fn maxstr(exec: &str, cmd: &str, is_not_exec: bool, pid: u32, pidlen: usize, max
 
     if (c.len() + e.len() + p.len() + 3) > maxlen {
         c.truncate(maxlen.saturating_sub(e.len() + p.len() + 3));
-        return format!("\x1b[91m ] \x1b[37m{}\x1b[0m{}{}\x1b[38;5;244m{}\x1b[0m", p, color, e, c);
+        return format!("\x1b[91m ] \x1b[37m{}\x1b[0m{}{}\x1b[38;5;244m {}\x1b[0m", p, color, e, c);
     }
 
-    format!("\x1b[91m ] \x1b[37m{}\x1b[0m{}{}\x1b[38;5;244m{}\x1b[0m", p, color, e, c)
+    format!("\x1b[91m ] \x1b[37m{}\x1b[0m{}{}\x1b[38;5;244m {}\x1b[0m", p, color, e, c)
 }
 
 // Special handling for 0 memory for processe list
