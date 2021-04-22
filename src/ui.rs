@@ -93,18 +93,7 @@ fn custom_panic_hook() {
         let name = thread.name().unwrap_or("<unnamed>");
 
         // Reset the terminal
-        let data = "\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h";
-        unsafe {
-            asm!("syscall",
-                in("rax") 1, // SYS_WRITE
-                in("rdi") 1,
-                in("rsi") data.as_ptr(),
-                in("rdx") data.len(),
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") _,
-            );
-        }
+        print!("\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h");
 
         let _ = terminal::disable_raw_mode();
 
