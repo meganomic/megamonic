@@ -187,7 +187,6 @@ impl Process {
             if let Ok(true) = open_and_read(buffer, self.smaps_file.as_ptr()) {
                 // Should maybe skip converting to str. I'll have to benchmark it
                 let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
-                eprintln!("{}", data);
                 self.pss = btoi::btou::<i64>(data.lines()
                     .nth(2)
                     .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, before whitespace")?
