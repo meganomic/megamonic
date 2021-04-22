@@ -1,8 +1,8 @@
-use anyhow::{ ensure, Context, Result };
+use anyhow::{ Context, Result };
 use std::ffi::CString;
 
 // Open file 'path' and read it into 'buffer'
-fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
+fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
     // Clear the buffer
     buffer.clear();
 
@@ -22,7 +22,7 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
 
     // If there's an error it's 99.999% certain it's because the process has terminated
     if fd.is_negative() {
-        return Ok(false);
+        return false;
     }
 
     // Read file into buffer
@@ -71,16 +71,19 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
     }
 
     // Check if there's an error, panic if there is!
-    ensure!(ret == 0, "SYS_CLOSE return code: {}", ret);
+    //ensure!(ret == 0, "SYS_CLOSE return code: {}", ret);
+    if ret != 0 || read_error {
+        return false;
+    }
 
-    ensure!(!read_error, "SYS_READ return code: {}", n_read);
+    //ensure!(!read_error, "SYS_READ return code: {}", n_read);
 
     // Set buffer length to however many bytes was read
     unsafe {
         buffer.set_len(n_read as usize);
     }
 
-    Ok(true)
+    true
 }
 
 #[derive(Default)]
@@ -128,15 +131,11 @@ impl Process {
     pub fn update(&mut self, buffer: &mut Vec::<u8>, smaps: bool) -> Result<bool> {
         //let now = std::time::Instant::now();
 
-        let ret = open_and_read(buffer, self.stat_file.as_ptr());
-
-        // If ret is Ok(false) it means the stat file couldn't be opened
+        // If open_and_read returns 'false' it means the stat file couldn't be opened
         // Which means the process has terminated
         // Returning false means the process will be removed from the list
-        if let Ok(false) = ret {
-            return ret;
-        } else if ret.is_err() {
-            return ret.context("open_and_read returned with a failure code!");
+        if !open_and_read(buffer, self.stat_file.as_ptr()) {
+            return Ok(false);
         }
 
         // Need to keep the old total so we have something to compare to
@@ -184,7 +183,9 @@ impl Process {
         };
 
         if smaps {
-            if let Ok(true) = open_and_read(buffer, self.smaps_file.as_ptr()) {
+            // If open_and_read returns false it means we don't have
+            // permission to open the smaps file
+            if open_and_read(buffer, self.smaps_file.as_ptr()) {
                 // Should maybe skip converting to str. I'll have to benchmark it
                 let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
                 self.pss = btoi::btou::<i64>(data.lines()
