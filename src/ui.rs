@@ -48,7 +48,7 @@ const DELIMITER_LN: f64 = 6.93147180559945308431224475498311221599578857421875;
 macro_rules! write_to_stdout {
     ($data:expr) => {
         // Write to stdout
-        //let ret: i32;
+        let ret: i32;
         unsafe {
             asm!("syscall",
                 in("rax") 1, // SYS_WRITE
@@ -57,12 +57,12 @@ macro_rules! write_to_stdout {
                 in("rdx") $data.len(),
                 out("rcx") _,
                 out("r11") _,
-                lateout("rax") _,
+                lateout("rax") ret,
             );
         }
 
         // Check if there's an error
-        //ensure!(ret as usize == $data.len(), "SYS_WRITE return code: {}", ret);
+        ensure!(ret as usize == $data.len(), "SYS_WRITE return code: {}", ret);
     };
 }
 
@@ -79,7 +79,18 @@ fn custom_panic_hook() {
         let name = thread.name().unwrap_or("<unnamed>");
 
         // Reset the terminal
-        write_to_stdout!("\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h");
+        let data = "\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h";
+        unsafe {
+            asm!("syscall",
+                in("rax") 1, // SYS_WRITE
+                in("rdi") 1,
+                in("rsi") data.as_ptr(),
+                in("rdx") data.len(),
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") _,
+            );
+        }
 
         let _ = terminal::disable_raw_mode();
 
@@ -339,22 +350,7 @@ impl <'ui> Ui <'ui> {
                 _ => (),
             }
 
-            // Write to stdout
-            let ret: i32;
-            unsafe {
-                asm!("syscall",
-                    in("rax") 1, // SYS_WRITE
-                    in("rdi") 1,
-                    in("rsi") self.buffer.as_ptr(),
-                    in("rdx") self.buffer.len(),
-                    out("rcx") _,
-                    out("r11") _,
-                    lateout("rax") ret,
-                );
-            }
-
-            // Check if there's an error
-            ensure!(ret as usize == self.buffer.len(), "SYS_WRITE return code: {}", ret);
+            write_to_stdout!(self.buffer);
 
             self.buffer.clear();
         }
