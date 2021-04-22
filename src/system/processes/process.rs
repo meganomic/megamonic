@@ -1,7 +1,7 @@
 use anyhow::{ ensure, Context, Result };
 use std::ffi::CString;
 
-//#[inline(always)]
+// Open file 'path' and read it into 'buffer'
 fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
     // Clear the buffer
     buffer.clear();
@@ -111,16 +111,19 @@ impl Process {
 
         let ret = open_and_read(buffer, self.stat_file.as_ptr());
 
+        // If ret is Ok(false) it means the stat file couldn't be opened
+        // Which means the process has terminated
+        // Returning false means the process will be removed from the list
         if let Ok(false) = ret {
             return ret;
         } else if ret.is_err() {
             return ret.context("open_and_read returned with a failure code!");
         }
 
+        // Need to keep the old total so we have something to compare to
         let old_total = self.total;
 
-
-        // Find position of first ')' character
+                // Find position of first ')' character
         let pos = memchr::memchr(41, buffer.as_slice()).context("The stat_file is funky! It has no ')' character!")?;
 
         //let mut shoe = buffer.split(|v| *v == 41).last().unwrap();
@@ -163,6 +166,7 @@ impl Process {
 
         if smaps {
             if let Ok(true) = open_and_read(buffer, self.smaps_file.as_ptr()) {
+                // Should maybe skip converting to str. I'll have to benchmark it
                 let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
                 self.pss = btoi::btou::<i64>(data.lines()
                     .nth(2)
@@ -178,6 +182,7 @@ impl Process {
 
         }
 
+        // Returning true means the process will not be removed from the list
         Ok(true)
 
         //eprintln!("{}", now.elapsed().as_nanos());
