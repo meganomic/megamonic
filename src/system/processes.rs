@@ -11,8 +11,8 @@ use super::{cpu, Config};
 // Size of 'Processes.buffer_directories' used for getdents64()
 const BUF_SIZE: usize = 1024 * 1024;
 
-// CStr pointer to /proc
-const PROC_PATH: *const u8 = b"/proc\0".as_ptr();
+// CStr pointer to /proc for use with the open(2) syscall
+const PROC_PATH: *const u8 = "/proc\0".as_ptr();
 
 #[repr(C)]
 struct LinuxDirent64T {
@@ -34,12 +34,21 @@ struct LinuxDirent64T {
 
 //#[derive(Default)]
 pub struct Processes {
+    // List of all processes
     pub processes: AHashMap<u32, process::Process>,
+
+    // The length of the longest PID in the list
     pub maxpidlen: usize,
+
+    // Used to clear self.processes if modes are changed
     pub rebuild: bool,
+
+    // Buffers to avoid allocations
     buffer: String,
     buffer_vector_dirs: Vec::<u8>,
     buffer_vector: Vec::<u8>,
+
+    // If all_processes isn't enabled, ignore the PIDs in this list
     ignored: AHashSet<u32>,
 }
 
@@ -70,7 +79,7 @@ impl Processes {
             );
         }
 
-        // Check if there's an error, panic if there is!
+        // Check if there's an error
         ensure!(!fd.is_negative(), "SYS_OPEN return code: {}", fd);
 
         loop {
@@ -88,7 +97,7 @@ impl Processes {
                 );
             }
 
-            // If there is an error panic
+            // Make sure there is no error
             ensure!(!nread.is_negative(), "SYS_GETDENTS64 return code: {}", nread);
 
             // If nread == 0 that means we have read all entries
@@ -103,6 +112,7 @@ impl Processes {
                 let d = (buf_box_ptr + bpos) as *mut LinuxDirent64T;
                 let d_ref = unsafe { &(*d) };
 
+                // Set position to next LinuxDirent64T entry
                 bpos += d_ref.d_reclen as usize;
 
                 // If the entry isn't a directory, skip to the next one
@@ -114,7 +124,7 @@ impl Processes {
                 let pid_cstr = d_ref.d_name
                     .split(|v| *v == 0)
                     .next()
-                    .context("Something is broken with the getdents64() code!")?;
+                    .context("Can't prase d_ref.d_name!")?;
 
                 // Only directory names made up of numbers will pass
                 if let Ok(pid) = btoi::btou(pid_cstr) {
@@ -124,6 +134,7 @@ impl Processes {
                             // If cmdline can't be opened it probably means that the process has terminated, skip it.
                             self.buffer.clear();
                             write!(&mut self.buffer, "/proc/{}/cmdline", pid).context("Error writing to buffer")?;
+
                             if let Ok(mut f) = std::fs::File::open(&self.buffer) {
                                 self.buffer.clear();
                                 f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/cmdline", pid))?;
@@ -160,6 +171,7 @@ impl Processes {
                                     // If stat can't be opened it means the process has terminated, skip it.
                                     self.buffer.clear();
                                     write!(&mut self.buffer, "/proc/{}/stat", pid).context("Error writing to buffer")?;
+
                                     let executable = if let Ok(mut f) = std::fs::File::open(&self.buffer) {
                                         self.buffer.clear();
                                         f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/stat", pid))?;
@@ -223,12 +235,17 @@ impl Processes {
         let topmode = config.topmode.load(atomic::Ordering::Relaxed);
         let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
+        // Needed because of unique captures in closures
         let buf = &mut self.buffer_vector;
 
+        // Used to check if any of the process.update() calls returned an error
         let mut ret: Result<bool> = Ok(false);
+
         self.processes.retain(|_,process| {
             let res = process.update(buf, smaps);
             if let Ok(val) = res {
+                // If val is false it means that /proc/[pid]/stat couldn't be opened
+                // So the entry should be removed
                 if val {
                     if topmode {
                         if process.work > totald {
@@ -252,17 +269,19 @@ impl Processes {
             }
         });
 
+        // Check if any errors occured
         ensure!(ret.is_ok(), "process.update() returned with a failure state!\n{:?}\n", ret);
 
         //eprintln!("{}", now.elapsed().as_nanos());
         Ok(())
     }
 
+    // Make a list of all processes and sort by amount of Work done
+    // For use with displaying it in the terminal
     pub fn cpu_sort(&self) -> (usize, Vec::<&process::Process>) {
         let mut sorted = Vec::new();
 
         for val in self.processes.values() {
-            // Multiply it so it can be sorted
             sorted.push(val);
         }
 
