@@ -111,11 +111,9 @@ impl Process {
 
         let ret = open_and_read(buffer, self.stat_file.as_ptr());
 
-        if let Ok(val) = ret {
-            if !val {
-                return Ok(false);
-            }
-        } else {
+        if let Ok(false) = ret {
+            return ret;
+        } else if ret.is_err() {
             return ret.context("open_and_read returned with a failure code!");
         }
 
