@@ -47,10 +47,10 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
             );
         }
 
-        if ret.is_negative() {
-            break true;
-        } else if ret == 0 {
+        if ret == 0 {
             break false;
+        } else if ret.is_negative()  {
+            break true;
         }
 
         n_read += ret as usize;
