@@ -26,18 +26,37 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
     }
 
     // Read file into buffer
-    let n_read: i32;
-    unsafe {
-        asm!("syscall",
-            in("rax") 0, // SYS_READ
-            in("rdi") fd,
-            in("rsi") buffer.as_mut_ptr(),
-            in("rdx") buffer.capacity(),
-            out("rcx") _,
-            out("r11") _,
-            lateout("rax") n_read,
-         );
+    let mut n_read = 0;
+    let d_ptr_orig = buffer.as_mut_ptr() as usize;
+
+    let mut ret: i32 = 1;
+
+    let mut read_error = false;
+
+    // Continue reading until there is nothing left
+    while ret > 0 {
+        let d_ptr = (d_ptr_orig + n_read as usize) as *const u8;
+
+        unsafe {
+            asm!("syscall",
+                in("rax") 0, // SYS_READ
+                in("rdi") fd,
+                in("rsi") d_ptr,
+                in("rdx") buffer.capacity() - n_read,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") ret,
+            );
+        }
+
+        if ret.is_negative() {
+            read_error = true;
+            break;
+        }
+
+        n_read += ret as usize;
     }
+
 
     // Close file
     let ret: i32;
@@ -54,7 +73,7 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
     // Check if there's an error, panic if there is!
     ensure!(ret == 0, "SYS_CLOSE return code: {}", ret);
 
-    ensure!(n_read.is_positive(), "SYS_READ return code: {}", n_read);
+    ensure!(!read_error, "SYS_READ return code: {}", n_read);
 
     // Set buffer length to however many bytes was read
     unsafe {
@@ -168,6 +187,7 @@ impl Process {
             if let Ok(true) = open_and_read(buffer, self.smaps_file.as_ptr()) {
                 // Should maybe skip converting to str. I'll have to benchmark it
                 let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
+                eprintln!("{}", data);
                 self.pss = btoi::btou::<i64>(data.lines()
                     .nth(2)
                     .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, before whitespace")?

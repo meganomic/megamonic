@@ -137,19 +137,19 @@ fn maxstr(exec: &str, cmd: &str, is_not_exec: bool, pid: u32, pidlen: usize, max
 
     let mut p = format!("{:>pad$} ", pid, pad=pidlen);
 
-    if (p.len() + 3) > maxlen {
-        p.truncate(maxlen.saturating_sub(3));
+    if (p.len() + 4) > maxlen {
+        p.truncate(maxlen.saturating_sub(4));
         return format!("\x1b[91m ] \x1b[37m{}\x1b[0m", p);
     }
 
-    if (e.len() + p.len() + 3) > maxlen {
-        e.truncate(maxlen.saturating_sub(p.len() + 3));
+    if (e.len() + p.len() + 4) > maxlen {
+        e.truncate(maxlen.saturating_sub(p.len() + 4));
         return format!("\x1b[91m ] \x1b[37m{}\x1b[0m{}{}\x1b[0m", p, color, e);
 
     }
 
-    if (c.len() + e.len() + p.len() + 3) > maxlen {
-        c.truncate(maxlen.saturating_sub(e.len() + p.len() + 3));
+    if (c.len() + e.len() + p.len() + 4) > maxlen {
+        c.truncate(maxlen.saturating_sub(e.len() + p.len() + 4));
         return format!("\x1b[91m ] \x1b[37m{}\x1b[0m{}{}\x1b[38;5;244m {}\x1b[0m", p, color, e, c);
     }
 

@@ -48,21 +48,35 @@ const DELIMITER_LN: f64 = 6.93147180559945308431224475498311221599578857421875;
 macro_rules! write_to_stdout {
     ($data:expr) => {
         // Write to stdout
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 1, // SYS_WRITE
-                in("rdi") 1,
-                in("rsi") $data.as_ptr(),
-                in("rdx") $data.len(),
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
+        let mut ret: i32;
+        let mut written = 0;
+
+        let d_ptr_orig = $data.as_ptr() as usize;
+        let length = $data.len();
+
+        while written < length {
+            let d_ptr = (d_ptr_orig + written) as *const u8;
+
+            unsafe {
+                asm!("syscall",
+                    in("rax") 1, // SYS_WRITE
+                    in("rdi") 1,
+                    in("rsi") d_ptr,
+                    in("rdx") length - written,
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") ret,
+                );
+            }
+
+            ensure!(!ret.is_negative(), "SYS_WRITE return code: {}", ret);
+
+            written += ret as usize;
+
         }
 
         // Check if there's an error
-        ensure!(ret as usize == $data.len(), "SYS_WRITE return code: {}", ret);
+        ensure!(written == length, "written: {}, lenght: {}", written, length);
     };
 }
 
@@ -183,7 +197,7 @@ impl <'ui> Ui <'ui> {
         terminal::enable_raw_mode()?;
 
         // Setup the terminal screen
-        write_to_stdout!("\x1b[?1049h\x1b[2J\x1b[?25l\x1b[?7l");
+        write_to_stdout!("\x1b[?1049h\x1b[2J\x1b[?25l"); //\x1b[?7l");
 
         // Initialize custom panic hook
         custom_panic_hook();
@@ -193,7 +207,7 @@ impl <'ui> Ui <'ui> {
 
     pub fn exit(&mut self) -> Result<()> {
         // Reset the terminal screen
-        write_to_stdout!("\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h");
+        write_to_stdout!("\x1b[2J\x1b[?1049l\x1b[?25h"); //\x1b[?7h");
 
         terminal::disable_raw_mode()?;
 
