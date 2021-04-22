@@ -270,7 +270,7 @@ impl Processes {
         });
 
         // Check if any errors occured
-        ensure!(ret.is_ok(), "process.update() returned with a failure state!\n{:?}\n", ret);
+        ret.context("process.update() returned with a failure state!")?;
 
         //eprintln!("{}", now.elapsed().as_nanos());
         Ok(())

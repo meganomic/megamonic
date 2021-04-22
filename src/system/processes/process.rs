@@ -35,7 +35,7 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> Result<bool> {
 
     // Continue reading until there is nothing left
     while ret > 0 {
-        let d_ptr = (d_ptr_orig + n_read as usize) as *const u8;
+        let d_ptr = (d_ptr_orig + n_read) as *const u8;
 
         unsafe {
             asm!("syscall",
