@@ -29,12 +29,10 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
     let mut n_read = 0;
     let d_ptr_orig = buffer.as_mut_ptr() as usize;
 
-    let mut ret: i32 = 1;
-
-    let mut read_error = false;
+    let mut ret: i32;
 
     // Continue reading until there is nothing left
-    while ret > 0 {
+    let read_error = loop {
         let d_ptr = (d_ptr_orig + n_read) as *const u8;
 
         unsafe {
@@ -50,12 +48,13 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
         }
 
         if ret.is_negative() {
-            read_error = true;
-            break;
+            break true;
+        } else if ret == 0 {
+            break false;
         }
 
         n_read += ret as usize;
-    }
+    };
 
 
     // Close file
