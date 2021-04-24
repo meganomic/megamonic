@@ -76,7 +76,7 @@ macro_rules! write_to_stdout {
         }
 
         // Check if there's an error
-        ensure!(written == length, "written: {}, lenght: {}", written, length);
+        debug_assert!(written == length, "written: {}, lenght: {}", written, length);
     };
 }
 
