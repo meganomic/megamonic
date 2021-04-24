@@ -212,9 +212,6 @@ impl <'ui> Ui <'ui> {
     }
 
     pub fn rebuild_cache(&mut self) -> Result<()> {
-        // Clear screen
-         let _ = write!(self.buffer, "\x1b[2J");
-
         self.time.pos.y = self.terminal_size.y;
         self.time.rebuild_cache();
 
@@ -358,6 +355,9 @@ impl <'ui> Ui <'ui> {
     }
 
     pub fn rebuild(&mut self) -> Result<()> {
+        // Clear screen
+        let _ = write!(self.buffer, "\x1b[2J");
+
         self.rebuild_cache()?;
 
         if self.terminal_size.x > (self.hostinfo.size.x + self.time.size.x) {
