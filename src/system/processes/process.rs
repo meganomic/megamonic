@@ -29,12 +29,11 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
     let mut n_read = 0;
     let d_ptr_orig = buffer.as_mut_ptr() as usize;
 
-    let mut ret: i32;
-
     // Continue reading until there is nothing left
     let read_error = loop {
         let d_ptr = (d_ptr_orig + n_read) as *const u8;
 
+        let ret: i32;
         unsafe {
             asm!("syscall",
                 in("rax") 0, // SYS_READ
@@ -56,7 +55,6 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
         n_read += ret as usize;
     };
 
-
     // Close file
     let ret: i32;
     unsafe {
@@ -69,13 +67,14 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
         );
     }
 
-    // Check if there's an error, panic if there is!
-    //ensure!(ret == 0, "SYS_CLOSE return code: {}", ret);
-    if ret != 0 || read_error {
+    //debug_assert!(ret == 0, "SYS_CLOSE return code: {}", ret);
+
+    // Check if there's an error
+    if ret != 0 || read_error || n_read == 0 {
         return false;
     }
 
-    //ensure!(!read_error, "SYS_READ return code: {}", n_read);
+    //debug_assert!(!read_error, "n_read: {}", n_read);
 
     // Set buffer length to however many bytes was read
     unsafe {
