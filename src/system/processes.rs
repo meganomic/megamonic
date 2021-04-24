@@ -72,7 +72,7 @@ impl Processes {
                 in("rax") 2, // SYS_OPEN
                 in("rdi") PROC_PATH,
                 in("rsi") 16, // O_DIRECTORY
-                in("rdx") 0,
+                //in("rdx") 0, // This is the mode. It is not used in this case
                 out("rcx") _,
                 out("r11") _,
                 lateout("rax") fd,
@@ -108,6 +108,7 @@ impl Processes {
             let buf_box_ptr = self.buffer_vector_dirs.as_ptr() as usize;
 
             let mut bpos: usize = 0;
+
             while bpos < nread as usize {
                 let d = (buf_box_ptr + bpos) as *mut LinuxDirent64T;
                 let d_ref = unsafe { &(*d) };
@@ -124,17 +125,18 @@ impl Processes {
                 let pid_cstr = d_ref.d_name
                     .split(|v| *v == 0)
                     .next()
-                    .context("Can't prase d_ref.d_name!")?;
+                    .context("Can't parse d_ref.d_name!")?;
 
                 // Only directory names made up of numbers will pass
                 if let Ok(pid) = btoi::btou(pid_cstr) {
                     if !self.ignored.contains(&pid) {
                         // Don't add it if we already have it
                         if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
-                            // If cmdline can't be opened it probably means that the process has terminated, skip it.
+                            // Avoiding allocations is cool kids!
                             self.buffer.clear();
                             write!(&mut self.buffer, "/proc/{}/cmdline", pid).context("Error writing to buffer")?;
 
+                            // If cmdline can't be opened it probably means that the process has terminated, skip it.
                             if let Ok(mut f) = std::fs::File::open(&self.buffer) {
                                 self.buffer.clear();
                                 f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/cmdline", pid))?;
