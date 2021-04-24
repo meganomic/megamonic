@@ -140,7 +140,7 @@ impl Process {
         // Need to keep the old total so we have something to compare to
         let old_total = self.total;
 
-                // Find position of first ')' character
+        // Find position of first ')' character
         let pos = memchr::memchr(41, buffer.as_slice()).context("The stat_file is funky! It has no ')' character!")?;
 
         //let mut shoe = buffer.split(|v| *v == 41).last().unwrap();
