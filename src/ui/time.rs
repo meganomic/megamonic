@@ -45,7 +45,7 @@ impl <'a> Time <'a> {
     }
 
     fn gettime(&mut self) -> String {
-        let current_time = self.system.time.time.load(std::sync::atomic::Ordering::Relaxed);
+        let current_time = self.system.time.time.load(std::sync::atomic::Ordering::Acquire);
 
         let time_string = libc_strftime::strftime_local(&self.system.config.strftime_format, current_time as i64);
         let length = time_string.len() as u16;

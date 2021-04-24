@@ -16,7 +16,7 @@ pub fn start_thread(internal: Arc<Time>, tx: mpsc::Sender::<u8>, exit: Arc<(std:
             // Used to synchronize the update frequency to system time
             let st_subsec = current_time.subsec_micros();
 
-            internal.time.store(current_time.as_secs(), atomic::Ordering::Relaxed);
+            internal.time.store(current_time.as_secs(), atomic::Ordering::Release);
 
             match tx.send(1) {
                 Ok(_) => (),
