@@ -36,31 +36,38 @@ impl <'a> Sensors <'a> {
             self.cache.clear();
             for (idx, key) in sensorinfo.chips.keys().enumerate() {
                 let y = self.pos.y + 1 + idx as u16;
-                self.cache.push(
-                    (
-                        format!(
-                            "{}\x1b[1K{}\x1b[37m{}{}\x1b[91m[ \x1b[92m",
-                            cursor::MoveTo(self.pos.x + 23, y),
-                            cursor::MoveTo(self.pos.x, y),
-                            key,
-                            cursor::MoveTo(self.pos.x + 15, y),
-                        ),
-                        0
-                    )
-                );
+                if idx == 0 {
+                    self.cache.push(
+                        (
+                            format!(
+                                "{}\x1b[95mSensors\x1b[0m{}\x1b[1K{}\x1b[37m{}{}\x1b[91m[ \x1b[92m",
+                                cursor::MoveTo(self.pos.x, self.pos.y),
+                                cursor::MoveTo(self.pos.x + 23, y),
+                                cursor::MoveTo(self.pos.x, y),
+                                key,
+                                cursor::MoveTo(self.pos.x + 15, y),
+                            ),
+                            0
+                        )
+                    );
+                } else {
+                    self.cache.push(
+                        (
+                            format!(
+                                "{}\x1b[1K{}\x1b[37m{}{}\x1b[91m[ \x1b[92m",
+                                cursor::MoveTo(self.pos.x + 23, y),
+                                cursor::MoveTo(self.pos.x, y),
+                                key,
+                                cursor::MoveTo(self.pos.x + 15, y),
+                            ),
+                            0
+                        )
+                    );
+                }
             }
         } else {
             bail!("sensorinfo lock is poisoned!");
         }
-
-        Ok(())
-    }
-
-    pub fn draw_static(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
-        write!(
-            buffer, "{}\x1b[95mSensors\x1b[0m",
-            cursor::MoveTo(self.pos.x, self.pos.y)
-        )?;
 
         Ok(())
     }

@@ -1,8 +1,6 @@
-use crossterm::cursor;
-use std::io::Write;
-use anyhow::{ bail, Result };
-
+use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
+use anyhow::{ bail, Result };
 
 use crate::system::System;
 use super::{ XY, convert_with_padding };
@@ -32,30 +30,28 @@ impl <'a> Memory <'a> {
         }
     }
 
-    pub fn rebuild_cache (&mut self) -> Result<()> {
+    pub fn rebuild_cache (&mut self) {
         self.cache.0.clear();
-        write!(self.cache.0,
-            "{}\x1b[95mMemory\x1b[0m{}                    {}\x1b[37mTotal: \x1b[38;5;244m[ \x1b[37m",
-            cursor::MoveTo(self.pos.x, self.pos.y),
-            cursor::MoveTo(self.pos.x, self.pos.y+1),
-            cursor::MoveTo(self.pos.x, self.pos.y+1)
-        )?;
+        let _ = write!(self.cache.0,
+            "\x1b[{};{}H\x1b[95mMemory\x1b[0m\x1b[{};{}H                    \x1b[{};{}H\x1b[37mTotal: \x1b[38;5;244m[ \x1b[37m",
+            self.pos.y, self.pos.x,
+            self.pos.y+1, self.pos.x,
+            self.pos.y+1, self.pos.x
+        );
 
         self.cache.1.clear();
-        write!(self.cache.1,
-            "\x1b[38;5;244m ]\x1b[0m{}                    {}\x1b[37mUsed:  \x1b[91m[ \x1b[92m",
-            cursor::MoveTo(self.pos.x, self.pos.y+2),
-            cursor::MoveTo(self.pos.x, self.pos.y+2)
-        )?;
+        let _ = write!(self.cache.1,
+            "\x1b[38;5;244m ]\x1b[0m\x1b[{};{}H                    \x1b[{};{}H\x1b[37mUsed:  \x1b[91m[ \x1b[92m",
+            self.pos.y+2, self.pos.x,
+            self.pos.y+2, self.pos.x
+        );
 
         self.cache.2.clear();
-        write!(self.cache.2,
-            "\x1b[91m ]\x1b[0m{}                    {}\x1b[37mFree:  \x1b[38;5;244m[ \x1b[37m",
-            cursor::MoveTo(self.pos.x, self.pos.y+3),
-            cursor::MoveTo(self.pos.x, self.pos.y+3)
-        )?;
-
-        Ok(())
+        let _ = write!(self.cache.2,
+            "\x1b[91m ]\x1b[0m\x1b[{};{}H                    \x1b[{};{}H\x1b[37mFree:  \x1b[38;5;244m[ \x1b[37m",
+            self.pos.y+3, self.pos.x,
+            self.pos.y+3, self.pos.x,
+        );
     }
 
     pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {

@@ -39,22 +39,20 @@ impl <'a> Processes <'a> {
         self.cache2.clear();
         self.size.y = terminal_size.y.saturating_sub(self.pos.y).saturating_sub(3);
 
-        for idx in 0..self.size.y {
+        self.cache1.push(format!(
+            "{}\x1b[95mProcesses\x1b[0m{}\x1b[0K{}",
+            cursor::MoveTo(self.pos.x, self.pos.y),
+            cursor::MoveTo(self.pos.x, self.pos.y + 1),
+            cursor::MoveTo(self.pos.x, self.pos.y + 1),
+        ));
+
+        for idx in 1..self.size.y {
             self.cache1.push(format!(
                 "{}\x1b[0K{}",
                 cursor::MoveTo(self.pos.x, self.pos.y + 1 + idx as u16),
                 cursor::MoveTo(self.pos.x, self.pos.y + 1 + idx as u16),
             ));
         }
-    }
-
-    pub fn draw_static(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
-        write!(
-            buffer, "{}\x1b[95mProcesses\x1b[0m",
-            cursor::MoveTo(self.pos.x, self.pos.y),
-        )?;
-
-        Ok(())
     }
 
     pub fn draw(&mut self, buffer: &mut Vec::<u8>, terminal_size: &XY) -> Result<()> {

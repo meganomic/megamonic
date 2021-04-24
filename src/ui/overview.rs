@@ -1,8 +1,6 @@
-use crossterm::cursor;
-use std::io::Write;
-use anyhow::{ bail, Result };
-
+use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
+use anyhow::{ bail, Result };
 
 use crate::system::System;
 use super::XY;
@@ -25,30 +23,28 @@ impl <'a> Overview <'a> {
         }
     }
 
-    pub fn rebuild_cache (&mut self) -> Result <()> {
+    pub fn rebuild_cache (&mut self) {
         self.cache.0.clear();
-        write!(self.cache.0,
-            "{}\x1b[95mOverview\x1b[0m{}\x1b[1K{}\x1b[37mCPU:  \x1b[91m[ \x1b[92m",
-            cursor::MoveTo(self.pos.x, self.pos.y),
-            cursor::MoveTo(self.pos.x+16, self.pos.y+1),
-            cursor::MoveTo(self.pos.x, self.pos.y+1)
-        )?;
+        let _ = write!(self.cache.0,
+            "\x1b[{};{}H\x1b[95mOverview\x1b[0m\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[37mCPU:  \x1b[91m[ \x1b[92m",
+            self.pos.y, self.pos.x,
+            self.pos.y+1, self.pos.x+16,
+            self.pos.y+1, self.pos.x,
+        );
 
         self.cache.1.clear();
-        write!(self.cache.1,
-            "{}\x1b[1K{}\x1b[37mMem:  \x1b[91m[ \x1b[92m",
-            cursor::MoveTo(self.pos.x+16, self.pos.y+2),
-            cursor::MoveTo(self.pos.x, self.pos.y+2)
-        )?;
+        let _ = write!(self.cache.1,
+            "\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[37mMem:  \x1b[91m[ \x1b[92m",
+            self.pos.y+2, self.pos.x+16,
+            self.pos.y+2, self.pos.x,
+        );
 
         self.cache.2.clear();
-        write!(self.cache.2,
-            "{}\x1b[1K{}\x1b[37mSwap: \x1b[91m[ \x1b[92m",
-            cursor::MoveTo(self.pos.x+16, self.pos.y+3),
-            cursor::MoveTo(self.pos.x, self.pos.y+3)
-        )?;
-
-        Ok(())
+        let _ = write!(self.cache.2,
+            "\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[37mSwap: \x1b[91m[ \x1b[92m",
+            self.pos.y+3, self.pos.x+16,
+            self.pos.y+3, self.pos.x,
+        );
     }
 
     pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {

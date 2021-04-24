@@ -159,11 +159,11 @@ impl <'ui> Ui <'ui> {
             system,
             terminal_size: XY { x: tsizex, y: tsizey },
 
-            time: Time::new(system, XY { x: 0, y: tsizey }),
-            overview: Overview::new(system, XY { x: 0, y: 0 }),
-            memory: Memory::new(system, XY { x: 17, y: 0 }),
-            swap: Swap::new(system, XY { x: 37, y: 0 }),
-            loadavg: Loadavg::new(system, XY { x: 57, y: 0 }),
+            time: Time::new(system, XY { x: 1, y: tsizey }),
+            overview: Overview::new(system, XY { x: 1, y: 1 }),
+            memory: Memory::new(system, XY { x: 18, y: 1 }),
+            swap: Swap::new(system, XY { x: 38, y: 1 }),
+            loadavg: Loadavg::new(system, XY { x: 58, y: 1 }),
             hostinfo: Hostinfo::new(system, XY { x: 0, y: tsizey }),
             processes: Processes::new(system, XY { x: 26, y: 5 }),
             network: Network::new(system, XY { x: 0, y: 5 }),
@@ -220,25 +220,21 @@ impl <'ui> Ui <'ui> {
 
         self.hostinfo.rebuild_cache(&self.terminal_size);
 
-        self.loadavg.rebuild_cache()?;
-        self.overview.rebuild_cache()?;
-        self.memory.rebuild_cache()?;
-        self.swap.rebuild_cache()?;
+        self.loadavg.rebuild_cache();
+        self.overview.rebuild_cache();
+        self.memory.rebuild_cache();
+        self.swap.rebuild_cache();
         self.processes.rebuild_cache(&self.terminal_size);
-        self.processes.draw_static(&mut self.buffer)?;
 
         // The following objects rely on the position of the previous ones
         // So don't do anything silly.
         self.network.rebuild_cache()?;
-        self.network.draw_static(&mut self.buffer)?;
 
         self.sensors.pos.y = self.network.size.y + self.network.pos.y;
         self.sensors.rebuild_cache()?;
-        self.sensors.draw_static(&mut self.buffer)?;
 
         self.gpu.pos.y = self.sensors.pos.y + self.sensors.size.y;
         self.gpu.rebuild_cache();
-        self.gpu.draw_static(&mut self.buffer)?;
 
         Ok(())
     }
@@ -249,7 +245,7 @@ impl <'ui> Ui <'ui> {
                 // Time
                 1 => {
                     if self.terminal_size.x > self.time.size.x {
-                        self.time.draw(&mut self.buffer)?;
+                        self.time.draw(&mut self.buffer);
                     }
                 },
 

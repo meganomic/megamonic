@@ -1,6 +1,5 @@
-use crossterm::cursor;
-use std::io::Write;
-use anyhow::Result;
+use std::io::Write as ioWrite;
+use std::fmt::Write as fmtWrite;
 
 use crate::system::System;
 use super::XY;
@@ -29,22 +28,20 @@ impl <'a> Time <'a> {
 
     pub fn rebuild_cache (&mut self) {
         self.cache.clear();
-        self.cache.push_str(&format!(
-            "{}\x1b[1K{}\x1b[0m",
-            cursor::MoveTo(self.size.x, self.pos.y),
-            cursor::MoveTo(0, self.pos.y)
-        ));
+        let _ = write!(self.cache,
+            "\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[0m",
+            self.pos.y, self.size.x,
+            self.pos.y, self.pos.x
+        );
     }
 
-    pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
+    pub fn draw (&mut self, buffer: &mut Vec::<u8>) {
         let time_string = self.gettime();
 
         let _ = buffer.write_vectored(&[
             std::io::IoSlice::new(self.cache.as_bytes()),
             std::io::IoSlice::new(time_string.as_bytes()),
         ]);
-
-        Ok(())
     }
 
     fn gettime(&mut self) -> String {

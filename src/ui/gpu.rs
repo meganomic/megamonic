@@ -1,5 +1,6 @@
 use crossterm::cursor;
-use std::io::Write;
+use std::io::Write as ioWrite;
+use std::fmt::Write as fmtWrite;
 use anyhow::{ bail, Result };
 
 use crate::system::System;
@@ -35,41 +36,33 @@ impl <'a> Gpu <'a> {
         self.cache3.clear();
         self.cache4.clear();
 
-        self.cache1.push_str(format!(
-        "{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[37mTemp:         \x1b[91m[ \x1b[92m",
+        let _ = write!(self.cache1,
+        "{}\x1b[95mGpu\x1b[0m{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[37mTemp:         \x1b[91m[ \x1b[92m",
+            cursor::MoveTo(self.pos.x, self.pos.y),
             cursor::MoveTo(self.pos.x+24, self.pos.y+1),
             cursor::MoveTo(self.pos.x+24, self.pos.y+2),
             cursor::MoveTo(self.pos.x+24, self.pos.y+3),
             cursor::MoveTo(self.pos.x+24, self.pos.y+4),
             cursor::MoveTo(self.pos.x, self.pos.y+1),
-        ).as_str());
+        );
 
 
-        self.cache2.push_str(format!(
+        let _ = write!(self.cache2,
             " C\x1b[91m ]\x1b[0m{}\x1b[37mGpu load:     \x1b[91m[ \x1b[92m",
             cursor::MoveTo(self.pos.x, self.pos.y+2),
-        ).as_str());
+        );
 
-        self.cache3.push_str(format!(
+        let _ = write!(self.cache3,
             "%\x1b[91m ]\x1b[0m{}\x1b[37mMem load:     \x1b[91m[ \x1b[92m",
             cursor::MoveTo(self.pos.x, self.pos.y+3),
-        ).as_str());
+        );
 
-        self.cache4.push_str(format!(
+        let _ = write!(self.cache4,
             "%\x1b[91m ]\x1b[0m{}\x1b[37mMem use:      \x1b[91m[ \x1b[92m",
             cursor::MoveTo(self.pos.x, self.pos.y+4),
-        ).as_str());
+        );
 
 
-    }
-
-    pub fn draw_static(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
-        write!(
-            buffer, "{}\x1b[95mGpu\x1b[0m",
-            cursor::MoveTo(self.pos.x, self.pos.y),
-        )?;
-
-        Ok(())
     }
 
     // 2550 -> 2050
