@@ -57,10 +57,12 @@ impl <'a> Memory <'a> {
     pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
         if let Ok(val) = self.system.memoryinfo.lock() {
             if self.total != val.mem_total {
+                self.total = val.mem_total;
                 convert_with_padding(&mut self.buffer.0, val.mem_total);
             }
 
             if self.free != val.mem_free {
+                self.free = val.mem_free;
                 convert_with_padding(&mut self.buffer.1, val.mem_used);
                 convert_with_padding(&mut self.buffer.2, val.mem_free);
             }
