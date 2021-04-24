@@ -13,7 +13,7 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
             in("rax") 2, // SYS_OPEN
             in("rdi") path,
             in("rsi") 0, // O_RDONLY
-            in("rdx") 0,
+            //in("rdx") 0, // This is the mode. It is not used in this case
             out("rcx") _,
             out("r11") _,
             lateout("rax") fd,
@@ -25,12 +25,18 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
         return false;
     }
 
+
     // Read file into buffer
     let mut n_read = 0;
     let d_ptr_orig = buffer.as_mut_ptr() as usize;
 
     // Continue reading until there is nothing left
+    // This will basically always call read() twice
+    // The first time it reads all data
+    // The second time it confirms it has read all data
+    // I am unsure if it's better to use fstat() to get the filesize instead
     let read_error = loop {
+        // Adjust buffer pointer so we don't overwrite the data we just read :D
         let d_ptr = (d_ptr_orig + n_read) as *const u8;
 
         let ret: i32;
@@ -46,14 +52,21 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
             );
         }
 
+        // If ret == 0 it means there is nothing more to read
         if ret == 0 {
             break false;
+
+        // If ret is negative it means there was an error
+        // This is most likely caused by a lack of permissions
+        // This will happen *alot* if smaps is enabled
         } else if ret.is_negative()  {
             break true;
         }
 
+        // If there are no errors ret contains amount of bytes read
         n_read += ret as usize;
     };
+
 
     // Close file
     let ret: i32;
