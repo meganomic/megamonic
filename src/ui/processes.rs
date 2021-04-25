@@ -161,7 +161,8 @@ fn maxstr(exec: &str, cmd: &str, is_not_exec: bool, pid: u32, pidlen: usize, max
     format!("\x1b[91m ] \x1b[37m{}\x1b[0m{}{}\x1b[38;5;244m {}\x1b[0m", p, color, e, c)
 }
 
-// Special handling for 0 memory for processe list
+// Taken from https://github.com/banyan/rust-pretty-bytes/blob/master/src/converter.rs
+// And customized for my use
 #[inline(always)]
 fn convert_with_padding_proc(buffer: &mut String, num: i64, color: &str) {
     buffer.clear();
