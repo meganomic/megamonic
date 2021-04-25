@@ -1,4 +1,3 @@
-use crossterm::cursor;
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ bail, Result };
@@ -37,29 +36,29 @@ impl <'a> Gpu <'a> {
         self.cache4.clear();
 
         let _ = write!(self.cache1,
-        "{}\x1b[95mGpu\x1b[0m{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[1K{}\x1b[37mTemp:         \x1b[91m[ \x1b[92m",
-            cursor::MoveTo(self.pos.x, self.pos.y),
-            cursor::MoveTo(self.pos.x+24, self.pos.y+1),
-            cursor::MoveTo(self.pos.x+24, self.pos.y+2),
-            cursor::MoveTo(self.pos.x+24, self.pos.y+3),
-            cursor::MoveTo(self.pos.x+24, self.pos.y+4),
-            cursor::MoveTo(self.pos.x, self.pos.y+1),
+        "\x1b[{};{}H\x1b[95mGpu\x1b[0m\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[37mTemp:         \x1b[91m[ \x1b[92m",
+            self.pos.y, self.pos.x,
+            self.pos.y + 1, self.pos.x + 24,
+            self.pos.y + 2, self.pos.x + 24,
+            self.pos.y + 3, self.pos.x + 24,
+            self.pos.y + 4, self.pos.x + 24,
+            self.pos.y + 1, self.pos.x,
         );
 
 
         let _ = write!(self.cache2,
-            " C\x1b[91m ]\x1b[0m{}\x1b[37mGpu load:     \x1b[91m[ \x1b[92m",
-            cursor::MoveTo(self.pos.x, self.pos.y+2),
+            " C\x1b[91m ]\x1b[0m\x1b[{};{}H\x1b[37mGpu load:     \x1b[91m[ \x1b[92m",
+            self.pos.y + 2, self.pos.x,
         );
 
         let _ = write!(self.cache3,
-            "%\x1b[91m ]\x1b[0m{}\x1b[37mMem load:     \x1b[91m[ \x1b[92m",
-            cursor::MoveTo(self.pos.x, self.pos.y+3),
+            "%\x1b[91m ]\x1b[0m\x1b[{};{}H\x1b[37mMem load:     \x1b[91m[ \x1b[92m",
+            self.pos.y + 3, self.pos.x,
         );
 
         let _ = write!(self.cache4,
-            "%\x1b[91m ]\x1b[0m{}\x1b[37mMem use:      \x1b[91m[ \x1b[92m",
-            cursor::MoveTo(self.pos.x, self.pos.y+4),
+            "%\x1b[91m ]\x1b[0m\x1b[{};{}H\x1b[37mMem use:      \x1b[91m[ \x1b[92m",
+            self.pos.y + 4, self.pos.x,
         );
 
 

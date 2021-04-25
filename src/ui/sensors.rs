@@ -1,4 +1,3 @@
-use crossterm::cursor;
 use std::io::Write;
 use anyhow::{ bail, Result };
 
@@ -40,12 +39,12 @@ impl <'a> Sensors <'a> {
                     self.cache.push(
                         (
                             format!(
-                                "{}\x1b[95mSensors\x1b[0m{}\x1b[1K{}\x1b[37m{}{}\x1b[91m[ \x1b[92m",
-                                cursor::MoveTo(self.pos.x, self.pos.y),
-                                cursor::MoveTo(self.pos.x + 23, y),
-                                cursor::MoveTo(self.pos.x, y),
+                                "\x1b[{};{}H\x1b[95mSensors\x1b[0m\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[37m{}\x1b[{};{}H\x1b[91m[ \x1b[92m",
+                                self.pos.y, self.pos.x,
+                                y, self.pos.x + 23,
+                                y, self.pos.x,
                                 key,
-                                cursor::MoveTo(self.pos.x + 15, y),
+                                y, self.pos.x + 15,
                             ),
                             0
                         )
@@ -54,11 +53,11 @@ impl <'a> Sensors <'a> {
                     self.cache.push(
                         (
                             format!(
-                                "{}\x1b[1K{}\x1b[37m{}{}\x1b[91m[ \x1b[92m",
-                                cursor::MoveTo(self.pos.x + 23, y),
-                                cursor::MoveTo(self.pos.x, y),
+                                "\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[37m{}\x1b[{};{}H\x1b[91m[ \x1b[92m",
+                                y, self.pos.x + 23,
+                                y, self.pos.x,
                                 key,
-                                cursor::MoveTo(self.pos.x + 15, y),
+                                y, self.pos.x + 15,
                             ),
                             0
                         )

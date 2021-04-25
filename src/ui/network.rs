@@ -1,4 +1,3 @@
-use crossterm::cursor;
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ bail, Result};
@@ -42,31 +41,32 @@ impl <'a> Network <'a> {
             self.cache.clear();
 
             for (idx, key) in networkinfo.stats.keys().enumerate() {
+                let y = self.pos.y + count + 1;
                 if idx == 0 {
                     self.cache.push(
                         (
                             format!(
-                                "{}\x1b[95mNetwork\x1b[0m{}\x1b[1K{}\x1b[37m{:<8}\x1b[91m[ \x1b[92m",
-                                cursor::MoveTo(self.pos.x, self.pos.y),
-                                cursor::MoveTo(self.pos.x+25, self.pos.y + 1 + count ),
-                                cursor::MoveTo(self.pos.x, self.pos.y + 1 + count ),
+                                "\x1b[{};{}H\x1b[95mNetwork\x1b[0m\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[37m{:<8}\x1b[91m[ \x1b[92m",
+                                self.pos.y, self.pos.x,
+                                y, self.pos.x + 25,
+                                y, self.pos.x,
                                 key
                             ),
                             format!(
-                                "{}\x1b[95mNetwork\x1b[0m{}\x1b[1K{}\x1b[37m{:<8}\x1b[38;5;244m[ \x1b[37m",
-                                cursor::MoveTo(self.pos.x, self.pos.y),
-                                cursor::MoveTo(self.pos.x+25, self.pos.y + 1 + count ),
-                                cursor::MoveTo(self.pos.x, self.pos.y + 1 + count ),
+                                "\x1b[{};{}H\x1b[95mNetwork\x1b[0m\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[37m{:<8}\x1b[38;5;244m[ \x1b[37m",
+                                self.pos.y, self.pos.x,
+                                y, self.pos.x + 25,
+                                y, self.pos.x,
                                 key
                             ),
                             format!(
-                                "{}\x1b[91m{:>10}\x1b[92m",
-                                cursor::MoveTo(self.pos.x, self.pos.y + 2 + count ),
+                                "\x1b[{};{}H\x1b[91m{:>10}\x1b[92m",
+                                y + 1, self.pos.x,
                                 "[ ",
                             ),
                             format!(
-                                "{}\x1b[38;5;244m{:>10}\x1b[37m",
-                                cursor::MoveTo(self.pos.x, self.pos.y + 2 + count ),
+                                "\x1b[{};{}H\x1b[38;5;244m{:>10}\x1b[37m",
+                                y + 1, self.pos.x,
                                 "[ "
                             )
                         )
@@ -75,25 +75,31 @@ impl <'a> Network <'a> {
                     self.cache.push(
                         (
                             format!(
-                                "{}\x1b[1K{}\x1b[37m{:<8}\x1b[91m[ \x1b[92m",
-                                cursor::MoveTo(self.pos.x+25, self.pos.y + 1 + count ),
-                                cursor::MoveTo(self.pos.x, self.pos.y + 1 + count ),
+                                "\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[37m{:<8}\x1b[91m[ \x1b[92m",
+                                y, self.pos.x + 25,
+                                y, self.pos.x,
+                                /*cursor::MoveTo(self.pos.x+25, self.pos.y + 1 + count ),
+                                cursor::MoveTo(self.pos.x, self.pos.y + 1 + count ),*/
                                 key
                             ),
                             format!(
-                                "{}\x1b[1K{}\x1b[37m{:<8}\x1b[38;5;244m[ \x1b[37m",
-                                cursor::MoveTo(self.pos.x+25, self.pos.y + 1 + count ),
-                                cursor::MoveTo(self.pos.x, self.pos.y + 1 + count ),
+                                "\x1b[{};{}H\x1b[1K\x1b[{};{}H\x1b[37m{:<8}\x1b[38;5;244m[ \x1b[37m",
+                                y, self.pos.x + 25,
+                                y, self.pos.x,
+                                /*cursor::MoveTo(self.pos.x+25, self.pos.y + 1 + count ),
+                                cursor::MoveTo(self.pos.x, self.pos.y + 1 + count ),*/
                                 key
                             ),
                             format!(
-                                "{}\x1b[91m{:>10}\x1b[92m",
-                                cursor::MoveTo(self.pos.x, self.pos.y + 2 + count ),
+                                "\x1b[{};{}H\x1b[91m{:>10}\x1b[92m",
+                                y + 1, self.pos.x,
+                                //cursor::MoveTo(self.pos.x, self.pos.y + 2 + count ),
                                 "[ ",
                             ),
                             format!(
-                                "{}\x1b[38;5;244m{:>10}\x1b[37m",
-                                cursor::MoveTo(self.pos.x, self.pos.y + 2 + count ),
+                                "\x1b[{};{}H\x1b[38;5;244m{:>10}\x1b[37m",
+                                y + 1, self.pos.x,
+                                //cursor::MoveTo(self.pos.x, self.pos.y + 2 + count ),
                                 "[ "
                             )
                         )

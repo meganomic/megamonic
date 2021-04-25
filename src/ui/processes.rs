@@ -1,4 +1,3 @@
-use crossterm::cursor;
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ bail, Result };
@@ -42,17 +41,17 @@ impl <'a> Processes <'a> {
         self.size.y = terminal_size.y.saturating_sub(self.pos.y).saturating_sub(3);
 
         self.cache1.push(format!(
-            "{}\x1b[95mProcesses\x1b[0m{}\x1b[0K{}",
-            cursor::MoveTo(self.pos.x, self.pos.y),
-            cursor::MoveTo(self.pos.x, self.pos.y + 1),
-            cursor::MoveTo(self.pos.x, self.pos.y + 1),
+            "\x1b[{};{}H\x1b[95mProcesses\x1b[0m\x1b[{};{}H\x1b[0K\x1b[{};{}H",
+            self.pos.y, self.pos.x,
+            self.pos.y + 1, self.pos.x,
+            self.pos.y + 1, self.pos.x,
         ));
 
         for idx in 1..self.size.y {
             self.cache1.push(format!(
-                "{}\x1b[0K{}",
-                cursor::MoveTo(self.pos.x, self.pos.y + 1 + idx as u16),
-                cursor::MoveTo(self.pos.x, self.pos.y + 1 + idx as u16),
+                "\x1b[{};{}H\x1b[0K\x1b[{};{}H",
+                self.pos.y + idx + 1, self.pos.x,
+                self.pos.y + idx + 1, self.pos.x,
             ));
         }
     }

@@ -166,10 +166,10 @@ impl <'ui> Ui <'ui> {
             swap: Swap::new(system, XY { x: 38, y: 1 }),
             loadavg: Loadavg::new(system, XY { x: 58, y: 1 }),
             hostinfo: Hostinfo::new(system, XY { x: 0, y: tsizey }),
-            processes: Processes::new(system, XY { x: 26, y: 5 }),
-            network: Network::new(system, XY { x: 0, y: 5 }),
-            sensors: Sensors::new(system, XY { x: 0, y: 11 }),
-            gpu: Gpu::new(system, XY { x: 0, y: 21 }),
+            processes: Processes::new(system, XY { x: 27, y: 6 }),
+            network: Network::new(system, XY { x: 1, y: 6 }),
+            sensors: Sensors::new(system, XY { x: 1, y: 12 }),
+            gpu: Gpu::new(system, XY { x: 1, y: 22 }),
         };
 
         ui.init().context("Error occured while initializting UI")?;
