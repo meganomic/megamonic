@@ -5,7 +5,7 @@ use std::fmt::Write as fmtWrite;
 use ahash::{ AHashMap, AHashSet };
 use std::collections::hash_map::Entry;
 
-mod process;
+pub mod process;
 use super::{cpu, Config};
 
 // Size of 'Processes.buffer_directories' used for getdents64()
@@ -47,6 +47,8 @@ pub struct Processes {
     buffer: String,
     buffer_vector_dirs: Vec::<u8>,
     buffer_vector: Vec::<u8>,
+
+    sorted: Vec::<usize>,
 
     // If all_processes isn't enabled, ignore the PIDs in this list
     ignored: AHashSet<u32>,
@@ -280,20 +282,24 @@ impl Processes {
 
     // Make a list of all processes and sort by amount of Work done
     // For use with displaying it in the terminal
-    pub fn cpu_sort(&self) -> (usize, Vec::<&process::Process>) {
-        let mut sorted = Vec::new();
+    pub fn cpu_sort(&mut self) -> (usize, &Vec::<usize>) {
+        // This pointer cancer is because I don't want to allocate
+        // a new vector every single time this function is called
+        self.sorted.clear();
 
         for val in self.processes.values() {
-            sorted.push(val);
+            self.sorted.push(val as *const process::Process as usize);
         }
 
         // Sort by amount of Work, if equal sort by Total Work
-        sorted.sort_by(|a, b| {
+        self.sorted.sort_by(|a, b| {
+            let a = unsafe { &*(*a as *const process::Process) };
+            let b = unsafe { &*(*b as *const process::Process) };
             b.work.cmp(&a.work)
                 .then(b.total.cmp(&a.total))
         });
 
-        (self.maxpidlen, sorted)
+        (self.maxpidlen, &self.sorted)
     }
 }
 
@@ -307,6 +313,7 @@ impl Default for Processes {
             buffer_vector_dirs: Vec::with_capacity(BUF_SIZE),
             buffer_vector: Vec::with_capacity(1000),
             ignored: AHashSet::default(),
+            sorted: Vec::new(),
         }
     }
 }

@@ -6,7 +6,7 @@ mod loadavg;
 mod memory;
 mod sensors;
 mod network;
-mod processes;
+pub mod processes;
 mod gpu;
 mod hostinfo;
 mod time;

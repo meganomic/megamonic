@@ -6,6 +6,8 @@ use std::sync::atomic;
 use ahash::AHashMap;
 
 use crate::system::System;
+use crate::system::processes::process;
+
 use super::{ DELIMITER_LN, DELIMITER, UNITS, XY };
 
 pub struct Processes <'a> {
@@ -58,7 +60,7 @@ impl <'a> Processes <'a> {
     pub fn draw(&mut self, buffer: &mut Vec::<u8>, terminal_size: &XY) -> Result<()> {
         let smaps = self.system.config.smaps.load(atomic::Ordering::Relaxed);
 
-        if let Ok(processinfo) = self.system.processinfo.lock() {
+        if let Ok(mut processinfo) = self.system.processinfo.lock() {
             let (pidlen, list) = processinfo.cpu_sort();
 
             // Update cache if the length of PID increases
@@ -70,7 +72,12 @@ impl <'a> Processes <'a> {
             let max_length = (terminal_size.x - self.pos.x - 19) as usize;
 
             //let now = std::time::Instant::now();
-            for (idx, val) in list.iter().enumerate() {
+            for (idx, val_ptr) in list.iter().enumerate() {
+
+                // The list is a list of pointers.
+                // Yeah, I know. But I can't figure out how to do it any other way.
+                let val = unsafe { &*(*val_ptr as *const process::Process) };
+
                 // Break once we printed all the processes that fit on screen
                 if idx == self.size.y as usize {
                     break;
