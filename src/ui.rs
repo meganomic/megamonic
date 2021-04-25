@@ -69,13 +69,14 @@ macro_rules! write_to_stdout {
                 );
             }
 
+            // Check if there's an error
             ensure!(!ret.is_negative(), "SYS_WRITE return code: {}", ret);
 
             written += ret as usize;
 
         }
 
-        // Check if there's an error
+        // Make sure it actually works correctly
         debug_assert!(written == length, "written: {}, lenght: {}", written, length);
     };
 }
@@ -396,6 +397,8 @@ impl <'ui> Ui <'ui> {
     }
 }
 
+// Taken from https://github.com/banyan/rust-pretty-bytes/blob/master/src/converter.rs
+// And customized for my use
 // Convert to pretty bytes with specified right alignment
 pub fn convert_with_padding(buffer: &mut String, num: u64) {
     buffer.clear();

@@ -5,7 +5,7 @@ use anyhow::{ bail, Result};
 use std::sync::atomic;
 
 use crate::system::System;
-use super::XY;
+use super::{ DELIMITER_LN, DELIMITER, UNITS, XY };
 
 pub struct Network <'a> {
     pub system: &'a System,
@@ -117,15 +117,10 @@ impl <'a> Network <'a> {
                 return Ok(true);
             }
 
-            /*let _ = write!(buffer, "{}\x1b[95mNetwork\x1b[0m",
-                    cursor::MoveTo(self.pos.x, self.pos.y)
-                );*/
-
             let freq = self.system.config.frequency.load(atomic::Ordering::Relaxed);
 
             for (count, val) in networkinfo.stats.values().enumerate() {
-                self.buffer_speed1.clear();
-                convert_speed(&mut self.buffer_speed1, val.recv, freq)?;
+                convert_speed(&mut self.buffer_speed1, val.recv, freq);
 
                 let cache1 = if val.recv != 0 {
                     unsafe { self.cache.get_unchecked(count).0.as_bytes() }
@@ -133,8 +128,7 @@ impl <'a> Network <'a> {
                     unsafe { self.cache.get_unchecked(count).1.as_bytes() }
                 };
 
-                self.buffer_speed2.clear();
-                convert_speed(&mut self.buffer_speed2, val.sent, freq)?;
+                convert_speed(&mut self.buffer_speed2, val.sent, freq);
 
                 let cache2 = if val.sent != 0 {
                     unsafe { self.cache.get_unchecked(count).2.as_bytes() }
@@ -159,34 +153,31 @@ impl <'a> Network <'a> {
     }
 }
 
+// Taken from https://github.com/banyan/rust-pretty-bytes/blob/master/src/converter.rs
+// And customized for my use
 // Convert function for network with special handling
-fn convert_speed(buffer: &mut String, num: u64, freq: u64) -> Result<()> {
-    if num == 0 {
-        write!(buffer, "{:>5.0} b/s\x1b[38;5;244m ]", num)?;
-        return Ok(());
+fn convert_speed(buffer: &mut String, num: u64, freq: u64) {
+    buffer.clear();
+
+    if num != 0 {
+        // convert it to a f64 type to we can use ln() and stuff on it.
+        let num = num as f64 / (freq as f64 / 1000.0);
+
+        // Magic that makes no sense to me
+        let exponent = (num.ln() / DELIMITER_LN).floor() as i32;
+        let pretty_bytes = num / DELIMITER.powi(exponent);
+
+        // Different behaviour for different units 7
+        match exponent {
+            0 => { let _ = write!(buffer, "{:>5.0} b/s\x1b[91m ]", pretty_bytes); },
+            1 => { let _ = write!(buffer, "{:>4.0} Kb/s\x1b[91m ]", pretty_bytes); },
+            2 => { let _ = write!(buffer, "{:>4.0} Mb/s\x1b[91m ]", pretty_bytes); },
+            _ => {
+                let unit = UNITS[exponent as usize];
+                let _ = write!(buffer, "{:>4.1} {}/s\x1b[91m ]", pretty_bytes, unit);
+            },
+        }
+    } else {
+        let _ = write!(buffer, "{:>5.0} b/s\x1b[38;5;244m ]", num);
     }
-    // convert it to a f64 type to we can use ln() and stuff on it.
-    let num = num as f64 / (freq as f64 / 1000.0);
-
-    let units = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
-
-    // A kilobyte is 1024 bytes. Fight me!
-    let delimiter = 1024_f64;
-
-    // Magic that makes no sense to me
-    let exponent = std::cmp::min(
-        (num.ln() / delimiter.ln()).floor() as i32,
-        (units.len() - 1) as i32,
-    );
-    let pretty_bytes = num / delimiter.powi(exponent as i32);
-    let unit = units[exponent as usize];
-
-    // Different behaviour for different units 7
-    match unit {
-        "b" => write!(buffer, "{:>5.0} {}/s\x1b[91m ]", pretty_bytes, unit)?,
-        "Kb" => write!(buffer, "{:>4.0} {}/s\x1b[91m ]", pretty_bytes, unit)?,
-        _ => write!(buffer, "{:>4.1} {}/s\x1b[91m ]", pretty_bytes, unit)?,
-    }
-
-    Ok(())
 }
