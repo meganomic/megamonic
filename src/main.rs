@@ -6,8 +6,8 @@ use clap::{ App, AppSettings, Arg, value_t };
 use std::sync::atomic;
 
 mod system;
-
 mod ui;
+mod terminal;
 
 fn main() -> Result<()> {
     let options = App::new("Megamonic")
@@ -67,11 +67,20 @@ fn main() -> Result<()> {
     // Event channel
     let (tx, rx) = std::sync::mpsc::channel();
 
+    let terminal = terminal::Terminal::new();
+    terminal.enable_raw_mode();
+
     // Start monitoring threads
     system.start(tx);
 
     // Check if there was any errors starting up
     if !system.error.lock().unwrap().is_empty() {
+        // Send a 'q' to the input buffer so I don't have to poll the input stream
+        // In the event thread. Just send 'q' to make it exit.
+        terminal.send_char("q");
+
+        terminal.disable_raw_mode();
+
         system.stop();
 
         for err in system.error.lock().expect("system.error lock couldn't be aquired!").iter() {
@@ -92,13 +101,17 @@ fn main() -> Result<()> {
             1..=13 => {
                 if let Err(err) = ui.update(event).context("Error occured while updating UI") {
                     error = Some(err);
+                    terminal.send_char("q");
                     break;
                 }
             },
 
             // This is a error event incase one of the threads break.
             99 => {
+                terminal.send_char("q");
+                terminal.disable_raw_mode();
                 ui.exit()?;
+
                 system.stop();
 
                 for err in system.error.lock().expect("system.error lock couldn't be aquired!").iter() {
@@ -122,6 +135,7 @@ fn main() -> Result<()> {
 
                 if let Err(err) = ui.rebuild() {
                     error = Some(err);
+                    terminal.send_char("q");
                     break;
                 }
             },
@@ -130,6 +144,7 @@ fn main() -> Result<()> {
             106 => {
                 if let Err(err) = ui.rebuild() {
                     error = Some(err);
+                    terminal.send_char("q");
                     break;
                 }
             },
@@ -141,6 +156,8 @@ fn main() -> Result<()> {
             _ => break,
         }
     }
+
+    terminal.disable_raw_mode();
 
     ui.exit()?;
 

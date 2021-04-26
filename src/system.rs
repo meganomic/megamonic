@@ -91,7 +91,6 @@ impl System {
                 Arc::clone(&self.events),
                 Arc::clone(&self.config),
                 mtx.clone(),
-                Arc::clone(&self.exit)
             )
         );
 
