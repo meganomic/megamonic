@@ -90,7 +90,7 @@ fn main() -> Result<()> {
         bail!("An error occured while starting!");
     }
 
-    let mut ui = ui::Ui::new(&system)?;
+    let mut ui = ui::Ui::new(&system, terminal.gettermsize())?;
 
     let mut error: Option<anyhow::Error> = None;
 
@@ -126,9 +126,9 @@ fn main() -> Result<()> {
 
             // resize
             105 => {
-                let (y, x) = terminal.gettermsize();
-                ui.terminal_size.y = y;
+                let (x, y) = terminal.gettermsize();
                 ui.terminal_size.x = x;
+                ui.terminal_size.y = y;
 
                 if let Err(err) = ui.rebuild() {
                     error = Some(err);

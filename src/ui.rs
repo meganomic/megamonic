@@ -1,4 +1,3 @@
-use crossterm::terminal;
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ ensure, Context, Result };
@@ -96,7 +95,7 @@ fn custom_panic_hook() {
         // Reset the terminal
         print!("\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h");
 
-        let _ = terminal::disable_raw_mode();
+        crate::terminal::disable_raw_mode();
 
         let msg = match info.payload().downcast_ref::<&'static str>() {
             Some(s) => *s,
@@ -151,8 +150,8 @@ pub struct Ui <'ui> {
 }
 
 impl <'ui> Ui <'ui> {
-    pub fn new(system: &'ui super::system::System) -> Result<Self> {
-        let (tsizex, tsizey) = terminal::size().context("Can't get terminal size")?;
+    pub fn new(system: &'ui super::system::System, terminal_size: (u16, u16)) -> Result<Self> {
+        let (tsizex, tsizey) = (terminal_size.0, terminal_size.1);
 
         let mut ui = Self {
             paused: false,

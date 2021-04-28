@@ -44,6 +44,7 @@ const IEXTEN: u32 =  0100000;
 const EXTPROC: u32 = 0200000;
 
 #[repr(C)]
+#[derive(Copy,Clone)]
 struct Termios {
     c_iflag: u32,           /* input mode flags */
     c_oflag: u32,            /* output mode flags */
@@ -62,6 +63,51 @@ struct Winsize {
     ws_col: u16,
     ws_xpixel: u16,   /* unused */
     ws_ypixel: u16,   /* unused */
+}
+
+static mut TTYTERMIOS: Termios = Termios {
+            c_iflag: 0,
+            c_oflag: 0,
+            c_cflag: 0,
+            c_lflag: 0,
+            c_line: 0,
+            c_cc: [0; NCSS],
+            c_ispeed: 0,
+            c_ospeed: 0
+        };
+
+static mut TTYFD: i32 = 0;
+
+pub fn disable_raw_mode() {
+    let ret: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 16, // SYS_IOCTL
+            in("rdi") TTYFD,
+            in("rsi") TCSETS, // O_RDONLY
+            in("rdx") &TTYTERMIOS as *const Termios,
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") ret,
+        );
+    }
+
+    assert!(!ret.is_negative());
+
+    let ret: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 3, // SYS_CLOSE
+            in("rdi") TTYFD,
+            //in("rsi") 0, // O_RDONLY
+            //in("rdx") 0, // This is the mode. It is not used in this case
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") ret,
+        );
+    }
+
+    assert!(!ret.is_negative());
 }
 
 pub struct Terminal {
@@ -112,6 +158,11 @@ impl Terminal {
         }
 
         assert!(!ret.is_negative());
+
+        unsafe {
+            TTYTERMIOS = termios;
+            TTYFD = fd;
+        }
 
         Terminal {
             org_termios: termios,
@@ -219,6 +270,6 @@ impl Terminal {
 
         assert!(!ret.is_negative());
 
-        (winsize.ws_row, winsize.ws_col)
+        (winsize.ws_col, winsize.ws_row)
     }
 }
