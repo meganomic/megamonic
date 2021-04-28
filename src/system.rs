@@ -35,7 +35,6 @@ pub struct System {
     pub hostinfo: hostinfo::Hostinfo,
 
     pub time: Arc<time::Time>,
-    pub events: Arc<Mutex<events::Events>>,
 
     pub exit: Arc<(Mutex<bool>, Condvar)>,
 
@@ -49,6 +48,14 @@ pub struct System {
 impl System {
     // This function starts all the monitoring threads
     pub fn start(&mut self, mtx: std::sync::mpsc::Sender<u8>) {
+        // Event loop
+        self.threads.push(
+            events::start_thread(
+                Arc::clone(&self.config),
+                mtx.clone(),
+            )
+        );
+
         // Update frequency
         let sleepy = std::time::Duration::from_millis(self.config.frequency.load(atomic::Ordering::Relaxed));
 
@@ -82,15 +89,6 @@ impl System {
                 Arc::clone(&self.time),
                 mtx.clone(),
                 Arc::clone(&self.exit)
-            )
-        );
-
-        // Event loop
-        self.threads.push(
-            events::start_thread(
-                Arc::clone(&self.events),
-                Arc::clone(&self.config),
-                mtx.clone(),
             )
         );
 

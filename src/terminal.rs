@@ -55,12 +55,22 @@ struct Termios {
     c_ospeed: u32           /* output speed */
 }
 
+#[repr(C)]
+#[derive(Default)]
+struct Winsize {
+    ws_row: u16,
+    ws_col: u16,
+    ws_xpixel: u16,   /* unused */
+    ws_ypixel: u16,   /* unused */
+}
+
 pub struct Terminal {
     org_termios: Termios,
     fd: i32,
 }
 
 impl Terminal {
+    // Open tty fd and save original settings
     pub fn new() -> Self {
         let fd: i32;
         unsafe {
@@ -109,6 +119,7 @@ impl Terminal {
         }
     }
 
+    // Enable raw mode
     pub fn enable_raw_mode(&self) {
         let termios = Termios {
             c_iflag: self.org_termios.c_iflag & !(IGNBRK | BRKINT | PARMRK | ISTRIP
@@ -138,6 +149,7 @@ impl Terminal {
         assert!(!ret.is_negative());
     }
 
+    // Reset to original tty settings and close the fd
     pub fn disable_raw_mode(&self) {
         let ret: i32;
         unsafe {
@@ -170,6 +182,7 @@ impl Terminal {
         assert!(!ret.is_negative());
     }
 
+    // Send char to terminal input stream
     pub fn send_char(&self, c: &str) {
         let ret: i32;
         unsafe {
@@ -185,5 +198,27 @@ impl Terminal {
         }
 
         assert!(!ret.is_negative());
+    }
+
+    // Get the size of the terminal
+    pub fn gettermsize(&self) -> (u16, u16) {
+        let mut winsize = Winsize::default();
+
+        let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 16, // SYS_IOCTL
+                in("rdi") self.fd,
+                in("rsi") TIOCGWINSZ, // O_RDONLY
+                in("rdx") &mut winsize as *mut Winsize,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") ret,
+            );
+        }
+
+        assert!(!ret.is_negative());
+
+        (winsize.ws_row, winsize.ws_col)
     }
 }

@@ -126,12 +126,9 @@ fn main() -> Result<()> {
 
             // resize
             105 => {
-                if let Ok(val) =  system.events.lock() {
-                    ui.terminal_size.x = val.tsizex;
-                    ui.terminal_size.y = val.tsizey;
-                } else {
-                    panic!("Event lock is poisoned!");
-                }
+                let (y, x) = terminal.gettermsize();
+                ui.terminal_size.y = y;
+                ui.terminal_size.x = x;
 
                 if let Err(err) = ui.rebuild() {
                     error = Some(err);
