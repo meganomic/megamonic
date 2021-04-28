@@ -1,5 +1,3 @@
-use crossterm::{ cursor, style::SetColors };
-
 use std::io::Write as ioWrite;
 //use std::fmt::Write as fmtWrite;
 
@@ -34,16 +32,10 @@ impl <'a> Hostinfo <'a> {
 
         self.cache.clear();
         self.cache.push_str(&format!(
-                "{}\x1b[0K{}\x1b[91m[ {}{}\x1b[91m ] [ \x1b[0m{}\x1b[91m ]\x1b[0m",
-                cursor::MoveTo(
-                    terminal_size.x.saturating_sub(self.size.x),
-                    terminal_size.y
-                ),
-                cursor::MoveTo(
-                    terminal_size.x.saturating_sub(self.size.x),
-                    terminal_size.y
-                ),
-                SetColors(self.system.hostinfo.ansi_color.into()),
+                "\x1b[{};{}H\x1b[0K\x1b[{};{}H\x1b[91m[ {}{}\x1b[91m ] [ \x1b[0m{}\x1b[91m ]\x1b[0m",
+                terminal_size.y, terminal_size.x.saturating_sub(self.size.x),
+                terminal_size.y, terminal_size.x.saturating_sub(self.size.x),
+                self.system.hostinfo.ansi_color,
                 self.system.hostinfo.distname,
                 self.system.hostinfo.kernel
             )
