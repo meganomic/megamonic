@@ -38,7 +38,7 @@ impl <'a> Processes <'a> {
     pub fn rebuild_cache(&mut self, terminal_size: &XY) {
         self.cache1.clear();
         self.cache2.clear();
-        self.size.y = terminal_size.y.saturating_sub(self.pos.y).saturating_sub(3);
+        self.size.y = terminal_size.y.saturating_sub(self.pos.y).saturating_sub(2);
 
         self.cache1.push(format!(
             "\x1b[{};{}H\x1b[95mProcesses\x1b[0m\x1b[{};{}H\x1b[0K\x1b[{};{}H",
