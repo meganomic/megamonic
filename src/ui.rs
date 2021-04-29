@@ -33,7 +33,7 @@ mod gpu;
 use gpu::Gpu;
 
 
-// These are for used with the conversion functions
+// These are for use with the conversion functions
 static UNITS: [&str; 9] = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
 
 // A kilobyte is 1024 bytes. Fight me!
