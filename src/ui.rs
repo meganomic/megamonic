@@ -43,7 +43,7 @@ const DELIMITER: f64 = 1024_f64;
 const DELIMITER_LN: f64 = 6.93147180559945308431224475498311221599578857421875;
 
 
-// Write to stdout without error checking
+// Write to stdout
 macro_rules! write_to_stdout {
     ($data:expr) => {
         // Write to stdout
@@ -92,8 +92,8 @@ fn custom_panic_hook() {
         let thread = std::thread::current();
         let name = thread.name().unwrap_or("<unnamed>");
 
-        // Reset the terminal
-        print!("\x1b[2J\x1b[?1049l\x1b[?25h\x1b[?7h");
+        // clear screen, disable Alternate screen, show cursor
+        print!("\x1b[2J\x1b[?1049l\x1b[?25h");
 
         crate::terminal::disable_raw_mode();
 
@@ -182,8 +182,8 @@ impl <'ui> Ui <'ui> {
     }
 
     fn init(&mut self) -> Result<()> {
-        // Setup the terminal screen
-        write_to_stdout!("\x1b[?1049h\x1b[2J\x1b[?25l"); //\x1b[?7l");
+        // Alternate screen, clear screen, hide cursor
+        write_to_stdout!("\x1b[?1049h\x1b[2J\x1b[?25l");
 
         // Initialize custom panic hook
         custom_panic_hook();
@@ -192,8 +192,8 @@ impl <'ui> Ui <'ui> {
     }
 
     pub fn exit(&mut self) -> Result<()> {
-        // Reset the terminal screen
-        write_to_stdout!("\x1b[2J\x1b[?1049l\x1b[?25h"); //\x1b[?7h");
+        // clear screen, disable Alternate screen, show cursor
+        write_to_stdout!("\x1b[2J\x1b[?1049l\x1b[?25h");
 
         Ok(())
     }
