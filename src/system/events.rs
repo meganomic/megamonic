@@ -1,6 +1,5 @@
 use std::sync::{Arc, mpsc, atomic};
 use super::Config;
-//use crossterm::event::{read, Event, KeyCode, KeyModifiers};
 
 mod epoll;
 
