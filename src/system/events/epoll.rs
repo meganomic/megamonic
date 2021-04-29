@@ -41,15 +41,15 @@ impl SignalFD {
         set |= 1u64 << (27); // SIGWINCH == 28 - 1 = 27
         set |= 1u64 << (1); // SIGINT == 2 - 1 = 1
 
-
+        // Block the signals we want to handle ourselves
         let ret: i32;
         unsafe {
             asm!("syscall",
-                in("rax") 14, // SYS_SIGNALFD4
+                in("rax") 14, // SYS_RT_SIGPROCMASK
                 in("rdi") 2, // SIG_SETMASK
-                in("rsi") &set as *const u64, //&sigset as *const libc::sigset_t, // 	sigset_t __user * nset
+                in("rsi") &set as *const u64, // sigset_t __user * nset
                 in("rdx") 0, // sigset_t __user * oset
-                in("r10") 8, // size_t sigsetsize
+                in("r10") 8, // size_t sigsetsize aka how many bytes is the set
                 out("rcx") _,
                 out("r11") _,
                 lateout("rax") ret,
@@ -62,11 +62,11 @@ impl SignalFD {
         let fd: i32;
         unsafe {
             asm!("syscall",
-                in("rax") 289, // SYS_SIGNALFD4
+                in("rax") 282, // SYS_SIGNALFD4
                 in("rdi") -1, // -1 == create a new signalfd
                 in("rsi") &set as *const u64, //&sigset as *const libc::sigset_t, // user_mask
-                in("rdx") 8, // sizemask = u64 == 8, u32 == 4
-                in("r10") 0, // flags
+                in("rdx") 8, // sizemask aka how many bytes is the set
+                //in("r10") 0, // flags
                 out("rcx") _,
                 out("r11") _,
                 lateout("rax") fd,
