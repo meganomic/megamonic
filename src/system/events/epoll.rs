@@ -7,16 +7,6 @@ const TCSETS: u32 = 0x5402;
 const TIOCGWINSZ: u32 = 0x5413;
 const TIOCSTI: u32 = 0x5412;
 
-
-/*
-termios_p->c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP
-                | INLCR | IGNCR | ICRNL | IXON);
-termios_p->c_oflag &= ~OPOST;
-termios_p->c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-termios_p->c_cflag &= ~(CSIZE | PARENB);
-termios_p->c_cflag |= CS8;
-*/
-
 /* c_iflag bits */
 const IGNBRK: u32 =  0000001;
 const BRKINT: u32 =  0000002;
@@ -77,12 +67,6 @@ struct Winsize {
     ws_ypixel: u16,   /* unused */
 }
 
-/*const _SIGSET_NWORDS: usize = (1024 / (8 * 32));
-struct __sigset_t {
-    __val: [u32; _SIGSET_NWORDS]
-}*/
-
-
 #[repr(C)]
 #[derive(Default, Debug)]
 pub struct SignalfdSiginfo {
@@ -124,10 +108,6 @@ pub struct sigset_t {
 }*/
 
 fn sigmask(sig: i32) -> u64 {
-    //(1UL << (((sig) - 1) % ULONG_WIDTH));
-
-    //let mut UL: u64 = 1;
-
     1u64 << ((sig - 1) % 64)
 }
 
@@ -404,69 +384,3 @@ pub fn gettermsize() -> (u16, u16) {
 
     (winsize.ws_row, winsize.ws_col)
 }
-
-/*fn main() {
-    let mut epoll = Epoll::new();
-
-    let signals = SignalFD::new();
-
-    epoll.add(0);
-    epoll.add(signals.fd);
-
-    loop {
-        let event = epoll.wait();
-
-        if unsafe { event.data.fd == 0 } {
-            let mut buf = Vec::<u8>::with_capacity(10);
-
-            let ret: i32;
-            unsafe {
-                asm!("syscall",
-                    in("rax") 0, // SYS_READ
-                    in("rdi") 0,
-                    in("rsi") buf.as_mut_ptr(),
-                    in("rdx") 10,
-                    out("rcx") _,
-                    out("r11") _,
-                    lateout("rax") ret,
-                );
-            }
-
-            assert!(!ret.is_negative());
-
-            unsafe {
-                buf.set_len(ret as usize);
-            }
-
-        } else if unsafe { event.data.fd == signals.fd } {
-            let mut data = SignalfdSiginfo::default();
-
-            let ret: i32;
-            unsafe {
-                asm!("syscall",
-                    in("rax") 0, // SYS_READ
-                    in("rdi") signals.fd,
-                    in("rsi") &mut data as *mut SignalfdSiginfo,
-                    in("rdx") std::mem::size_of_val(&data),
-                    out("rcx") _,
-                    out("r11") _,
-                    lateout("rax") ret,
-                );
-            }
-
-            assert!(!ret.is_negative());
-
-            gettermsize();
-
-        } else {
-            println!("I dunno");
-        }
-    }
-
-
-
-
-    epoll.close();
-    signals.close();
-
-}*/
