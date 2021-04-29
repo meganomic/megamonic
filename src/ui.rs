@@ -182,9 +182,6 @@ impl <'ui> Ui <'ui> {
     }
 
     fn init(&mut self) -> Result<()> {
-        // Disable all hotkeys and stuff.
-        //terminal::enable_raw_mode()?;
-
         // Setup the terminal screen
         write_to_stdout!("\x1b[?1049h\x1b[2J\x1b[?25l"); //\x1b[?7l");
 
@@ -197,8 +194,6 @@ impl <'ui> Ui <'ui> {
     pub fn exit(&mut self) -> Result<()> {
         // Reset the terminal screen
         write_to_stdout!("\x1b[2J\x1b[?1049l\x1b[?25h"); //\x1b[?7h");
-
-        //terminal::disable_raw_mode()?;
 
         Ok(())
     }
