@@ -40,7 +40,7 @@ static UNITS: [&str; 9] = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
 const DELIMITER: f64 = 1024_f64;
 
 // ln(1024)
-const DELIMITER_LN: f64 = 6.93147180559945308431224475498311221599578857421875;
+const DELIMITER_LN: f64 = 6.931_471_805_599_453;
 
 
 // Write to stdout
