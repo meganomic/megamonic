@@ -57,6 +57,7 @@ static mut TTYTERMIOS: Termios = Termios {
 
 static mut TTYFD: i32 = 0;
 
+// Make sure statics are initialized
 #[inline(always)]
 fn check_statics() {
     if unsafe { TTYFD == 0 } {
@@ -64,6 +65,7 @@ fn check_statics() {
     }
 }
 
+// Initialize the statics
 fn init() {
     // Open tty fd
     let fd: i32;
