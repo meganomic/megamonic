@@ -100,14 +100,19 @@ fn main() -> Result<()> {
             1..=13 => {
                 if let Err(err) = ui.update(event).context("Error occured while updating UI") {
                     error = Some(err);
+
+                    // Exit event thread
                     terminal::send_char("q");
+
                     break;
                 }
             },
 
             // This is a error event incase one of the threads break.
             99 => {
+                // Exit event thread
                 terminal::send_char("q");
+
                 terminal::disable_raw_mode();
                 ui.exit()?;
 
@@ -131,7 +136,10 @@ fn main() -> Result<()> {
 
                 if let Err(err) = ui.rebuild() {
                     error = Some(err);
+
+                    // Exit event thread
                     terminal::send_char("q");
+
                     break;
                 }
             },
@@ -140,7 +148,10 @@ fn main() -> Result<()> {
             106 => {
                 if let Err(err) = ui.rebuild() {
                     error = Some(err);
+
+                    // Exit event thread
                     terminal::send_char("q");
+
                     break;
                 }
             },
