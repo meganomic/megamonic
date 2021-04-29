@@ -140,13 +140,13 @@ fn init() {
 pub fn enable_raw_mode() {
     check_statics();
 
-    // Enable raw mode settings
+    // Enable raw mode settings, but still send signals. c_flag | ISIG
     let termios = unsafe { Termios {
         c_iflag: TTYTERMIOS.c_iflag & !(IGNBRK | BRKINT | PARMRK | ISTRIP
                 | INLCR | IGNCR | ICRNL | IXON),
         c_oflag: TTYTERMIOS.c_oflag & !1,
         c_cflag: TTYTERMIOS.c_cflag & !(60 | 400) | 60,
-        c_lflag: TTYTERMIOS.c_lflag & !(ECHO | ECHONL | ICANON | ISIG | IEXTEN),
+        c_lflag: TTYTERMIOS.c_lflag & !(ECHO | ECHONL | ICANON | IEXTEN),
         c_line: TTYTERMIOS.c_line,
         c_cc: TTYTERMIOS.c_cc,
         c_ispeed: TTYTERMIOS.c_ispeed,
