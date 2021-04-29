@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 const NCSS: usize = 32;
 
 const TCGETS: u32 = 0x5401;
@@ -10,38 +8,19 @@ const TIOCSTI: u32 = 0x5412;
 /* c_iflag bits */
 const IGNBRK: u32 =  0000001;
 const BRKINT: u32 =  0000002;
-const IGNPAR: u32 =  0000004;
 const PARMRK: u32 =  0000010;
-const INPCK: u32 =   0000020;
 const ISTRIP: u32 =  0000040;
 const INLCR: u32 =   0000100;
 const IGNCR: u32 =   0000200;
 const ICRNL: u32 =   0000400;
-const IUCLC: u32 =   0001000;
 const IXON: u32 =    0002000;
-const IXANY: u32 =   0004000;
-const IXOFF: u32 =   0010000;
-const IMAXBEL: u32 = 0020000;
-const IUTF8: u32 =   0040000;
 
 
 /* c_lflag bits */
-const ISIG: u32 =    0000001;
 const ICANON: u32 =  0000002;
-const XCASE: u32 =   0000004;
 const ECHO: u32 =    0000010;
-const ECHOE: u32 =   0000020;
-const ECHOK: u32 =   0000040;
 const ECHONL: u32 =  0000100;
-const NOFLSH: u32 =  0000200;
-const TOSTOP: u32 =  0000400;
-const ECHOCTL: u32 = 0001000;
-const ECHOPRT: u32 = 0002000;
-const ECHOKE: u32 =  0004000;
-const FLUSHO: u32 =  0010000;
-const PENDIN: u32 =  0040000;
 const IEXTEN: u32 =  0100000;
-const EXTPROC: u32 = 0200000;
 
 #[repr(C)]
 struct Termios {
