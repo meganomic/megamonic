@@ -28,6 +28,8 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
 
             // Check which fd contains the event
             if fd == 0 {
+                // Stdin event
+
                 buf.clear();
 
                 // Read what's in stdin
@@ -125,14 +127,12 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                 }
 
             } else if fd == signalfd.fd {
-                // This is only triggered if the terminal is resized
+                // Signal event
 
                 // Buffer to hold the signal data
                 let mut data = epoll::SignalfdSiginfo::default();
 
                 // Read signal info from signalfd
-                // I don't need it but I read it anyway to clear the buffer
-                // Not sure if it's needed
                 let ret: i32;
                 unsafe {
                     asm!("syscall",
@@ -145,8 +145,6 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                         lateout("rax") ret,
                     );
                 }
-
-                eprintln!("signal: {}", data.ssi_signo);
 
                 assert!(!ret.is_negative());
 
