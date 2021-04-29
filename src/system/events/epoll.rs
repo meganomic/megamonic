@@ -29,42 +29,27 @@ pub struct SignalfdSiginfo {
                         additional fields in the future) */
 }
 
-// Custom sigaddset(), portability is for casuals
-fn sigmask(sig: i32) -> u64 {
-    1u64 << ((sig - 1) % 64)
-}
-
-fn sigword(sig: i32) -> u64 {
-    ((sig - 1) / 64) as u64
-}
-
-fn sigaddset(set: &mut [u64; 8], sig: i32) {
-    let mask = sigmask(sig);
-    let word = sigword(sig);
-
-    set[word as usize] |= mask;
-}
-
 pub struct SignalFD {
     pub fd: i32,
 }
 
 impl SignalFD {
     pub fn new() -> Self {
-        // Custom verison
-        let mut set: [u64; 8] = [0; 8];
+        // sigset_t is just a u64 on 64bit linux.
+        let mut set: u64 = 0;
 
-        sigaddset(&mut set, 28); // SIGWINCH
-        sigaddset(&mut set, 2); // SIGINT
+        set |= 1u64 << (27); // SIGWINCH == 28 - 1 = 27
+        set |= 1u64 << (1); // SIGINT == 2 - 1 = 1
+
 
         let ret: i32;
         unsafe {
             asm!("syscall",
                 in("rax") 14, // SYS_SIGNALFD4
                 in("rdi") 2, // SIG_SETMASK
-                in("rsi") set.as_ptr(), //&sigset as *const libc::sigset_t, // 	sigset_t __user * nset
+                in("rsi") &set as *const u64, //&sigset as *const libc::sigset_t, // 	sigset_t __user * nset
                 in("rdx") 0, // sigset_t __user * oset
-                in("r10") set.len(), // size_t sigsetsize
+                in("r10") 8, // size_t sigsetsize
                 out("rcx") _,
                 out("r11") _,
                 lateout("rax") ret,
@@ -79,8 +64,8 @@ impl SignalFD {
             asm!("syscall",
                 in("rax") 289, // SYS_SIGNALFD4
                 in("rdi") -1, // -1 == create a new signalfd
-                in("rsi") set.as_ptr(), //&sigset as *const libc::sigset_t, // user_mask
-                in("rdx") set.len(), // sizemask = u64 == 8, u32 == 4
+                in("rsi") &set as *const u64, //&sigset as *const libc::sigset_t, // user_mask
+                in("rdx") 8, // sizemask = u64 == 8, u32 == 4
                 in("r10") 0, // flags
                 out("rcx") _,
                 out("r11") _,
@@ -89,24 +74,6 @@ impl SignalFD {
         }
 
         assert!(!fd.is_negative());
-
-        /* libc version
-        let mut sigset: libc::sigset_t = unsafe { std::mem::MaybeUninit::zeroed().assume_init() };
-
-        // Initialize sigset_t
-        unsafe { libc::sigemptyset(&mut sigset) };
-
-        // Set SIGWINCH to be handled by us
-        unsafe { libc::sigaddset(&mut sigset, libc::SIGWINCH) };
-        unsafe { libc::sigaddset(&mut sigset, libc::SIGINT) };
-
-
-        // Disable default handling of SIGWINCH
-        unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, &sigset, 0 as *mut libc::sigset_t) };
-
-
-        let fd = unsafe { libc::signalfd(-1, &sigset, 0) };
-        */
 
         Self {
             fd
