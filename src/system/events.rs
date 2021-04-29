@@ -146,13 +146,31 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                     );
                 }
 
+                eprintln!("signal: {}", data.ssi_signo);
+
                 assert!(!ret.is_negative());
 
-                // Notify main thread about resize
-                match tx.send(105) {
-                    Ok(_) => (),
-                    Err(_) => break,
-                };
+                match data.ssi_signo {
+                    // SIGWINCH
+                    28 => {
+                        // Notify main thread about resize
+                        match tx.send(105) {
+                            Ok(_) => (),
+                            Err(_) => break,
+                        };
+                    },
+
+                    // SIGINT
+                    2 => {
+                        // Notify main thread about SIGINT
+                        match tx.send(99) {
+                            Ok(_) => (),
+                            Err(_) => break,
+                        };
+                    },
+
+                    _ => (),
+                }
 
             } else {
                 // Something has gone horrible wrong!
