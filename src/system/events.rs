@@ -129,26 +129,10 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
             } else if fd == signalfd.fd {
                 // Signal event
 
-                // Buffer to hold the signal data
-                let mut data = epoll::SignalfdSiginfo::default();
+                // Get what signal was recieved
+                let signo = signalfd.read();
 
-                // Read signal info from signalfd
-                let ret: i32;
-                unsafe {
-                    asm!("syscall",
-                        in("rax") 0, // SYS_READ
-                        in("rdi") signalfd.fd,
-                        in("rsi") &mut data as *mut epoll::SignalfdSiginfo,
-                        in("rdx") 128, //std::mem::size_of_val(&data),
-                        out("rcx") _,
-                        out("r11") _,
-                        lateout("rax") ret,
-                    );
-                }
-
-                assert!(!ret.is_negative());
-
-                match data.ssi_signo {
+                match signo {
                     // SIGWINCH
                     28 => {
                         // Notify main thread about resize

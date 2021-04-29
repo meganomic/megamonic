@@ -1,6 +1,6 @@
 #[repr(C)]
 #[derive(Default)]
-pub struct SignalfdSiginfo {
+struct SignalfdSiginfo {
     pub ssi_signo: u32,    /* Signal number */
     ssi_errno: i32,    /* Error number (unused) */
     ssi_code: i32,     /* Signal code */
@@ -93,6 +93,29 @@ impl SignalFD {
         }
 
         assert!(!ret.is_negative());
+    }
+
+    pub fn read(&self) -> u32 {
+        // Buffer to hold the signal data
+        let mut data = SignalfdSiginfo::default();
+
+        // Read signal info from signalfd
+        let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 0, // SYS_READ
+                in("rdi") self.fd,
+                in("rsi") &mut data as *mut SignalfdSiginfo,
+                in("rdx") 128,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") ret,
+            );
+        }
+
+        assert!(!ret.is_negative());
+
+        data.ssi_signo
     }
 }
 
