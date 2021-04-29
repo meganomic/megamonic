@@ -67,8 +67,6 @@ fn main() -> Result<()> {
     // Event channel
     let (tx, rx) = std::sync::mpsc::channel();
 
-    //let terminal = terminal::Terminal::new();
-    //terminal.enable_raw_mode();
     terminal::enable_raw_mode();
 
     // Start monitoring threads
@@ -76,8 +74,8 @@ fn main() -> Result<()> {
 
     // Check if there was any errors starting up
     if !system.error.lock().unwrap().is_empty() {
-        // Send a 'q' to the input buffer so I don't have to poll the input stream
-        // In the event thread. Just send 'q' to make it exit.
+        // Send a 'q' to the input buffer so I don't have to check the 'exit' condvar
+        // in the event thread. Just send 'q' to make it exit.
         terminal::send_char("q");
 
         terminal::disable_raw_mode();
