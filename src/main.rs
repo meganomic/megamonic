@@ -117,7 +117,7 @@ fn main() -> Result<()> {
                     eprintln!("{:?}", err);
                 }
 
-                bail!("Error event 99 occured!");
+                bail!("Error event 99 occured! Cause either by an error or by SIGINT");
             },
 
             // Pause
