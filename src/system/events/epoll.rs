@@ -196,13 +196,12 @@ pub struct Epoll {
 
 impl Epoll {
     pub fn new() -> Self {
+        // Create epoll fd
         let ret: i32;
         unsafe {
             asm!("syscall",
                 in("rax") 291, // SYS_EPOLL_CREATE1
-                in("rdi") 0,
-                //in("rsi") 0, // O_RDONLY
-                //in("rdx") 0, // This is the mode. It is not used in this case
+                in("rdi") 0, // Flags
                 out("rcx") _,
                 out("r11") _,
                 lateout("rax") ret,
@@ -218,18 +217,19 @@ impl Epoll {
 
     pub fn add(&mut self, fd: i32) {
         let event = EpollEvent {
-            events: 1,
+            events: 1, // EPOLLIN == 1
             data: epoll_data_t {
                 fd
             }
         };
 
+        // Add fd to the epoll interest list
         let ret: i32;
         unsafe {
             asm!("syscall",
                 in("rax") 233, // SYS_EPOLL_CTL
                 in("rdi") self.fd, // int epfd
-                in("rsi") 1, // EPOLLIN == 1
+                in("rsi") 1, // EPOLL_CTL_ADD == 1
                 in("rdx") fd, // FD to monitor
                 in("r10") &event as *const EpollEvent, // struct epoll_event __user * event
                 out("rcx") _,
@@ -242,6 +242,7 @@ impl Epoll {
     }
 
     pub fn close(&self) {
+        // Close epoll fd
         let ret: i32;
         unsafe {
             asm!("syscall",
@@ -258,12 +259,13 @@ impl Epoll {
 
     pub fn wait(&self) -> EpollEvent {
         let mut event = EpollEvent {
-            events: 1,
+            events: 0,
             data: epoll_data_t {
                 fd: 0
             }
         };
 
+        // Wait for a epoll event
         let ret: i32;
         unsafe {
             asm!("syscall",
