@@ -70,7 +70,7 @@ struct Winsize {
 #[repr(C)]
 #[derive(Default, Debug)]
 pub struct SignalfdSiginfo {
-    ssi_signo: u32,    /* Signal number */
+    pub ssi_signo: u32,    /* Signal number */
     ssi_errno: i32,    /* Error number (unused) */
     ssi_code: i32,     /* Signal code */
     ssi_pid: u32,      /* PID of sender */
@@ -158,6 +158,7 @@ impl SignalFD {
 
         // Set SIGWINCH to be handled by us
         unsafe { libc::sigaddset(&mut sigset, libc::SIGWINCH) };
+        unsafe { libc::sigaddset(&mut sigset, libc::SIGINT) };
 
         /*let bajs: [u64; 16] = unsafe { std::mem::transmute_copy(&sigset) };
         eprintln!("siget3: {:?}", bajs);*/
@@ -335,52 +336,4 @@ impl Epoll {
 
         event
     }
-}
-
-pub fn gettermsize() -> (u16, u16) {
-    let fd: i32;
-    unsafe {
-        asm!("syscall",
-            in("rax") 2, // SYS_OPEN
-            in("rdi") "/dev/tty\0".as_ptr(),
-            in("rsi") 0, // O_RDONLY
-            out("rcx") _,
-            out("r11") _,
-            lateout("rax") fd,
-         );
-    }
-
-    assert!(!fd.is_negative());
-
-    let mut winsize = Winsize::default();
-
-    let ret: i32;
-    unsafe {
-        asm!("syscall",
-            in("rax") 16, // SYS_IOCTL
-            in("rdi") fd,
-            in("rsi") TIOCGWINSZ, // O_RDONLY
-            in("rdx") &mut winsize as *mut Winsize,
-            out("rcx") _,
-            out("r11") _,
-            lateout("rax") ret,
-         );
-    }
-
-    assert!(!ret.is_negative());
-
-    let ret: i32;
-    unsafe {
-        asm!("syscall",
-            in("rax") 3, // SYS_CLOSE
-            in("rdi") fd,
-            out("rcx") _,
-            out("r11") _,
-            lateout("rax") ret,
-         );
-    }
-
-    assert!(!ret.is_negative());
-
-    (winsize.ws_row, winsize.ws_col)
 }
