@@ -1,26 +1,34 @@
 const NCSS: usize = 32;
 
-const TCGETS: u32 = 0x5401;
-const TCSETS: u32 = 0x5402;
+const TCGETS: u32 =     0x5401;
+const TCSETS: u32 =     0x5402;
 const TIOCGWINSZ: u32 = 0x5413;
-const TIOCSTI: u32 = 0x5412;
+const TIOCSTI: u32 =    0x5412;
 
 /* c_iflag bits */
-const IGNBRK: u32 =  0000001;
-const BRKINT: u32 =  0000002;
-const PARMRK: u32 =  0000010;
-const ISTRIP: u32 =  0000040;
-const INLCR: u32 =   0000100;
-const IGNCR: u32 =   0000200;
-const ICRNL: u32 =   0000400;
-const IXON: u32 =    0002000;
+const IGNBRK: u32 =  0o1;
+const BRKINT: u32 =  0o2;
+const PARMRK: u32 =  0o10;
+const ISTRIP: u32 =  0o40;
+const INLCR: u32 =   0o100;
+const IGNCR: u32 =   0o200;
+const ICRNL: u32 =   0o400;
+const IXON: u32 =    0o2000;
 
 
 /* c_lflag bits */
-const ICANON: u32 =  0000002;
-const ECHO: u32 =    0000010;
-const ECHONL: u32 =  0000100;
-const IEXTEN: u32 =  0100000;
+const ICANON: u32 =  0o2;
+const ECHO: u32 =    0o10;
+const ECHONL: u32 =  0o100;
+const IEXTEN: u32 =  0o100000;
+
+/* c_oflag bits */
+const OPOST: u32 = 0o1;
+
+/* c_cflag bits */
+const CSIZE: u32 =  0o60;
+const CS8: u32 =    0o60;
+const PARENB: u32 = 0o400;
 
 #[repr(C)]
 struct Termios {
@@ -125,9 +133,9 @@ pub fn enable_raw_mode() {
     let termios = unsafe { Termios {
         c_iflag: TTYTERMIOS.c_iflag & !(IGNBRK | BRKINT | PARMRK | ISTRIP
                 | INLCR | IGNCR | ICRNL | IXON),
-        c_oflag: TTYTERMIOS.c_oflag & !1,
-        c_cflag: TTYTERMIOS.c_cflag & !(60 | 400) | 60,
+        c_oflag: TTYTERMIOS.c_oflag & !OPOST,
         c_lflag: TTYTERMIOS.c_lflag & !(ECHO | ECHONL | ICANON | IEXTEN),
+        c_cflag: TTYTERMIOS.c_cflag & !(CSIZE | PARENB) | CS8,
         c_line: TTYTERMIOS.c_line,
         c_cc: TTYTERMIOS.c_cc,
         c_ispeed: TTYTERMIOS.c_ispeed,
