@@ -67,8 +67,9 @@ fn main() -> Result<()> {
     // Event channel
     let (tx, rx) = std::sync::mpsc::channel();
 
-    let terminal = terminal::Terminal::new();
-    terminal.enable_raw_mode();
+    //let terminal = terminal::Terminal::new();
+    //terminal.enable_raw_mode();
+    terminal::enable_raw_mode();
 
     // Start monitoring threads
     system.start(tx);
@@ -77,9 +78,9 @@ fn main() -> Result<()> {
     if !system.error.lock().unwrap().is_empty() {
         // Send a 'q' to the input buffer so I don't have to poll the input stream
         // In the event thread. Just send 'q' to make it exit.
-        terminal.send_char("q");
+        terminal::send_char("q");
 
-        terminal.disable_raw_mode();
+        terminal::disable_raw_mode();
 
         system.stop();
 
@@ -90,7 +91,7 @@ fn main() -> Result<()> {
         bail!("An error occured while starting!");
     }
 
-    let mut ui = ui::Ui::new(&system, terminal.gettermsize())?;
+    let mut ui = ui::Ui::new(&system, terminal::gettermsize())?;
 
     let mut error: Option<anyhow::Error> = None;
 
@@ -101,15 +102,15 @@ fn main() -> Result<()> {
             1..=13 => {
                 if let Err(err) = ui.update(event).context("Error occured while updating UI") {
                     error = Some(err);
-                    terminal.send_char("q");
+                    terminal::send_char("q");
                     break;
                 }
             },
 
             // This is a error event incase one of the threads break.
             99 => {
-                terminal.send_char("q");
-                terminal.disable_raw_mode();
+                terminal::send_char("q");
+                terminal::disable_raw_mode();
                 ui.exit()?;
 
                 system.stop();
@@ -126,13 +127,13 @@ fn main() -> Result<()> {
 
             // resize
             105 => {
-                let (x, y) = terminal.gettermsize();
+                let (x, y) = terminal::gettermsize();
                 ui.terminal_size.x = x;
                 ui.terminal_size.y = y;
 
                 if let Err(err) = ui.rebuild() {
                     error = Some(err);
-                    terminal.send_char("q");
+                    terminal::send_char("q");
                     break;
                 }
             },
@@ -141,7 +142,7 @@ fn main() -> Result<()> {
             106 => {
                 if let Err(err) = ui.rebuild() {
                     error = Some(err);
-                    terminal.send_char("q");
+                    terminal::send_char("q");
                     break;
                 }
             },
@@ -154,7 +155,7 @@ fn main() -> Result<()> {
         }
     }
 
-    terminal.disable_raw_mode();
+    terminal::disable_raw_mode();
 
     ui.exit()?;
 

@@ -44,7 +44,6 @@ const IEXTEN: u32 =  0100000;
 const EXTPROC: u32 = 0200000;
 
 #[repr(C)]
-#[derive(Copy,Clone)]
 struct Termios {
     c_iflag: u32,           /* input mode flags */
     c_oflag: u32,            /* output mode flags */
@@ -65,6 +64,7 @@ struct Winsize {
     ws_ypixel: u16,   /* unused */
 }
 
+// This global stuff is needed for the custom_panic_hook()
 static mut TTYTERMIOS: Termios = Termios {
             c_iflag: 0,
             c_oflag: 0,
@@ -78,7 +78,102 @@ static mut TTYTERMIOS: Termios = Termios {
 
 static mut TTYFD: i32 = 0;
 
+#[inline(always)]
+fn check_statics() {
+    if unsafe { TTYFD == 0 } {
+        init();
+    }
+}
+
+fn init() {
+    // Open tty fd
+    let fd: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 2, // SYS_OPEN
+            in("rdi") "/dev/tty\0".as_ptr(),
+            in("rsi") 2, // O_RDWR
+            //in("rdx") 0, // This is the mode. It is not used in this case
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") fd,
+        );
+    }
+
+    assert!(!fd.is_negative());
+
+    let termios = Termios {
+        c_iflag: 0,
+        c_oflag: 0,
+        c_cflag: 0,
+        c_lflag: 0,
+        c_line: 0,
+        c_cc: [0; NCSS],
+        c_ispeed: 0,
+        c_ospeed: 0
+    };
+
+    // Save original tty settings
+    let ret: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 16, // SYS_IOCTL
+            in("rdi") fd,
+            in("rsi") TCGETS,
+            in("rdx") &termios as *const Termios,
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") ret,
+        );
+    }
+
+    assert!(!ret.is_negative());
+
+    // Need these statics for the custom panic hook
+    unsafe {
+        TTYTERMIOS = termios;
+        TTYFD = fd;
+    }
+}
+
+// Enable raw mode
+pub fn enable_raw_mode() {
+    check_statics();
+
+    // Enable raw mode settings
+    let termios = unsafe { Termios {
+        c_iflag: TTYTERMIOS.c_iflag & !(IGNBRK | BRKINT | PARMRK | ISTRIP
+                | INLCR | IGNCR | ICRNL | IXON),
+        c_oflag: TTYTERMIOS.c_oflag & !1,
+        c_cflag: TTYTERMIOS.c_cflag & !(60 | 400) | 60,
+        c_lflag: TTYTERMIOS.c_lflag & !(ECHO | ECHONL | ICANON | ISIG | IEXTEN),
+        c_line: TTYTERMIOS.c_line,
+        c_cc: TTYTERMIOS.c_cc,
+        c_ispeed: TTYTERMIOS.c_ispeed,
+        c_ospeed: TTYTERMIOS.c_ospeed
+    } };
+
+    // Set tty with our new settings
+    let ret: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 16, // SYS_IOCTL
+            in("rdi") TTYFD,
+            in("rsi") TCSETS, // O_RDONLY
+            in("rdx") &termios as *const Termios,
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") ret,
+        );
+    }
+
+    assert!(!ret.is_negative());
+}
+
+// Reset tty settings to original settings and close tty fd
 pub fn disable_raw_mode() {
+    check_statics();
+
     let ret: i32;
     unsafe {
         asm!("syscall",
@@ -110,166 +205,46 @@ pub fn disable_raw_mode() {
     assert!(!ret.is_negative());
 }
 
-pub struct Terminal {
-    org_termios: Termios,
-    fd: i32,
+// Send char to terminal input stream
+pub fn send_char(c: &str) {
+    check_statics();
+
+    let ret: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 16, // SYS_IOCTL
+            in("rdi") TTYFD,
+            in("rsi") TIOCSTI, // O_RDONLY
+            in("rdx") c.as_ptr(),
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") ret,
+        );
+    }
+
+    assert!(!ret.is_negative());
 }
 
-impl Terminal {
-    // Open tty fd and save original settings
-    pub fn new() -> Self {
-        let fd: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 2, // SYS_OPEN
-                in("rdi") "/dev/tty\0".as_ptr(),
-                in("rsi") 2, // O_RDWR
-                //in("rdx") 0, // This is the mode. It is not used in this case
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") fd,
-            );
-        }
+// Get the size of the terminal
+pub fn gettermsize() -> (u16, u16) {
+    check_statics();
 
-        assert!(!fd.is_negative());
+    let mut winsize = Winsize::default();
 
-        let termios = Termios {
-            c_iflag: 0,
-            c_oflag: 0,
-            c_cflag: 0,
-            c_lflag: 0,
-            c_line: 0,
-            c_cc: [0; NCSS],
-            c_ispeed: 0,
-            c_ospeed: 0
-        };
-
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 16, // SYS_IOCTL
-                in("rdi") fd,
-                in("rsi") TCGETS,
-                in("rdx") &termios as *const Termios,
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
-
-        assert!(!ret.is_negative());
-
-        unsafe {
-            TTYTERMIOS = termios;
-            TTYFD = fd;
-        }
-
-        Terminal {
-            org_termios: termios,
-            fd
-        }
+    let ret: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 16, // SYS_IOCTL
+            in("rdi") TTYFD,
+            in("rsi") TIOCGWINSZ, // O_RDONLY
+            in("rdx") &mut winsize as *mut Winsize,
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") ret,
+        );
     }
 
-    // Enable raw mode
-    pub fn enable_raw_mode(&self) {
-        let termios = Termios {
-            c_iflag: self.org_termios.c_iflag & !(IGNBRK | BRKINT | PARMRK | ISTRIP
-                    | INLCR | IGNCR | ICRNL | IXON),
-            c_oflag: self.org_termios.c_oflag & !1,
-            c_cflag: self.org_termios.c_cflag & !(60 | 400) | 60,
-            c_lflag: self.org_termios.c_lflag & !(ECHO | ECHONL | ICANON | ISIG | IEXTEN),
-            c_line: self.org_termios.c_line,
-            c_cc: self.org_termios.c_cc,
-            c_ispeed: self.org_termios.c_ispeed,
-            c_ospeed: self.org_termios.c_ospeed
-        };
+    assert!(!ret.is_negative());
 
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 16, // SYS_IOCTL
-                in("rdi") self.fd,
-                in("rsi") TCSETS, // O_RDONLY
-                in("rdx") &termios as *const Termios,
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
-
-        assert!(!ret.is_negative());
-    }
-
-    // Reset to original tty settings and close the fd
-    pub fn disable_raw_mode(&self) {
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 16, // SYS_IOCTL
-                in("rdi") self.fd,
-                in("rsi") TCSETS, // O_RDONLY
-                in("rdx") &self.org_termios as *const Termios,
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
-
-        assert!(!ret.is_negative());
-
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 3, // SYS_CLOSE
-                in("rdi") self.fd,
-                //in("rsi") 0, // O_RDONLY
-                //in("rdx") 0, // This is the mode. It is not used in this case
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
-
-        assert!(!ret.is_negative());
-    }
-
-    // Send char to terminal input stream
-    pub fn send_char(&self, c: &str) {
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 16, // SYS_IOCTL
-                in("rdi") self.fd,
-                in("rsi") TIOCSTI, // O_RDONLY
-                in("rdx") c.as_ptr(),
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
-
-        assert!(!ret.is_negative());
-    }
-
-    // Get the size of the terminal
-    pub fn gettermsize(&self) -> (u16, u16) {
-        let mut winsize = Winsize::default();
-
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 16, // SYS_IOCTL
-                in("rdi") self.fd,
-                in("rsi") TIOCGWINSZ, // O_RDONLY
-                in("rdx") &mut winsize as *mut Winsize,
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
-
-        assert!(!ret.is_negative());
-
-        (winsize.ws_col, winsize.ws_row)
-    }
+    (winsize.ws_col, winsize.ws_row)
 }
