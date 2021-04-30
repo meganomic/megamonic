@@ -38,8 +38,8 @@ impl SignalFD {
         // sigset_t is just a u64 on 64bit linux.
         let mut set: u64 = 0;
 
-        set |= 1u64 << (27); // SIGWINCH == 28 - 1 = 27
-        set |= 1u64 << (1); // SIGINT == 2 - 1 = 1
+        set |= 1u64 << 27; // SIGWINCH == 28 - 1 = 27
+        set |= 1u64 << 1; // SIGINT == 2 - 1 = 1
 
         // Block the signals we want to handle ourselves
         let ret: i32;
