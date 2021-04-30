@@ -27,7 +27,7 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
 
 
     // Read file into buffer
-    let mut n_read = 0;
+    let mut n_read: usize = 0;
     let d_ptr_orig = buffer.as_mut_ptr() as usize;
 
     // Continue reading until there is nothing left
@@ -91,7 +91,7 @@ fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
 
     // Set buffer length to however many bytes was read
     unsafe {
-        buffer.set_len(n_read as usize);
+        buffer.set_len(n_read);
     }
 
     true
