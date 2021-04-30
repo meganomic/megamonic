@@ -61,7 +61,8 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                         match tx.send(255) {
                             Ok(_) => (),
                             Err(_) => break,
-                        };
+                        }
+
                         break;
                     },
 
@@ -70,7 +71,7 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                         match tx.send(101) {
                             Ok(_) => (),
                             Err(_) => break,
-                        };
+                        }
                     },
 
                     // Toggle Topmode
@@ -84,7 +85,7 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                         match tx.send(10) {
                             Ok(_) => (),
                             Err(_) => break,
-                        };
+                        }
                     },
 
                     // Toggle smaps
@@ -98,7 +99,7 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                         match tx.send(11) {
                             Ok(_) => (),
                             Err(_) => break,
-                        };
+                        }
                     },
 
                     // Toggle All Processes
@@ -112,7 +113,7 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                         match tx.send(12) {
                             Ok(_) => (),
                             Err(_) => break,
-                        };
+                        }
                     },
 
                     // Rebuild UI cache
@@ -120,15 +121,12 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                         match tx.send(106) {
                             Ok(_) => (),
                             Err(_) => break,
-                        };
+                        }
                     },
 
                     _ => (),
                 }
-
             } else if fd == signalfd.fd {
-                // Signal event
-
                 // Get what signal was recieved
                 let signo = signalfd.read();
 
@@ -139,7 +137,7 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                         match tx.send(105) {
                             Ok(_) => (),
                             Err(_) => break,
-                        };
+                        }
                     },
 
                     // SIGINT
@@ -148,12 +146,10 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                         match tx.send(99) {
                             Ok(_) => (),
                             Err(_) => break,
-                        };
+                        }
                     },
-
                     _ => (),
                 }
-
             } else {
                 // Something has gone horrible wrong!
 
@@ -161,7 +157,8 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                 match tx.send(99) {
                     Ok(_) => (),
                     Err(_) => break,
-                };
+                }
+
                 break;
             }
         }
