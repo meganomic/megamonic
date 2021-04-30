@@ -251,6 +251,7 @@ impl Processes {
                 // If val is false it means that /proc/[pid]/stat couldn't be opened
                 // So the entry should be removed
                 if val {
+                    // Calculate CPU % usage
                     if topmode {
                         if process.work > totald {
                             process.cpu_avg = 100.0 * cpu_count;
