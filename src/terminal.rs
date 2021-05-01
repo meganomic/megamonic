@@ -111,8 +111,6 @@ fn init() {
         );
     }
 
-    eprintln!("{:?}", termios);
-
     assert!(!ret.is_negative());
 
     // Need these statics for the custom panic hook
