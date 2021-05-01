@@ -1,4 +1,4 @@
-const NCSS: usize = 32;
+const NCSS: usize = 19;
 
 const TCGETS: u32 =     0x5401;
 const TCSETS: u32 =     0x5402;
@@ -31,6 +31,7 @@ const CS8: u32 =    0o60;
 const PARENB: u32 = 0o400;
 
 #[repr(C)]
+#[derive(Debug)]
 struct Termios {
     c_iflag: u32,           /* input mode flags */
     c_oflag: u32,            /* output mode flags */
@@ -38,8 +39,6 @@ struct Termios {
     c_lflag: u32,           /* local mode flags */
     c_line: u8,                        /* line discipline */
     c_cc: [u8; NCSS],            /* control characters */
-    c_ispeed: u32,           /* input speed */
-    c_ospeed: u32           /* output speed */
 }
 
 #[repr(C)]
@@ -59,8 +58,6 @@ static mut TTYTERMIOS: Termios = Termios {
             c_lflag: 0,
             c_line: 0,
             c_cc: [0; NCSS],
-            c_ispeed: 0,
-            c_ospeed: 0
         };
 
 static mut TTYFD: i32 = 0;
@@ -98,8 +95,6 @@ fn init() {
         c_lflag: 0,
         c_line: 0,
         c_cc: [0; NCSS],
-        c_ispeed: 0,
-        c_ospeed: 0
     };
 
     // Save original tty settings
@@ -115,6 +110,8 @@ fn init() {
             lateout("rax") ret,
         );
     }
+
+    eprintln!("{:?}", termios);
 
     assert!(!ret.is_negative());
 
@@ -138,8 +135,6 @@ pub fn enable_raw_mode() {
         c_cflag: TTYTERMIOS.c_cflag & !(CSIZE | PARENB) | CS8,
         c_line: TTYTERMIOS.c_line,
         c_cc: TTYTERMIOS.c_cc,
-        c_ispeed: TTYTERMIOS.c_ispeed,
-        c_ospeed: TTYTERMIOS.c_ospeed
     } };
 
     // Set tty with our new settings
