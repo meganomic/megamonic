@@ -66,7 +66,6 @@ impl SignalFD {
                 in("rdi") -1, // -1 == create a new signalfd
                 in("rsi") &set as *const u64, //&sigset as *const libc::sigset_t, // user_mask
                 in("rdx") 8, // sizemask aka how many bytes is the set
-                //in("r10") 0, // flags
                 out("rcx") _,
                 out("r11") _,
                 lateout("rax") fd,
@@ -129,8 +128,8 @@ pub union epoll_data_t {
 
 #[repr(C)]
 pub struct EpollEvent {
-    pub events: u32,      /* Epoll events */
-    pub data: epoll_data_t        /* User data variable */
+    pub events: u32,            /* Epoll events */
+    pub data: epoll_data_t      /* User data variable */
 }
 
 pub struct Epoll {
