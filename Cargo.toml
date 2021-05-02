@@ -1,6 +1,6 @@
 [package]
 name = "megamonic"
-version = "1.0.0"
+version = "0.1.0"
 authors = ["meganomic"]
 edition = "2018"
 build = "build.rs"
