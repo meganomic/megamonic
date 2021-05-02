@@ -1,10 +1,25 @@
-use anyhow::Result;
-use vergen::{ Config, vergen, ShaKind };
+use std::process::Command;
 
-fn main() -> Result<()> {
-    let mut config = Config::default();
-    // Change the SHA output to the short variant
-    *config.git_mut().sha_kind_mut() = ShaKind::Short;
+fn main() {
+    println!("cargo:rerun-if-changed=.git/HEAD");
 
-    vergen(config)
+    let revision =
+        Command::new("git")
+            .args(&["rev-list", "--count", "HEAD"])
+            .output()
+            .unwrap()
+            .stdout;
+
+    let revision = std::str::from_utf8(revision.as_slice()).unwrap().trim();
+
+    let commit =
+        Command::new("git")
+            .args(&["rev-parse", "--short", "HEAD"])
+            .output()
+            .unwrap()
+            .stdout;
+
+    let commit = std::str::from_utf8(commit.as_slice()).unwrap().trim();
+
+    println!("cargo:rustc-env=MEGAMONIC_VER=r{}-{}", revision, commit);
 }
