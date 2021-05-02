@@ -13,7 +13,18 @@ fn main() -> Result<()> {
     let options = App::new("Megamonic")
         .setting(AppSettings::ColoredHelp)
         .about("A badly designed multithreaded system monitor")
-        .version("0.1.0")
+        .version(concat!("v1.0-", env!("VERGEN_GIT_SHA_SHORT")))
+        .long_version(
+            concat!(
+                "\n\nVersion:       ", "v1.0-", env!("VERGEN_GIT_SHA_SHORT"), "\n",
+                "Build time:    ", env!("VERGEN_BUILD_TIMESTAMP"), "\n",
+                "Rustc:         ", env!("VERGEN_RUSTC_SEMVER"), "\n",
+                "Rustc date:    ", env!("VERGEN_RUSTC_COMMIT_DATE"), "\n",
+                "Cargo profile: ", env!("VERGEN_CARGO_PROFILE"), "\n",
+                "Cargo triple:  ", env!("VERGEN_CARGO_TARGET_TRIPLE"), "\n",
+                "OS Version:    ", env!("VERGEN_SYSINFO_OS_VERSION"), "\n",
+            )
+        )
         .arg(
             Arg::with_name("smaps")
                 .short("s")

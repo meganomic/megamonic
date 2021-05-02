@@ -1,8 +1,9 @@
 [package]
 name = "megamonic"
-version = "0.1.0"
+version = "1.0"
 authors = ["meganomic"]
 edition = "2018"
+build = "build.rs"
 
 [profile.dev]
 opt-level = 3
@@ -12,7 +13,9 @@ opt-level = 3
 lto = "fat"
 codegen-units = 1
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[build-dependencies]
+anyhow = "1.0"
+vergen = "5"
 
 [dependencies]
 libc-strftime = "0.2"
