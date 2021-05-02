@@ -6,7 +6,7 @@ A badly designed multithreaded system monitor for 64bit linux for my personal us
 ## Build instructions for 64bit Arch
 I think this is what is needed but I'm not sure.
 
-Other than Rust you need these packages.  
+Other than Rust-nightly you need these packages.  
 Requirements: `glibc`, `gcc-libs` and`lm_sensors`  
 Optional GPU support: `nvidia-utils`  
 
