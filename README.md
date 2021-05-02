@@ -15,6 +15,9 @@ Optional GPU support: `nvidia-utils`
 
 ### FAQ
 
+Q: Why only Nvidia GPU support?  
+A: Because that's what I have
+
 Q: Why another performance monitor?  
 A: For fun
 
