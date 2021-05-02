@@ -11,7 +11,7 @@ Requirements: `glibc`, `gcc-libs` and`lm_sensors`
 Optional GPU support: `nvidia-utils`  
 
 1. git clone https://github.com/meganomic/megamonic.git
-2. RUSTFLAGS="-C target-cpu=native" cargo b --release
+2. cargo b --release
 
 ### FAQ
 
