@@ -67,10 +67,13 @@ impl <'a> Gpu <'a> {
     // 2550 -> 2050
     pub fn draw(&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
         if let Ok(val) = self.system.gpuinfo.lock() {
-            if val.mem_used < 100.0 {
-                write!(buffer, "{}{:>3}{}{:>4}{}{:>4}{}{:>4.1}%\x1b[91m ]\x1b[0m", &self.cache1, val.temp, &self.cache2, val.gpu_load, &self.cache3, val.mem_load, &self.cache4, val.mem_used)?;
-            } else {
-                write!(buffer, "{}{:>3}{}{:>4}{}{:>4}{}{:>4.0}%\x1b[91m ]\x1b[0m", &self.cache1, val.temp, &self.cache2, val.gpu_load, &self.cache3, val.mem_load, &self.cache4, val.mem_used)?;
+            // If temperature is 0 it probably means that GPU info couldn't be gathered, so don't print anything.
+            if val.temp != 0 {
+                if val.mem_used < 100.0 {
+                    write!(buffer, "{}{:>3}{}{:>4}{}{:>4}{}{:>4.1}%\x1b[91m ]\x1b[0m", &self.cache1, val.temp, &self.cache2, val.gpu_load, &self.cache3, val.mem_load, &self.cache4, val.mem_used)?;
+                } else {
+                    write!(buffer, "{}{:>3}{}{:>4}{}{:>4}{}{:>4.0}%\x1b[91m ]\x1b[0m", &self.cache1, val.temp, &self.cache2, val.gpu_load, &self.cache3, val.mem_load, &self.cache4, val.mem_used)?;
+                }
             }
         } else {
             bail!("gpuinfo lock is poisoned!");
