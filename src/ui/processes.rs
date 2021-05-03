@@ -174,13 +174,10 @@ fn convert_with_padding_proc(buffer: &mut String, num: i64, color: &str) {
         // convert it to a f64 type to we can use ln() and stuff on it.
         let num = num as f64;
 
-        //static UNITS: [&str; 9] = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
-
         // Magic that makes no sense to me
         let exponent = (num.ln() / DELIMITER_LN).floor() as i32;
 
         let pretty_bytes = num / DELIMITER.powi(exponent);
-        //let unit = UNITS[exponent as usize];
 
         // Different behaviour for different units
         // They are in order of most commonly used
