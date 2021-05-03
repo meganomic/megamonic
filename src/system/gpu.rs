@@ -1,9 +1,5 @@
 use std::sync::{Arc, Mutex, mpsc};
 
-//use nvml_wrapper::NVML;
-
-//mod nvidia;
-
 #[derive(Default)]
 pub struct Gpu {
     pub temp: u32,
