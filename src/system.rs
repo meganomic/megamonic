@@ -48,7 +48,9 @@ pub struct System {
 impl System {
     // This function starts all the monitoring threads
     pub fn start(&mut self, mtx: std::sync::mpsc::Sender<u8>) {
-        // Event loop
+        // Set up the signals for the Event thread
+        // This needs to be done BEFORE any other child threads are spawned
+        // so the rules for signal handling are inherited to all child threads
         self.threads.push(
             events::start_thread(
                 Arc::clone(&self.config),
