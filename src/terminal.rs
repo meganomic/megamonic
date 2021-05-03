@@ -1,9 +1,23 @@
-const NCSS: usize = 19;
+// ioctl stuff
 
+// ioctl commands
 const TCGETS: u32 =     0x5401;
 const TCSETS: u32 =     0x5402;
 const TIOCGWINSZ: u32 = 0x5413;
 const TIOCSTI: u32 =    0x5412;
+
+// Used with the TIOCGWINSZ ioctl command to hold the terminal size info
+#[repr(C)]
+#[derive(Default)]
+struct Winsize {
+    ws_row: u16,
+    ws_col: u16,
+    ws_xpixel: u16,   /* unused */
+    ws_ypixel: u16,   /* unused */
+}
+
+
+// Termios stuff
 
 /* c_iflag bits */
 const IGNBRK: u32 =  0o1;
@@ -30,6 +44,10 @@ const CSIZE: u32 =  0o60;
 const CS8: u32 =    0o60;
 const PARENB: u32 = 0o400;
 
+// Size of c_cc[], I'm only 85% sure 19 is the correct size.
+const NCSS: usize = 19;
+
+// Used to save the original tty settings so it can be restored
 static mut TTYTERMIOS: Termios = Termios {
             c_iflag: 0,
             c_oflag: 0,
@@ -39,8 +57,8 @@ static mut TTYTERMIOS: Termios = Termios {
             c_cc: [0; NCSS],
         };
 
+// Used to save the tty fd
 static mut TTYFD: i32 = 0;
-
 
 #[repr(C)]
 struct Termios {
@@ -52,14 +70,6 @@ struct Termios {
     c_cc: [u8; NCSS],            /* control characters */
 }
 
-#[repr(C)]
-#[derive(Default)]
-struct Winsize {
-    ws_row: u16,
-    ws_col: u16,
-    ws_xpixel: u16,   /* unused */
-    ws_ypixel: u16,   /* unused */
-}
 
 // Make sure statics are initialized
 macro_rules! check_statics {
@@ -98,7 +108,7 @@ fn init() {
     unsafe {
         asm!("syscall",
             in("rax") 16, // SYS_IOCTL
-            in("rdi") fd,
+            in("rdi") TTYFD,
             in("rsi") TCGETS,
             in("rdx") &TTYTERMIOS as *const Termios,
             out("rcx") _,
