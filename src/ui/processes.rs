@@ -101,19 +101,23 @@ impl <'a> Processes <'a> {
                 }
 
                 let _ = buffer.write_vectored(&[
-                    unsafe { std::io::IoSlice::new(self.cache1.get_unchecked(idx).as_bytes()) },
+                    unsafe {
+                        std::io::IoSlice::new(self.cache1.get_unchecked(idx).as_bytes())
+                    },
                     std::io::IoSlice::new(self.cpu_buffer.as_bytes()),
                     std::io::IoSlice::new(self.memory_buffer.as_bytes()),
-                    std::io::IoSlice::new(self.cache2.entry(val.pid).or_insert_with(||
-                        maxstr(
-                            &val.executable,
-                            &val.cmdline,
-                            val.not_executable,
-                            val.pid,
-                            pidlen,
-                            max_length
-                        )
-                    ).as_bytes())
+                    std::io::IoSlice::new(
+                        self.cache2.entry(val.pid).or_insert_with(||
+                            maxstr(
+                                &val.executable,
+                                &val.cmdline,
+                                val.not_executable,
+                                val.pid,
+                                pidlen,
+                                max_length
+                            )
+                        ).as_bytes()
+                    )
                 ]);
             }
 
