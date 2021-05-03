@@ -1,10 +1,12 @@
-use std::sync::{Arc, mpsc, atomic};
+use std::sync::{ Arc, mpsc, atomic };
 use super::Config;
 
 mod epoll;
 
 pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread::JoinHandle<()> {
     // Set up the signals for the Event thread
+    // This needs to be done in the MAIN thread BEFORE any child threads are spawned
+    // so the rules are inherited to all child threads
     let signalfd = epoll::SignalFD::new();
 
     std::thread::Builder::new().name("Events".to_string()).spawn(move || {
@@ -24,6 +26,7 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
             // Wait for a event
             let event = epoll.wait();
 
+            // This is the fd that caused epoll to wakeup
             let fd = unsafe { event.data.fd };
 
             // Check which fd contains the event
@@ -37,9 +40,9 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                 unsafe {
                     asm!("syscall",
                         in("rax") 0, // SYS_READ
-                        in("rdi") 0,
+                        in("rdi") 0, // STDIN
                         in("rsi") buf.as_mut_ptr(),
-                        in("rdx") 10,
+                        in("rdx") buf.capacity(),
                         out("rcx") _,
                         out("r11") _,
                         lateout("rax") ret,
@@ -131,7 +134,7 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                 let signo = signalfd.read();
 
                 match signo {
-                    // SIGWINCH
+                    // SIGWINCH aka terminal resize signal
                     28 => {
                         // Notify main thread about resize
                         match tx.send(105) {
