@@ -11,9 +11,6 @@ use super::{cpu, Config};
 // Size of 'Processes.buffer_directories' used for getdents64()
 const BUF_SIZE: usize = 1024 * 1024;
 
-// CStr pointer to /proc for use with the open(2) syscall
-const PROC_PATH: *const u8 = "/proc\0".as_ptr();
-
 #[repr(C)]
 struct LinuxDirent64T {
     /// 64-bit inode number.
@@ -62,7 +59,7 @@ impl Processes {
         unsafe {
             asm!("syscall",
                 in("rax") 2, // SYS_OPEN
-                in("rdi") PROC_PATH,
+                in("rdi") "/proc\0".as_ptr(),
                 in("rsi") 16, // O_DIRECTORY
                 //in("rdx") 0, // This is the mode. It is not used in this case
                 out("rcx") _,
