@@ -83,6 +83,7 @@ impl Processes {
             );
         }
 
+        ensure!(!ret.is_negative(), "SYS_SEEK return code: {}", ret);
 
         loop {
             // getdents64 system call
@@ -288,23 +289,6 @@ impl Processes {
         });
 
         (self.maxpidlen, &self.sorted)
-    }
-
-    pub fn close(&mut self) {
-        // Close file
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 3, // SYS_CLOSE
-                in("rdi") self.fd,
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
-
-        // Check if there's an error
-        assert!(ret == 0, "SYS_CLOSE return code: {}", ret);
     }
 }
 
