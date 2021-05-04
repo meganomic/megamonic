@@ -266,10 +266,12 @@ impl Processes {
 
                     true
                 } else {
+                    process.close();
                     false
                 }
             } else {
                 ret = res;
+                process.close();
                 false
             }
         });

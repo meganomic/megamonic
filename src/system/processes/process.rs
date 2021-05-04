@@ -1,102 +1,6 @@
 use anyhow::{ Context, Result };
 use std::ffi::CString;
 
-// Open file 'path' and read it into 'buffer'
-fn open_and_read(buffer: &mut Vec::<u8>, path: *const i8) -> bool {
-    // Clear the buffer
-    buffer.clear();
-
-    // Open file
-    let fd: i32;
-    unsafe {
-        asm!("syscall",
-            in("rax") 2, // SYS_OPEN
-            in("rdi") path,
-            in("rsi") 0, // O_RDONLY
-            //in("rdx") 0, // This is the mode. It is not used in this case
-            out("rcx") _,
-            out("r11") _,
-            lateout("rax") fd,
-         );
-    }
-
-    // If there's an error it's 99.999% certain it's because the process has terminated
-    if fd.is_negative() {
-        return false;
-    }
-
-
-    // Read file into buffer
-    let mut n_read: usize = 0;
-    let d_ptr_orig = buffer.as_mut_ptr() as usize;
-
-    // Continue reading until there is nothing left
-    // This will basically always call read() twice
-    // The first time it reads all data
-    // The second time it confirms it has read all data
-    // I am unsure if it's better to use fstat() to get the filesize instead
-    let read_error = loop {
-        // Adjust buffer pointer so we don't overwrite the data we just read :D
-        let d_ptr = (d_ptr_orig + n_read) as *const u8;
-
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 0, // SYS_READ
-                in("rdi") fd,
-                in("rsi") d_ptr,
-                in("rdx") buffer.capacity() - n_read,
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
-
-        // If ret == 0 it means there is nothing more to read
-        if ret == 0 {
-            break false;
-
-        // If ret is negative it means there was an error
-        // This is most likely caused by a lack of permissions
-        // This will happen *alot* if smaps is enabled
-        } else if ret.is_negative()  {
-            break true;
-        }
-
-        // If there are no errors ret contains amount of bytes read
-        n_read += ret as usize;
-    };
-
-
-    // Close file
-    let ret: i32;
-    unsafe {
-        asm!("syscall",
-            in("rax") 3, // SYS_CLOSE
-            in("rdi") fd,
-            out("rcx") _,
-            out("r11") _,
-            lateout("rax") ret,
-        );
-    }
-
-    //debug_assert!(ret == 0, "SYS_CLOSE return code: {}", ret);
-
-    // Check if there's an error
-    if ret != 0 || read_error || n_read == 0 {
-        return false;
-    }
-
-    //debug_assert!(!read_error, "n_read: {}", n_read);
-
-    // Set buffer length to however many bytes was read
-    unsafe {
-        buffer.set_len(n_read);
-    }
-
-    true
-}
-
 #[derive(Default)]
 pub struct Process {
     pub cpu_avg: f32,
@@ -124,6 +28,7 @@ pub struct Process {
     //pub tasks : std::collections::HashSet<u32>,
 
     pub not_executable: bool,
+    fd: i32,
 }
 
 impl Process {
@@ -145,7 +50,7 @@ impl Process {
         // If open_and_read returns 'false' it means the stat file couldn't be opened
         // Which means the process has terminated
         // Returning false means the process will be removed from the list
-        if !open_and_read(buffer, self.stat_file.as_ptr()) {
+        if !self.open_and_read(buffer, self.stat_file.as_ptr()) {
             return Ok(false);
         }
 
@@ -196,7 +101,7 @@ impl Process {
         if smaps {
             // If open_and_read returns false it means we don't have
             // permission to open the smaps file
-            if open_and_read(buffer, self.smaps_file.as_ptr()) {
+            if self.open_and_read(buffer, self.smaps_file.as_ptr()) {
                 // Should maybe skip converting to str. I'll have to benchmark it
                 let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
                 self.pss = btoi::btou::<i64>(data.lines()
@@ -217,5 +122,75 @@ impl Process {
         Ok(true)
 
         //eprintln!("{}", now.elapsed().as_nanos());
+    }
+
+    // Open file 'path' and read it into 'buffer'
+    fn open_and_read(&mut self, buffer: &mut Vec::<u8>, path: *const i8) -> bool {
+        // Clear the buffer
+        buffer.clear();
+
+        // Only need to open it once
+        if self.fd == 0 {
+            // Open file
+            let fd: i32;
+            unsafe {
+                asm!("syscall",
+                    in("rax") 2, // SYS_OPEN
+                    in("rdi") path,
+                    in("rsi") 0, // O_RDONLY
+                    //in("rdx") 0, // This is the mode. It is not used in this case
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") fd,
+                );
+            }
+
+            // If there's an error it's 99.999% certain it's because the process has terminated
+            if fd.is_negative() {
+                return false;
+            }
+
+            self.fd = fd;
+        }
+
+        // Read file
+        let n_read: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 17, // SYS_PREAD64
+                in("rdi") self.fd,
+                in("rsi") buffer.as_mut_ptr(),
+                in("rdx") buffer.capacity(),
+                in("r10") 0,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") n_read,
+            );
+        }
+
+        if n_read.is_negative()  {
+            return false;
+        }
+
+        // Set buffer length to however many bytes was read
+        unsafe {
+            buffer.set_len(n_read as usize);
+        }
+
+        true
+    }
+
+    pub fn close(&mut self) {
+        // Close file
+        //let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 3, // SYS_CLOSE
+                in("rdi") self.fd,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") _,
+            );
+        }
     }
 }
