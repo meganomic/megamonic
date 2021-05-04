@@ -1,6 +1,5 @@
 use anyhow::{ anyhow, Context, Result };
 use std::sync::{ Arc, Mutex, mpsc };
-use std::io::Read;
 
 use super::{ read_fd, open_file };
 
