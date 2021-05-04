@@ -143,14 +143,14 @@ impl Process {
         // Clear the buffer
         buffer.clear();
 
-        let (sfd, path) = if !smaps {
+        let (fd_ref, path) = if !smaps {
             (&mut self.stat_fd, self.stat_file.as_ptr())
         } else {
             (&mut self.smaps_fd, self.smaps_file.as_ptr())
         };
 
         // Only need to open it once
-        if *sfd == 0 {
+        if *fd_ref == 0 {
             // Open file
             let fd: i32;
             unsafe {
@@ -170,7 +170,7 @@ impl Process {
                 return false;
             }
 
-            *sfd = fd;
+            *fd_ref = fd;
         }
 
         // Read file from position 0
@@ -178,7 +178,7 @@ impl Process {
         unsafe {
             asm!("syscall",
                 in("rax") 17, // SYS_PREAD64
-                in("rdi") *sfd,
+                in("rdi") *fd_ref,
                 in("rsi") buffer.as_mut_ptr(),
                 in("rdx") buffer.capacity(),
                 in("r10") 0, // offset
