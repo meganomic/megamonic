@@ -386,7 +386,5 @@ pub fn start_thread(internal: Arc<Mutex<Processes>>, cpuinfo: Arc<Mutex<cpu::Cpu
                 break;
             }
         }
-
-        //internal.lock().expect("Can't get processes lock to close the fd!").close();
     }).expect("Couldn't spawn Processes thread")
 }
