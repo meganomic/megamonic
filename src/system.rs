@@ -51,9 +51,10 @@ impl System {
         let processes = processes::Processes::new().context("Can't initialize Procesess")?;
         let loadavg = loadavg::Loadavg::new().context("Can't initialize Loadavg")?;
         let network = network::Network::new().context("Can't initialize Network")?;
+        let cpu = cpu::Cpuinfo::new().context("Can't initialize Cpu")?;
 
         let system = Self {
-            cpuinfo: Arc::new(Mutex::new(cpu::Cpuinfo::default())),
+            cpuinfo: Arc::new(Mutex::new(cpu)),
             loadavg: Arc::new(Mutex::new(loadavg)),
             memoryinfo: Arc::new(Mutex::new(memory::Memory::default())),
             sensorinfo: Arc::new(Mutex::new(sensors::Sensors::default())),
@@ -192,6 +193,29 @@ impl System {
             }
         }
     }
+}
+
+fn open_file(path: *const u8) -> Result<i32> {
+    // Open file
+    let ret: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 2, // SYS_OPEN
+            in("rdi") path,
+            in("rsi") 0, // O_RDONLY
+            //in("rdx") 0, // This is the mode. It is not used in this case
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") ret,
+        );
+    }
+
+    // If there's an error it's 99.999% certain it's because the process has terminated
+    if ret.is_negative() {
+        bail!("SYS_OPEN returned: {}", ret);
+    }
+
+    Ok(ret)
 }
 
 // Open file 'path' and read it into 'buffer'

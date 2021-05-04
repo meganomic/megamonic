@@ -1,8 +1,7 @@
-use anyhow::{ Context, Result, bail };
+use anyhow::{ Context, Result };
 use std::sync::{ Arc, Mutex, mpsc };
-use std::io::Read;
 
-use super::read_fd;
+use super::{ read_fd, open_file };
 
 pub struct Loadavg {
     pub min1: String,
@@ -14,24 +13,7 @@ pub struct Loadavg {
 
 impl Loadavg {
     pub fn new() -> Result<Self> {
-        // Open file
-        let fd: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 2, // SYS_OPEN
-                in("rdi") "/proc/loadavg\0".as_ptr(),
-                in("rsi") 0, // O_RDONLY
-                //in("rdx") 0, // This is the mode. It is not used in this case
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") fd,
-            );
-        }
-
-        // If there's an error it's 99.999% certain it's because the process has terminated
-        if fd.is_negative() {
-            bail!("Can't open /proc/loadavg");
-        }
+        let fd = open_file("/proc/loadavg\0".as_ptr()).context("Can't open /proc/loadavg")?;
 
         Ok(Self {
             min1: String::new(),

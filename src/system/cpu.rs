@@ -2,6 +2,8 @@ use anyhow::{ anyhow, Context, Result };
 use std::sync::{ Arc, Mutex, mpsc };
 use std::io::Read;
 
+use super::{ read_fd, open_file };
+
 #[derive(Default)]
 struct Cpustats {
     user: u64,
@@ -23,14 +25,22 @@ pub struct Cpuinfo {
     idle: u64,
     non_idle: u64,
     stats: Cpustats,
+    cpu_fd: i32,
+    gov_fd: i32,
 }
 
-impl Default for Cpuinfo {
-    fn default() -> Self {
-        let procstat = std::fs::read_to_string("/proc/stat").expect("Can't read /proc/stat");
+impl Cpuinfo {
+    pub fn new() -> Result<Self> {
+        let cpu_fd = open_file("/proc/stat\0".as_ptr()).context("Can't open /proc/stat")?;
+
+        let mut buffer = String::with_capacity(5000);
+
+        unsafe {
+            read_fd(cpu_fd, buffer.as_mut_vec()).context("Can't read /proc/stat")?;
+        }
 
         let mut cpu_count = 0;
-        for line in procstat.lines().skip(1) {
+        for line in buffer.lines().skip(1) {
                 if line.starts_with("cpu") {
                     cpu_count += 1;
                 } else {
@@ -38,32 +48,29 @@ impl Default for Cpuinfo {
                 }
         }
 
-        Cpuinfo {
+        let gov_fd = open_file("/sys/devices/system/cpu/cpufreq/policy0/scaling_governor\0".as_ptr()).context("Can't open /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?;
+
+        Ok(Self {
             cpu_avg: 0.0,
             totald: 0,
             cpu_count,
-            governor: String::new(),
-            buffer: String::new(),
+            governor: String::with_capacity(100),
+            buffer,
             idle: 0,
             non_idle: 0,
             stats: Cpustats::default(),
-        }
+            cpu_fd,
+            gov_fd
+        })
     }
-}
-
-impl Cpuinfo {
     pub fn update(&mut self) -> Result<()> {
-        self.governor.clear();
-        std::fs::File::open("/sys/devices/system/cpu/cpufreq/policy0/scaling_governor")
-            .context("Can't open /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?
-            .read_to_string(&mut self.governor)
-            .context("Can't read /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?;
+        unsafe {
+            read_fd(self.gov_fd, self.governor.as_mut_vec()).context("Can't read /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?;
+        }
 
-        self.buffer.clear();
-        std::fs::File::open("/proc/stat")
-            .context("Can't open /proc/stat")?
-            .read_to_string(&mut self.buffer)
-            .context("Can't read /proc/stat")?;
+        unsafe {
+            read_fd(self.cpu_fd, self.buffer.as_mut_vec()).context("Can't read /proc/stat")?;
+        }
 
         let line = self.buffer.lines().next().ok_or_else(||anyhow!("Can't parse /proc/stat"))?;
 
@@ -104,6 +111,35 @@ impl Cpuinfo {
         self.cpu_avg = ((self.non_idle - prev_non_idle) as f32 / self.totald as f32) * 100.0;
 
         Ok(())
+    }
+}
+
+impl Drop for Cpuinfo {
+    fn drop(&mut self) {
+        // Close any open FDs when it's dropped
+        if self.cpu_fd != 0 {
+            unsafe {
+                asm!("syscall",
+                    in("rax") 3, // SYS_CLOSE
+                    in("rdi") self.cpu_fd,
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") _,
+                );
+            }
+        }
+
+        if self.gov_fd != 0 {
+            unsafe {
+                asm!("syscall",
+                    in("rax") 3, // SYS_CLOSE
+                    in("rdi") self.gov_fd,
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") _,
+                );
+            }
+        }
     }
 }
 
