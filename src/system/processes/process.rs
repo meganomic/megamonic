@@ -28,7 +28,8 @@ pub struct Process {
     //pub tasks : std::collections::HashSet<u32>,
 
     pub not_executable: bool,
-    fd: i32,
+    stat_fd: i32,
+    smaps_fd: i32,
 }
 
 impl Process {
@@ -50,7 +51,7 @@ impl Process {
         // If open_and_read returns 'false' it means the stat file couldn't be opened
         // Which means the process has terminated
         // Returning false means the process will be removed from the list
-        if !self.open_and_read(buffer, self.stat_file.as_ptr()) {
+        if !self.open_and_read(buffer, false) {
             return Ok(false);
         }
 
@@ -101,7 +102,7 @@ impl Process {
         if smaps {
             // If open_and_read returns false it means we don't have
             // permission to open the smaps file
-            if self.open_and_read(buffer, self.smaps_file.as_ptr()) {
+            if self.open_and_read(buffer, true) {
                 // Should maybe skip converting to str. I'll have to benchmark it
                 let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
                 self.pss = btoi::btou::<i64>(data.lines()
@@ -125,12 +126,19 @@ impl Process {
     }
 
     // Open file 'path' and read it into 'buffer'
-    fn open_and_read(&mut self, buffer: &mut Vec::<u8>, path: *const i8) -> bool {
+    fn open_and_read(&mut self, buffer: &mut Vec::<u8>, smaps: bool) -> bool {
         // Clear the buffer
         buffer.clear();
 
+        let (sfd, path) = if !smaps {
+
+            (&mut self.stat_fd, self.stat_file.as_ptr())
+        } else {
+            (&mut self.smaps_fd, self.smaps_file.as_ptr())
+        };
+
         // Only need to open it once
-        if self.fd == 0 {
+        if *sfd == 0 {
             // Open file
             let fd: i32;
             unsafe {
@@ -150,7 +158,7 @@ impl Process {
                 return false;
             }
 
-            self.fd = fd;
+            *sfd = fd;
         }
 
         // Read file
@@ -158,7 +166,7 @@ impl Process {
         unsafe {
             asm!("syscall",
                 in("rax") 17, // SYS_PREAD64
-                in("rdi") self.fd,
+                in("rdi") *sfd,
                 in("rsi") buffer.as_mut_ptr(),
                 in("rdx") buffer.capacity(),
                 in("r10") 0,
@@ -183,14 +191,28 @@ impl Process {
     pub fn close(&mut self) {
         // Close file
         //let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 3, // SYS_CLOSE
-                in("rdi") self.fd,
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") _,
-            );
+        if self.stat_fd != 0 {
+            unsafe {
+                asm!("syscall",
+                    in("rax") 3, // SYS_CLOSE
+                    in("rdi") self.stat_fd,
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") _,
+                );
+            }
+        }
+
+        if self.smaps_fd != 0 {
+            unsafe {
+                asm!("syscall",
+                    in("rax") 3, // SYS_CLOSE
+                    in("rdi") self.smaps_fd,
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") _,
+                );
+            }
         }
     }
 }

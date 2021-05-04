@@ -63,6 +63,9 @@ impl Processes {
         // Trigger rebuild if 'show all processes' option is changed
         if all_processes != self.rebuild {
             self.rebuild = all_processes;
+            for process in self.processes.values_mut() {
+                process.close();
+            }
             self.processes.clear();
             self.ignored.clear();
         }
