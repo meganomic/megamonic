@@ -52,11 +52,12 @@ impl System {
         let loadavg = loadavg::Loadavg::new().context("Can't initialize Loadavg")?;
         let network = network::Network::new().context("Can't initialize Network")?;
         let cpu = cpu::Cpuinfo::new().context("Can't initialize Cpu")?;
+        let memory = memory::Memory::new().context("Can't initialize Memory")?;
 
         let system = Self {
             cpuinfo: Arc::new(Mutex::new(cpu)),
             loadavg: Arc::new(Mutex::new(loadavg)),
-            memoryinfo: Arc::new(Mutex::new(memory::Memory::default())),
+            memoryinfo: Arc::new(Mutex::new(memory)),
             sensorinfo: Arc::new(Mutex::new(sensors::Sensors::default())),
             networkinfo: Arc::new(Mutex::new(network)),
             processinfo: Arc::new(Mutex::new(processes)),

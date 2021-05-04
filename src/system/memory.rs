@@ -1,8 +1,8 @@
 use anyhow::{ Context, Result };
 use std::sync::{ Arc, Mutex, mpsc };
-use std::io::Read;
 
-#[derive(Default, Clone)]
+use super::{ read_fd, open_file };
+
 pub struct Memory {
     pub mem_total: u64,
     pub mem_free: u64,
@@ -10,16 +10,35 @@ pub struct Memory {
     pub swap_total: u64,
     pub swap_free: u64,
     pub swap_used: u64,
-    buffer: String
+    buffer: String,
+    fd: i32
 }
 
 impl Memory {
+    pub fn new() -> Result<Self> {
+        let fd = open_file("/proc/meminfo\0".as_ptr()).context("Can't open /proc/meminfo")?;
+
+        Ok(Self {
+            mem_total: 0,
+            mem_free: 0,
+            mem_used: 0,
+            swap_total: 0,
+            swap_free: 0,
+            swap_used: 0,
+            buffer: String::with_capacity(2000),
+            fd
+        })
+    }
     pub fn update(&mut self) -> Result<()> {
-        self.buffer.clear();
+        /*self.buffer.clear();
         std::fs::File::open("/proc/meminfo")
             .context("Can't open /proc/meminfo")?
             .read_to_string(&mut self.buffer)
-            .context("Can't read /proc/meminfo")?;
+            .context("Can't read /proc/meminfo")?;*/
+
+        unsafe {
+            read_fd(self.fd, self.buffer.as_mut_vec()).context("Can't read /proc/meminfo")?;
+        }
 
         let mut lines = self.buffer.lines();
 
@@ -64,6 +83,23 @@ impl Memory {
         self.swap_used = self.swap_total - self.swap_free;
 
         Ok(())
+    }
+}
+
+impl Drop for Memory {
+    fn drop(&mut self) {
+        // Close any open FDs when it's dropped
+        if self.fd != 0 {
+            unsafe {
+                asm!("syscall",
+                    in("rax") 3, // SYS_CLOSE
+                    in("rdi") self.fd,
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") _,
+                );
+            }
+        }
     }
 }
 

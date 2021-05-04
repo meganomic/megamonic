@@ -46,19 +46,17 @@ impl Loadavg {
 impl Drop for Loadavg {
     fn drop(&mut self) {
         // Close file
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 3, // SYS_CLOSE
-                in("rdi") self.fd,
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
+        if self.fd != 0 {
+            unsafe {
+                asm!("syscall",
+                    in("rax") 3, // SYS_CLOSE
+                    in("rdi") self.fd,
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") _,
+                );
+            }
         }
-
-        // Check if there's an error
-        assert!(ret == 0, "SYS_CLOSE return code: {}", ret);
     }
 }
 
