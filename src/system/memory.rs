@@ -24,39 +24,39 @@ impl Memory {
         let mut lines = self.buffer.lines();
 
         self.mem_total = lines.next()
-            .context("Can't parse /proc/meminfo: 1")?
+            .context("Can't parse mem_total /proc/meminfo: 1")?
             .split_ascii_whitespace()
             .nth(1)
-            .context("Can't parse /proc/meminfo: 2")?
+            .context("Can't parse mem_total /proc/meminfo: 2")?
             .parse::<u64>()
-            .context("Can't parse /proc/meminfo: 3")?
+            .context("Can't parse mem_total /proc/meminfo: 3")?
             * 1024;
 
         self.mem_free = lines.nth(1)
-            .context("Can't parse /proc/meminfo: 1")?
+            .context("Can't parse mem_free /proc/meminfo: 1")?
             .split_ascii_whitespace()
             .nth(1)
-            .context("Can't parse /proc/meminfo: 2")?
+            .context("Can't parse mem_free /proc/meminfo: 2")?
             .parse::<u64>()
-            .context("Can't parse /proc/meminfo: 3")?
+            .context("Can't parse mem_free /proc/meminfo: 3")?
             * 1024;
 
         self.swap_total = lines.nth(11)
-            .context("Can't parse /proc/meminfo: 1")?
+            .context("Can't parse swap_total /proc/meminfo: 1")?
             .split_ascii_whitespace()
             .nth(1)
-            .context("Can't parse /proc/meminfo: 2")?
+            .context("Can't parse swap_total /proc/meminfo: 2")?
             .parse::<u64>()
-            .context("Can't parse /proc/meminfo: 3")?
+            .context("Can't parse swap_total /proc/meminfo: 3")?
             * 1024;
 
         self.swap_free = lines.next()
-            .expect("Can't parse /proc/meminfo: 1")
+            .expect("Can't parse swap_free /proc/meminfo: 1")
             .split_ascii_whitespace()
             .nth(1)
-            .context("Can't parse /proc/meminfo: 2")?
+            .context("Can't parse swap_free /proc/meminfo: 2")?
             .parse::<u64>()
-            .context("Can't parse /proc/meminfo: 3")?
+            .context("Can't parse swap_free /proc/meminfo: 3")?
             * 1024;
 
         self.mem_used = self.mem_total - self.mem_free;
