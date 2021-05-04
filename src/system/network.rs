@@ -1,8 +1,7 @@
-use anyhow::{ Context, Result, bail };
+use anyhow::{ Context, Result };
 use std::sync::{ Arc, Mutex, mpsc };
-use std::io::Read;
 
-use super::read_fd;
+use super::{ read_fd, open_file };
 
 #[derive(Default)]
 pub struct Bandwidth {
@@ -20,24 +19,7 @@ pub struct Network {
 
 impl Network {
     pub fn new() -> Result<Self> {
-        // Open file
-        let fd: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 2, // SYS_OPEN
-                in("rdi") "/proc/net/dev\0".as_ptr(),
-                in("rsi") 0, // O_RDONLY
-                //in("rdx") 0, // This is the mode. It is not used in this case
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") fd,
-            );
-        }
-
-        // If there's an error it's 99.999% certain it's because the process has terminated
-        if fd.is_negative() {
-            bail!("Can't open /proc/net/dev");
-        }
+        let fd = open_file("/proc/net/dev\0".as_ptr()).context("Can't open /proc/net/dev")?;
 
         Ok(Self {
             stats: std::collections::BTreeMap::new(),
@@ -48,13 +30,8 @@ impl Network {
 
     pub fn update(&mut self) -> Result<()> {
         unsafe {
-            read_fd(self.fd, self.buffer.as_mut_vec()).context("Can't read /proc/loadavg")?;
+            read_fd(self.fd, self.buffer.as_mut_vec()).context("Can't read /proc/net/dev")?;
         }
-        /*self.buffer.clear();
-        std::fs::File::open("/proc/net/dev")
-            .context("Can't open /proc/net/dev")?
-            .read_to_string(&mut self.buffer)
-            .context("Can't read /proc/net/dev")?;*/
 
         for line in self.buffer.lines().skip(2) {
             let mut bandwidth = Bandwidth::default();
