@@ -3,8 +3,10 @@ A badly designed multithreaded system monitor for 64bit linux for my personal us
 
 ![Screenshot](screenshot.png)
 
-## Build instructions for 64bit Arch
+## Build instructions for Arch
 I think this is what is needed but I'm not sure.
+
+If your ulimit -n is low you might have to increase it or you will get "Too many opened files" error.
 
 Other than Rust-nightly you need these packages.  
 Requirements: `glibc`, `gcc-libs` and`lm_sensors`  
