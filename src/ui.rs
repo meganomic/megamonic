@@ -393,7 +393,6 @@ impl <'ui> Ui <'ui> {
 
 // Taken from https://github.com/banyan/rust-pretty-bytes/blob/master/src/converter.rs
 // And customized for my use
-// Convert to pretty bytes with specified right alignment
 pub fn convert_with_padding(buffer: &mut String, num: u64) {
     buffer.clear();
 
