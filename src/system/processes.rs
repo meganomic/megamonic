@@ -43,6 +43,8 @@ pub struct Processes {
     // Used to clear self.processes if modes are changed
     pub rebuild: bool,
 
+    fd: i32,
+
     // Buffers to avoid allocations
     buffer: String,
     buffer_vector_dirs: Vec::<u8>,
@@ -63,29 +65,24 @@ impl Processes {
         // Trigger rebuild if 'show all processes' option is changed
         if all_processes != self.rebuild {
             self.rebuild = all_processes;
-            for process in self.processes.values_mut() {
-                process.close();
-            }
             self.processes.clear();
             self.ignored.clear();
         }
 
-        // Open directory
-        let fd: i32;
+        // Seek to beginning of directory fd
+        let ret: i32;
         unsafe {
             asm!("syscall",
-                in("rax") 2, // SYS_OPEN
-                in("rdi") PROC_PATH,
-                in("rsi") 16, // O_DIRECTORY
-                //in("rdx") 0, // This is the mode. It is not used in this case
+                in("rax") 8, // SYS_SEEK
+                in("rdi") self.fd,
+                in("rsi") 0, // offset
+                in("rdx") 0, // SET_SEEK
                 out("rcx") _,
                 out("r11") _,
-                lateout("rax") fd,
+                lateout("rax") ret,
             );
         }
 
-        // Check if there's an error
-        ensure!(!fd.is_negative(), "SYS_OPEN return code: {}", fd);
 
         loop {
             // getdents64 system call
@@ -93,7 +90,7 @@ impl Processes {
             unsafe {
                 asm!("syscall",
                     in("rax") 217, // SYS_GETDENTS64
-                    in("rdi") fd,
+                    in("rdi") self.fd,
                     in("rsi") self.buffer_vector_dirs.as_mut_ptr(),
                     in("rdx") BUF_SIZE,
                     out("rcx") _,
@@ -218,20 +215,7 @@ impl Processes {
             }
         }
 
-        // Close file
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 3, // SYS_CLOSE
-                in("rdi") fd,
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
 
-        // Check if there's an error
-        ensure!(ret == 0, "SYS_CLOSE return code: {}", ret);
 
         let (cpu_count, totald) = if let Ok(val) = cpuinfo.lock() {
             (val.cpu_count as f32, val.totald)
@@ -269,12 +253,10 @@ impl Processes {
 
                     true
                 } else {
-                    process.close();
                     false
                 }
             } else {
                 ret = res;
-                process.close();
                 false
             }
         });
@@ -307,20 +289,73 @@ impl Processes {
 
         (self.maxpidlen, &self.sorted)
     }
+
+    pub fn close(&mut self) {
+        // Close file
+        let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 3, // SYS_CLOSE
+                in("rdi") self.fd,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") ret,
+            );
+        }
+
+        // Check if there's an error
+        assert!(ret == 0, "SYS_CLOSE return code: {}", ret);
+    }
 }
 
 impl Default for Processes {
     fn default() -> Self {
+        let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 2, // SYS_OPEN
+                in("rdi") PROC_PATH,
+                in("rsi") 16, // O_DIRECTORY
+                //in("rdx") 0, // This is the mode. It is not used in this case
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") ret,
+            );
+        }
+
+        // Check if there's an error
+        assert!(!ret.is_negative(), "SYS_OPEN return code: {}", ret);
+
         Self {
             processes: AHashMap::default(),
             maxpidlen: 0,
             rebuild: false,
+            fd: ret,
             buffer: String::new(),
             buffer_vector_dirs: Vec::with_capacity(BUF_SIZE),
             buffer_vector: Vec::with_capacity(1000),
             ignored: AHashSet::default(),
             sorted: Vec::new(),
         }
+    }
+}
+
+impl Drop for Processes {
+    fn drop(&mut self) {
+        // Close file
+        let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 3, // SYS_CLOSE
+                in("rdi") self.fd,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") ret,
+            );
+        }
+
+        // Check if there's an error
+        assert!(ret == 0, "SYS_CLOSE return code: {}", ret);
     }
 }
 
@@ -367,5 +402,7 @@ pub fn start_thread(internal: Arc<Mutex<Processes>>, cpuinfo: Arc<Mutex<cpu::Cpu
                 break;
             }
         }
+
+        //internal.lock().expect("Can't get processes lock to close the fd!").close();
     }).expect("Couldn't spawn Processes thread")
 }
