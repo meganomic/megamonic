@@ -131,7 +131,6 @@ impl Process {
         buffer.clear();
 
         let (sfd, path) = if !smaps {
-
             (&mut self.stat_fd, self.stat_file.as_ptr())
         } else {
             (&mut self.smaps_fd, self.smaps_file.as_ptr())
@@ -187,10 +186,11 @@ impl Process {
 
         true
     }
+}
 
-    pub fn close(&mut self) {
-        // Close file
-        //let ret: i32;
+impl Drop for Process {
+    fn drop(&mut self) {
+        // Close any open FDs
         if self.stat_fd != 0 {
             unsafe {
                 asm!("syscall",
