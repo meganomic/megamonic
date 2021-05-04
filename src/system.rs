@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex, atomic, Condvar};
 use std::thread;
+use anyhow::{ Result, Context };
 
 mod cpu;
 mod loadavg;
@@ -22,7 +23,7 @@ pub struct Config {
     pub strftime_format: String,
 }
 
-#[derive(Default)]
+//#[derive(Default)]
 pub struct System {
     // Info gathering structs
     pub cpuinfo: Arc<Mutex<cpu::Cpuinfo>>,
@@ -46,6 +47,31 @@ pub struct System {
 }
 
 impl System {
+    pub fn new(config: Config) -> Result<Self> {
+        let processes = processes::Processes::new().context("Can't initialize Procesess")?;
+
+        let system = Self {
+            cpuinfo: Arc::new(Mutex::new(cpu::Cpuinfo::default())),
+            loadavg: Arc::new(Mutex::new(loadavg::Loadavg::default())),
+            memoryinfo: Arc::new(Mutex::new(memory::Memory::default())),
+            sensorinfo: Arc::new(Mutex::new(sensors::Sensors::default())),
+            networkinfo: Arc::new(Mutex::new(network::Network::default())),
+            processinfo: Arc::new(Mutex::new(processes)),
+            gpuinfo: Arc::new(Mutex::new(gpu::Gpu::default())),
+            hostinfo: hostinfo::Hostinfo::default(),
+
+            time: Arc::new(time::Time::default()),
+
+            exit: Arc::new((Mutex::new(false), Condvar::new())),
+
+            config: Arc::new(config),
+
+            threads: Vec::new(),
+            error: Arc::new(Mutex::new(Vec::new())),
+        };
+
+        Ok(system)
+    }
     // This function starts all the monitoring threads
     pub fn start(&mut self, mtx: std::sync::mpsc::Sender<u8>) {
         // Set up the signals for the Event thread

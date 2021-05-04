@@ -57,6 +57,36 @@ pub struct Processes {
 }
 
 impl Processes {
+    pub fn new() -> Result<Self> {
+        let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 2, // SYS_OPEN
+                in("rdi") PROC_PATH,
+                in("rsi") 16, // O_DIRECTORY
+                //in("rdx") 0, // This is the mode. It is not used in this case
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") ret,
+            );
+        }
+
+        // Check if there's an error
+        ensure!(!ret.is_negative(), "SYS_OPEN return code: {}", ret);
+
+        Ok(Self {
+            processes: AHashMap::default(),
+            maxpidlen: 0,
+            rebuild: false,
+            fd: ret,
+            buffer: String::new(),
+            buffer_vector_dirs: Vec::with_capacity(BUF_SIZE),
+            buffer_vector: Vec::with_capacity(1000),
+            ignored: AHashSet::default(),
+            sorted: Vec::new(),
+        })
+    }
+
     pub fn update(&mut self, cpuinfo: &Arc<Mutex<cpu::Cpuinfo>>, config: &Arc<Config>) -> Result<()> {
         //let now = std::time::Instant::now();
 
@@ -289,38 +319,6 @@ impl Processes {
         });
 
         (self.maxpidlen, &self.sorted)
-    }
-}
-
-impl Default for Processes {
-    fn default() -> Self {
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 2, // SYS_OPEN
-                in("rdi") PROC_PATH,
-                in("rsi") 16, // O_DIRECTORY
-                //in("rdx") 0, // This is the mode. It is not used in this case
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
-
-        // Check if there's an error
-        assert!(!ret.is_negative(), "SYS_OPEN return code: {}", ret);
-
-        Self {
-            processes: AHashMap::default(),
-            maxpidlen: 0,
-            rebuild: false,
-            fd: ret,
-            buffer: String::new(),
-            buffer_vector_dirs: Vec::with_capacity(BUF_SIZE),
-            buffer_vector: Vec::with_capacity(1000),
-            ignored: AHashSet::default(),
-            sorted: Vec::new(),
-        }
     }
 }
 

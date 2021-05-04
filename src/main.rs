@@ -9,6 +9,9 @@ mod system;
 mod ui;
 mod terminal;
 
+use system::System;
+use ui::Ui;
+
 fn main() -> Result<()> {
     let options = App::new("Megamonic")
         .setting(AppSettings::ColoredHelp)
@@ -52,17 +55,15 @@ fn main() -> Result<()> {
 
     ensure!((1000..=3000).contains(&freq), "\x1b[32mFrequency\x1b[0m must in range 1000-3000");
 
-    // Initialize System and set the configuration options
-    let mut system = system::System {
-        config: std::sync::Arc::new(system::Config {
-            smaps: atomic::AtomicBool::new(options.is_present("smaps")),
-            topmode: atomic::AtomicBool::new(options.is_present("topmode")),
-            all: atomic::AtomicBool::new(options.is_present("all")),
-            frequency: atomic::AtomicU64::new(freq),
-            strftime_format: value_t!(options, "strftime", String).unwrap_or_else(|e| e.exit()),
-        }),
-        ..Default::default()
+    let config = system::Config {
+        smaps: atomic::AtomicBool::new(options.is_present("smaps")),
+        topmode: atomic::AtomicBool::new(options.is_present("topmode")),
+        all: atomic::AtomicBool::new(options.is_present("all")),
+        frequency: atomic::AtomicU64::new(freq),
+        strftime_format: value_t!(options, "strftime", String).unwrap_or_else(|e| e.exit()),
     };
+
+    let mut system = System::new(config)?;
 
     // Event channel
     let (tx, rx) = std::sync::mpsc::channel();
@@ -89,7 +90,7 @@ fn main() -> Result<()> {
         bail!("An error occured while starting!");
     }
 
-    let mut ui = ui::Ui::new(&system, terminal::gettermsize())?;
+    let mut ui = Ui::new(&system, terminal::gettermsize())?;
 
     let mut error: Option<anyhow::Error> = None;
 
