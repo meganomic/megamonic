@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, atomic, Condvar};
 use std::thread;
-use anyhow::{ Result, Context };
+use anyhow::{ Result, Context, bail };
 
 mod cpu;
 mod loadavg;
@@ -49,10 +49,11 @@ pub struct System {
 impl System {
     pub fn new(config: Config) -> Result<Self> {
         let processes = processes::Processes::new().context("Can't initialize Procesess")?;
+        let loadavg = loadavg::Loadavg::new().context("Can't initialize Loadavg")?;
 
         let system = Self {
             cpuinfo: Arc::new(Mutex::new(cpu::Cpuinfo::default())),
-            loadavg: Arc::new(Mutex::new(loadavg::Loadavg::default())),
+            loadavg: Arc::new(Mutex::new(loadavg)),
             memoryinfo: Arc::new(Mutex::new(memory::Memory::default())),
             sensorinfo: Arc::new(Mutex::new(sensors::Sensors::default())),
             networkinfo: Arc::new(Mutex::new(network::Network::default())),
@@ -190,4 +191,36 @@ impl System {
             }
         }
     }
+}
+
+// Open file 'path' and read it into 'buffer'
+fn read_fd(fd: i32, buffer: &mut Vec::<u8>) -> Result<()> {
+    // Clear the buffer
+    buffer.clear();
+
+    // Read file from position 0
+    let n_read: i32;
+    unsafe {
+        asm!("syscall",
+            in("rax") 17, // SYS_PREAD64
+            in("rdi") fd,
+            in("rsi") buffer.as_mut_ptr(),
+            in("rdx") buffer.capacity(),
+            in("r10") 0, // offset
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") n_read,
+        );
+    }
+
+    if n_read.is_negative()  {
+        bail!("Read error: {}", n_read);
+    }
+
+    // Set buffer length to however many bytes was read
+    unsafe {
+        buffer.set_len(n_read as usize);
+    }
+
+    Ok(())
 }
