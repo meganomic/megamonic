@@ -50,13 +50,14 @@ impl System {
     pub fn new(config: Config) -> Result<Self> {
         let processes = processes::Processes::new().context("Can't initialize Procesess")?;
         let loadavg = loadavg::Loadavg::new().context("Can't initialize Loadavg")?;
+        let network = network::Network::new().context("Can't initialize Network")?;
 
         let system = Self {
             cpuinfo: Arc::new(Mutex::new(cpu::Cpuinfo::default())),
             loadavg: Arc::new(Mutex::new(loadavg)),
             memoryinfo: Arc::new(Mutex::new(memory::Memory::default())),
             sensorinfo: Arc::new(Mutex::new(sensors::Sensors::default())),
-            networkinfo: Arc::new(Mutex::new(network::Network::default())),
+            networkinfo: Arc::new(Mutex::new(network)),
             processinfo: Arc::new(Mutex::new(processes)),
             gpuinfo: Arc::new(Mutex::new(gpu::Gpu::default())),
             hostinfo: hostinfo::Hostinfo::default(),
