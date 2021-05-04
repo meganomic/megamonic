@@ -117,6 +117,19 @@ impl Process {
                 self.pss = -1;
             }
 
+        } else {
+            // If smaps is turned On and then Off we should close the file
+            if self.smaps_fd != 0 {
+                unsafe {
+                    asm!("syscall",
+                        in("rax") 3, // SYS_CLOSE
+                        in("rdi") self.smaps_fd,
+                        out("rcx") _,
+                        out("r11") _,
+                        lateout("rax") _,
+                    );
+                }
+            }
         }
 
         // Returning true means the process will not be removed from the list
@@ -160,7 +173,7 @@ impl Process {
             *sfd = fd;
         }
 
-        // Read file
+        // Read file from position 0
         let n_read: i32;
         unsafe {
             asm!("syscall",
@@ -168,7 +181,7 @@ impl Process {
                 in("rdi") *sfd,
                 in("rsi") buffer.as_mut_ptr(),
                 in("rdx") buffer.capacity(),
-                in("r10") 0,
+                in("r10") 0, // offset
                 out("rcx") _,
                 out("r11") _,
                 lateout("rax") n_read,
@@ -190,7 +203,7 @@ impl Process {
 
 impl Drop for Process {
     fn drop(&mut self) {
-        // Close any open FDs
+        // Close any open FDs when it's dropped
         if self.stat_fd != 0 {
             unsafe {
                 asm!("syscall",
