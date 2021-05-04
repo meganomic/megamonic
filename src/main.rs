@@ -63,15 +63,12 @@ fn main() -> Result<()> {
         strftime_format: value_t!(options, "strftime", String).unwrap_or_else(|e| e.exit()),
     };
 
-    let mut system = System::new(config)?;
-
     // Event channel
     let (tx, rx) = std::sync::mpsc::channel();
 
-    terminal::enable_raw_mode();
+    let system = System::new(config, tx)?;
 
-    // Start monitoring threads
-    system.start(tx);
+    terminal::enable_raw_mode();
 
     // Check if there was any errors starting up
     if !system.error.lock().unwrap().is_empty() {
@@ -80,8 +77,6 @@ fn main() -> Result<()> {
         terminal::send_char("q");
 
         terminal::disable_raw_mode();
-
-        system.stop();
 
         for err in system.error.lock().expect("system.error lock couldn't be aquired!").iter() {
             eprintln!("{:?}", err);
@@ -114,10 +109,7 @@ fn main() -> Result<()> {
                 // Exit event thread
                 terminal::send_char("q");
 
-                terminal::disable_raw_mode();
-                ui.exit()?;
-
-                system.stop();
+                //ui.exit()?;
 
                 for err in system.error.lock().expect("system.error lock couldn't be aquired!").iter() {
                     eprintln!("{:?}", err);
@@ -165,16 +157,9 @@ fn main() -> Result<()> {
         }
     }
 
-    terminal::disable_raw_mode();
-
-    ui.exit()?;
-
     if let Some(err) = error {
         eprintln!("{:#?}", err);
     }
-
-    // Stop monitoring threads
-    system.stop();
 
     Ok(())
 }

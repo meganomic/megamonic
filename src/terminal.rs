@@ -96,7 +96,7 @@ fn init() {
         );
     }
 
-    assert!(!fd.is_negative());
+    assert!(!fd.is_negative(), "SYS_OPEN returned an error: {}", fd);
 
     // Save tty fd
     unsafe {
@@ -117,7 +117,7 @@ fn init() {
         );
     }
 
-    assert!(!ret.is_negative());
+    assert!(!ret.is_negative(), "SYS_IOCTL TCGETS returned an error: {}", ret);
 }
 
 // Enable raw mode
@@ -151,7 +151,7 @@ pub fn enable_raw_mode() {
         );
     }
 
-    assert!(!ret.is_negative());
+    assert!(!ret.is_negative(), "SYS_IOCTL TCSETS returned an error: {}", ret);
 }
 
 // Reset tty settings to original settings and close tty fd
@@ -172,7 +172,7 @@ pub fn disable_raw_mode() {
         );
     }
 
-    assert!(!ret.is_negative());
+    assert!(!ret.is_negative(), "SYS_IOCTL TCSETS returned an error: {}", ret);
 
     // Close the tty fd
     let ret: i32;
@@ -186,7 +186,7 @@ pub fn disable_raw_mode() {
         );
     }
 
-    assert!(!ret.is_negative());
+    assert!(!ret.is_negative(), "SYS_CLOSE returned an error: {}", ret);
 }
 
 // Send char to terminal input stream, used to exit the Event thread
@@ -206,7 +206,7 @@ pub fn send_char(c: &str) {
         );
     }
 
-    assert!(!ret.is_negative());
+    assert!(!ret.is_negative(), "SYS_IOCTL TIOCSTI returned an error: {}", ret);
 }
 
 // Get the size of the terminal
@@ -228,7 +228,7 @@ pub fn gettermsize() -> (u16, u16) {
         );
     }
 
-    assert!(!ret.is_negative());
+    assert!(!ret.is_negative(), "SYS_IOCTL TIOCGWINSZ returned an error: {}", ret);
 
     (winsize.ws_col, winsize.ws_row)
 }

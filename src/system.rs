@@ -47,14 +47,14 @@ pub struct System {
 }
 
 impl System {
-    pub fn new(config: Config) -> Result<Self> {
+    pub fn new(config: Config, mtx: std::sync::mpsc::Sender<u8>) -> Result<Self> {
         let processes = processes::Processes::new().context("Can't initialize Procesess")?;
         let loadavg = loadavg::Loadavg::new().context("Can't initialize Loadavg")?;
         let network = network::Network::new().context("Can't initialize Network")?;
         let cpu = cpu::Cpuinfo::new().context("Can't initialize Cpu")?;
         let memory = memory::Memory::new().context("Can't initialize Memory")?;
 
-        let system = Self {
+        let mut system = Self {
             cpuinfo: Arc::new(Mutex::new(cpu)),
             loadavg: Arc::new(Mutex::new(loadavg)),
             memoryinfo: Arc::new(Mutex::new(memory)),
@@ -74,10 +74,13 @@ impl System {
             error: Arc::new(Mutex::new(Vec::new())),
         };
 
+        system.start(mtx);
+
         Ok(system)
     }
+
     // This function starts all the monitoring threads
-    pub fn start(&mut self, mtx: std::sync::mpsc::Sender<u8>) {
+    fn start(&mut self, mtx: std::sync::mpsc::Sender<u8>) {
         // Set up the signals for the Event thread
         // This needs to be done BEFORE any other child threads are spawned
         // so the rules for signal handling are inherited to all child threads
@@ -177,9 +180,10 @@ impl System {
             )
         );
     }
+}
 
-    // This function stops all the monitoring threads
-    pub fn stop(&mut self) {
+impl Drop for System {
+    fn drop(&mut self) {
         // Notify all threads that they should exit
         let (lock, cvar) = &*self.exit;
         if let Ok(mut exitvar) = lock.lock() {

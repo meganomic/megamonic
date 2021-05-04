@@ -174,7 +174,6 @@ impl <'ui> Ui <'ui> {
         ui.init().context("Error occured while initializting UI")?;
 
         if let Err(err) = ui.rebuild().context("Error occured while building UI") {
-            ui.exit()?;
             return Err(err);
         }
 
@@ -187,13 +186,6 @@ impl <'ui> Ui <'ui> {
 
         // Initialize custom panic hook
         custom_panic_hook();
-
-        Ok(())
-    }
-
-    pub fn exit(&mut self) -> Result<()> {
-        // clear screen, disable Alternate screen, show cursor
-        write_to_stdout!("\x1b[2J\x1b[?1049l\x1b[?25h");
 
         Ok(())
     }
@@ -388,6 +380,13 @@ impl <'ui> Ui <'ui> {
         } else {
             let _ = write!(self.buffer, "\x1b[6;39H ");
         }
+    }
+}
+
+impl <'ui> Drop for Ui <'ui> {
+    fn drop(&mut self) {
+        print!("\x1b[2J\x1b[?1049l\x1b[?25h");
+        crate::terminal::disable_raw_mode();
     }
 }
 
