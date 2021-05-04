@@ -196,6 +196,8 @@ impl System {
     }
 }
 
+// 'path' is a pointer to a null terminated string
+// Returns the fd of the open file
 fn open_file(path: *const u8) -> Result<i32> {
     // Open file
     let ret: i32;
@@ -219,7 +221,7 @@ fn open_file(path: *const u8) -> Result<i32> {
     Ok(ret)
 }
 
-// Open file 'path' and read it into 'buffer'
+// Clears buffer and reads 'fd' from offset 0 into it
 fn read_fd(fd: i32, buffer: &mut Vec::<u8>) -> Result<()> {
     // Clear the buffer
     buffer.clear();
