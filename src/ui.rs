@@ -401,15 +401,9 @@ pub fn convert_with_padding(buffer: &mut String, num: u64) {
         // convert it to a f64 type to we can use ln() and stuff on it.
         let num = num as f64;
 
-        //static UNITS: [&str; 9] = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
-
-        // A kilobyte is 1024 bytes. Fight me!
-        //let delimiter = 1024_f64;
-
         // Magic that makes no sense to me
         let exponent = (num.ln() / DELIMITER_LN).floor() as i32;
         let pretty_bytes = num / DELIMITER.powi(exponent);
-
 
         // Different behaviour for different units
         match exponent {
