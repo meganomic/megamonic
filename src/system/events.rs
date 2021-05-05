@@ -151,6 +151,7 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                             Err(_) => break,
                         }
                     },
+                    10 => break,
                     _ => (),
                 }
             } else {

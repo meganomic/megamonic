@@ -68,16 +68,8 @@ fn main() -> Result<()> {
 
     let system = System::new(config, tx)?;
 
-    terminal::enable_raw_mode();
-
     // Check if there was any errors starting up
     if !system.error.lock().unwrap().is_empty() {
-        // Send a 'q' to the input buffer so I don't have to check the 'exit' condvar
-        // in the event thread. Just send 'q' to make it exit.
-        terminal::send_char("q");
-
-        terminal::disable_raw_mode();
-
         for err in system.error.lock().expect("system.error lock couldn't be aquired!").iter() {
             eprintln!("{:?}", err);
         }
@@ -87,18 +79,13 @@ fn main() -> Result<()> {
 
     let mut ui = Ui::new(&system, terminal::gettermsize())?;
 
-    let mut error: Option<anyhow::Error> = None;
-
     // Main loop
     for event in rx.iter() {
         match event {
             // Update UI element
             1..=13 => {
                 if let Err(err) = ui.update(event).context("Error occured while updating UI") {
-                    error = Some(err);
-
-                    // Exit event thread
-                    terminal::send_char("q");
+                    ui.set_error(err);
 
                     break;
                 }
@@ -106,13 +93,8 @@ fn main() -> Result<()> {
 
             // This is a error event incase one of the threads break.
             99 => {
-                // Exit event thread
-                terminal::send_char("q");
-
-                //ui.exit()?;
-
-                for err in system.error.lock().expect("system.error lock couldn't be aquired!").iter() {
-                    eprintln!("{:?}", err);
+                if let Some(err) = system.error.lock().expect("system.error lock couldn't be aquired!").pop() {
+                    ui.set_error(err);
                 }
 
                 bail!("Error event 99 occured! Caused either by an error or by SIGINT");
@@ -128,10 +110,7 @@ fn main() -> Result<()> {
                 ui.terminal_size.y = y;
 
                 if let Err(err) = ui.rebuild() {
-                    error = Some(err);
-
-                    // Exit event thread
-                    terminal::send_char("q");
+                    ui.set_error(err);
 
                     break;
                 }
@@ -140,10 +119,7 @@ fn main() -> Result<()> {
             // Rebuild UI if user pressed r
             106 => {
                 if let Err(err) = ui.rebuild() {
-                    error = Some(err);
-
-                    // Exit event thread
-                    terminal::send_char("q");
+                    ui.set_error(err);
 
                     break;
                 }
@@ -155,10 +131,6 @@ fn main() -> Result<()> {
             // If its something else we better exit just in case!
             _ => break,
         }
-    }
-
-    if let Some(err) = error {
-        eprintln!("{:#?}", err);
     }
 
     Ok(())

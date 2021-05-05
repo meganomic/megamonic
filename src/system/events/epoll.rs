@@ -40,6 +40,7 @@ impl SignalFD {
 
         set |= 1u64 << 27; // SIGWINCH == 28 - 1 = 27
         set |= 1u64 << 1; // SIGINT == 2 - 1 = 1
+        set |= 1u64 << 9; // SIGUSR1 == 10 - 1 = 9
 
         // Block the signals we want to handle ourselves
         let ret: i32;

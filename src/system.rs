@@ -191,6 +191,20 @@ impl Drop for System {
             cvar.notify_all();
         }
 
+        let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 62, // SYS_TGKILL
+                in("rdi") std::process::id(),
+                in("rsi") 10, // SIG_USR1
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") ret,
+            );
+        }
+
+        assert!(!ret.is_negative(), "SYS_KILL returned: {}", ret);
+
         while !self.threads.is_empty() {
             if let Some(val) = self.threads.pop() {
                 // If the thread is broken just go to the next one

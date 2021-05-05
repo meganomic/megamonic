@@ -32,6 +32,8 @@ use self::sensors::Sensors;
 mod gpu;
 use gpu::Gpu;
 
+use crate::terminal;
+
 
 // These are for use with the conversion functions
 static UNITS: [&str; 9] = ["b", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb", "Yb"];
@@ -93,8 +95,7 @@ fn custom_panic_hook() {
         let name = thread.name().unwrap_or("<unnamed>");
 
         // clear screen, disable Alternate screen, show cursor
-        print!("\x1b[2J\x1b[?1049l\x1b[?25h");
-
+        crate::terminal::disable_alternate();
         crate::terminal::disable_raw_mode();
 
         let msg = match info.payload().downcast_ref::<&'static str>() {
@@ -131,6 +132,7 @@ pub struct XY {
 
 pub struct Ui <'ui> {
     pub terminal_size: XY,
+    error: Option<anyhow::Error>,
 
     paused: bool,
 
@@ -151,6 +153,14 @@ pub struct Ui <'ui> {
 
 impl <'ui> Ui <'ui> {
     pub fn new(system: &'ui super::system::System, terminal_size: (u16, u16)) -> Result<Self> {
+        terminal::enable_raw_mode();
+
+        // Alternate screen, clear screen, hide cursor
+        terminal::enable_alternate();
+
+        // Initialize custom panic hook
+        custom_panic_hook();
+
         let (tsizex, tsizey) = (terminal_size.0, terminal_size.1);
 
         let mut ui = Self {
@@ -158,6 +168,7 @@ impl <'ui> Ui <'ui> {
             buffer: Vec::new(),
             system,
             terminal_size: XY { x: tsizex, y: tsizey },
+            error: None,
 
             time: Time::new(system, XY { x: 1, y: tsizey }),
             overview: Overview::new(system, XY { x: 1, y: 1 }),
@@ -171,26 +182,13 @@ impl <'ui> Ui <'ui> {
             gpu: Gpu::new(system, XY { x: 1, y: 22 }),
         };
 
-        ui.init().context("Error occured while initializting UI")?;
-
-        if let Err(err) = ui.rebuild().context("Error occured while building UI") {
-            return Err(err);
-        }
+        ui.rebuild().context("Error occured while building UI")?;
 
         Ok(ui)
     }
 
-    fn init(&mut self) -> Result<()> {
-        // Alternate screen, clear screen, hide cursor
-        write_to_stdout!("\x1b[?1049h\x1b[2J\x1b[?25l");
-
-        // Initialize custom panic hook
-        custom_panic_hook();
-
-        Ok(())
-    }
-
     pub fn toggle_pause(&mut self) {
+        panic!("shoe");
         if self.paused {
             self.paused = false;
         } else {
@@ -381,12 +379,20 @@ impl <'ui> Ui <'ui> {
             let _ = write!(self.buffer, "\x1b[6;39H ");
         }
     }
+
+    pub fn set_error(&mut self, err: anyhow::Error) {
+        self.error = Some(err);
+    }
 }
 
 impl <'ui> Drop for Ui <'ui> {
     fn drop(&mut self) {
-        print!("\x1b[2J\x1b[?1049l\x1b[?25h");
-        crate::terminal::disable_raw_mode();
+        terminal::disable_alternate();
+        terminal::disable_raw_mode();
+
+        if let Some(err) = &self.error {
+            eprintln!("{:?}", err);
+        }
     }
 }
 
