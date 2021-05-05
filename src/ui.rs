@@ -188,7 +188,6 @@ impl <'ui> Ui <'ui> {
     }
 
     pub fn toggle_pause(&mut self) {
-        panic!("shoe");
         if self.paused {
             self.paused = false;
         } else {
