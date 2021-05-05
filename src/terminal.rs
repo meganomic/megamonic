@@ -76,7 +76,7 @@ struct Termios {
 // Make sure statics are initialized
 macro_rules! check_statics {
     () => {
-        if unsafe { TTYFD == 0 } {
+        if unsafe { TTYFD } == 0 {
             init();
         }
     }
@@ -171,11 +171,10 @@ pub fn enable_custom_mode() {
 
 // Reset tty settings to original settings and close tty fd
 pub fn disable_custom_mode() {
-    unsafe {
-        if TTYFD == 0 {
-            return;
-        }
+    if unsafe { TTYFD } == 0 {
+        return;
     }
+
 
     // Set tty settings to our saved original values
     let ret: i32;
