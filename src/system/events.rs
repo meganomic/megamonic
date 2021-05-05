@@ -151,6 +151,8 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                             Err(_) => break,
                         }
                     },
+
+                    // SIGUSR1 - Used to exit the thread in case of errors
                     10 => break,
                     _ => (),
                 }
