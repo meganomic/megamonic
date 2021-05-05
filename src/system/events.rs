@@ -146,7 +146,7 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                     // SIGINT
                     2 => {
                         // Notify main thread about SIGINT
-                        match tx.send(99) {
+                        match tx.send(255) {
                             Ok(_) => (),
                             Err(_) => break,
                         }

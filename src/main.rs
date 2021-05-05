@@ -97,7 +97,7 @@ fn main() -> Result<()> {
                     ui.set_error(err);
                 }
 
-                bail!("Error event 99 occured! Caused either by an error or by SIGINT");
+                bail!("Error event 99 occured!");
             },
 
             // Pause
