@@ -80,21 +80,6 @@ impl SignalFD {
         }
     }
 
-    pub fn close(&self) {
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 3, // SYS_CLOSE
-                in("rdi") self.fd,
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
-
-        assert!(!ret.is_negative());
-    }
-
     pub fn read(&self) -> u32 {
         // Buffer to hold the signal data
         let mut data = SignalfdSiginfo::default();
@@ -116,6 +101,23 @@ impl SignalFD {
         assert!(!ret.is_negative());
 
         data.ssi_signo
+    }
+}
+
+impl Drop for SignalFD {
+    fn drop(&mut self) {
+        let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 3, // SYS_CLOSE
+                in("rdi") self.fd,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") ret,
+            );
+        }
+
+        assert!(!ret.is_negative());
     }
 }
 
@@ -184,22 +186,6 @@ impl Epoll {
         assert!(!ret.is_negative());
     }
 
-    pub fn close(&self) {
-        // Close epoll fd
-        let ret: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 3, // SYS_CLOSE
-                in("rdi") self.fd,
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") ret,
-            );
-        }
-
-        assert!(!ret.is_negative());
-    }
-
     pub fn wait(&self) -> EpollEvent {
         let mut event = EpollEvent {
             events: 0,
@@ -226,5 +212,23 @@ impl Epoll {
         assert!(!ret.is_negative());
 
         event
+    }
+}
+
+impl Drop for Epoll {
+    fn drop(&mut self) {
+        // Close epoll fd
+        let ret: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 3, // SYS_CLOSE
+                in("rdi") self.fd,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") ret,
+            );
+        }
+
+        assert!(!ret.is_negative());
     }
 }

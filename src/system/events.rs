@@ -168,9 +168,5 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                 break;
             }
         }
-
-        epoll.close();
-        signalfd.close();
-
     }).expect("Couldn't spawn Events thread")
 }
