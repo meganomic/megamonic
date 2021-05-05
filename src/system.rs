@@ -194,7 +194,7 @@ impl Drop for System {
         let ret: i32;
         unsafe {
             asm!("syscall",
-                in("rax") 62, // SYS_TGKILL
+                in("rax") 62, // SYS_KILL
                 in("rdi") std::process::id(),
                 in("rsi") 10, // SIG_USR1
                 out("rcx") _,
