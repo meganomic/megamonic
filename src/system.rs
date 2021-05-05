@@ -34,15 +34,18 @@ pub struct System {
     pub processinfo: Arc<Mutex<processes::Processes>>,
     pub gpuinfo: Arc<Mutex<gpu::Gpu>>,
     pub hostinfo: hostinfo::Hostinfo,
-
     pub time: Arc<time::Time>,
 
+    // Used to notify threads that they should exit
     pub exit: Arc<(Mutex<bool>, Condvar)>,
 
     // Options
     pub config: Arc<Config>,
 
+    // List of all thread handles
     pub threads: Vec<thread::JoinHandle<()>>,
+
+    // Cancer that should be refactored, holds any potential errors so it can be propagated
     pub error: Arc<Mutex<Vec::<anyhow::Error>>>,
 }
 
@@ -81,7 +84,7 @@ impl System {
 
     // This function starts all the monitoring threads
     fn start(&mut self, mtx: std::sync::mpsc::Sender<u8>) {
-        // Set up the signals for the Event thread
+        // Event thread
         // This needs to be done BEFORE any other child threads are spawned
         // so the rules for signal handling are inherited to all child threads
         self.threads.push(
