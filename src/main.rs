@@ -125,7 +125,7 @@ fn main() -> Result<()> {
                 }
             },
 
-            // Exit - Someone pressed Q or ctrl+c
+            // Exit - Someone pressed Q or a SIGINT was caught
             255 => break,
 
             // If its something else we better exit just in case!
