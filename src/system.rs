@@ -191,6 +191,7 @@ impl Drop for System {
             cvar.notify_all();
         }
 
+        // This signals the Event thread that it should exit
         let ret: i32;
         unsafe {
             asm!("syscall",
