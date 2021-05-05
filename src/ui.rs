@@ -95,8 +95,7 @@ fn custom_panic_hook() {
         let name = thread.name().unwrap_or("<unnamed>");
 
         // clear screen, disable Alternate screen, show cursor
-        crate::terminal::disable_alternate();
-        crate::terminal::disable_raw_mode();
+        terminal::disable_custom_mode();
 
         let msg = match info.payload().downcast_ref::<&'static str>() {
             Some(s) => *s,
@@ -153,10 +152,7 @@ pub struct Ui <'ui> {
 
 impl <'ui> Ui <'ui> {
     pub fn new(system: &'ui super::system::System, terminal_size: (u16, u16)) -> Result<Self> {
-        terminal::enable_raw_mode();
-
-        // Alternate screen, clear screen, hide cursor
-        terminal::enable_alternate();
+        terminal::enable_custom_mode();
 
         // Initialize custom panic hook
         custom_panic_hook();
@@ -379,6 +375,7 @@ impl <'ui> Ui <'ui> {
         }
     }
 
+    // This is used to print an error *after* resetting the terminal
     pub fn set_error(&mut self, err: anyhow::Error) {
         self.error = Some(err);
     }
@@ -386,8 +383,7 @@ impl <'ui> Ui <'ui> {
 
 impl <'ui> Drop for Ui <'ui> {
     fn drop(&mut self) {
-        terminal::disable_alternate();
-        terminal::disable_raw_mode();
+        terminal::disable_custom_mode();
 
         if let Some(err) = &self.error {
             eprintln!("{:?}", err);

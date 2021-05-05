@@ -62,8 +62,6 @@ static mut TTYTERMIOS: Termios = Termios {
 // Used to save the tty fd
 static mut TTYFD: i32 = 0;
 
-static mut CLOSED: (bool, bool) = (false, false);
-
 #[repr(C)]
 struct Termios {
     c_iflag: u32,           /* input mode flags */
@@ -124,8 +122,8 @@ fn init() {
     assert!(!ret.is_negative(), "SYS_IOCTL TCGETS returned an error: {}", ret);
 }
 
-// Enable raw mode
-pub fn enable_raw_mode() {
+// Enable raw mode and enable alternate screen and hide cursor
+pub fn enable_custom_mode() {
     check_statics!();
 
     // Enable raw mode settings, but still send signals. c_flag | ISIG
@@ -156,18 +154,27 @@ pub fn enable_raw_mode() {
     }
 
     assert!(!ret.is_negative(), "SYS_IOCTL TCSETS returned an error: {}", ret);
+
+    let data = "\x1b[?1049h\x1b[2J\x1b[?25l";
+    unsafe {
+        asm!("syscall",
+            in("rax") 1, // SYS_WRITE
+            in("rdi") 1,
+            in("rsi") data.as_ptr(),
+            in("rdx") data.len(),
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") _,
+        );
+    }
 }
 
 // Reset tty settings to original settings and close tty fd
-pub fn disable_raw_mode() {
-    check_statics!();
-
-    // This is needed in case of panics
+pub fn disable_custom_mode() {
     unsafe {
-        if CLOSED.0 {
+        if TTYFD == 0 {
             return;
         }
-        CLOSED.0 = true;
     }
 
     // Set tty settings to our saved original values
@@ -199,6 +206,23 @@ pub fn disable_raw_mode() {
     }
 
     assert!(!ret.is_negative(), "SYS_CLOSE returned an error: {}", ret);
+
+    unsafe {
+        TTYFD = 0;
+    }
+
+    let data = "\x1b[2J\x1b[?1049l\x1b[?25h";
+    unsafe {
+        asm!("syscall",
+            in("rax") 1, // SYS_WRITE
+            in("rdi") 1,
+            in("rsi") data.as_ptr(),
+            in("rdx") data.len(),
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") _,
+        );
+    }
 }
 
 // Send char to terminal input stream, used to exit the Event thread
@@ -243,41 +267,4 @@ pub fn gettermsize() -> (u16, u16) {
     assert!(!ret.is_negative(), "SYS_IOCTL TIOCGWINSZ returned an error: {}", ret);
 
     (winsize.ws_col, winsize.ws_row)
-}
-
-pub fn enable_alternate() {
-    let data = "\x1b[?1049h\x1b[2J\x1b[?25l";
-    unsafe {
-        asm!("syscall",
-            in("rax") 1, // SYS_WRITE
-            in("rdi") 1,
-            in("rsi") data.as_ptr(),
-            in("rdx") data.len(),
-            out("rcx") _,
-            out("r11") _,
-            lateout("rax") _,
-        );
-    }
-}
-
-pub fn disable_alternate() {
-    // This is needed in case of panics
-    unsafe {
-        if CLOSED.1 {
-            return;
-        }
-        CLOSED.1 = true;
-    }
-    let data = "\x1b[2J\x1b[?1049l\x1b[?25h";
-    unsafe {
-        asm!("syscall",
-            in("rax") 1, // SYS_WRITE
-            in("rdi") 1,
-            in("rsi") data.as_ptr(),
-            in("rdx") data.len(),
-            out("rcx") _,
-            out("r11") _,
-            lateout("rax") _,
-        );
-    }
 }
