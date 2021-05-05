@@ -224,7 +224,7 @@ pub fn disable_custom_mode() {
     }
 }
 
-// Send char to terminal input stream, used to exit the Event thread
+// Send char to terminal input stream, currently unused
 pub fn send_char(c: &str) {
     check_statics!();
 
