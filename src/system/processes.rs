@@ -6,7 +6,7 @@ use ahash::{ AHashMap, AHashSet };
 use std::collections::hash_map::Entry;
 
 pub mod process;
-use super::{cpu, Config};
+use super::{ cpu, Config, uring::{ Uring, UringError, IOOPS::* } };
 
 // Size of 'Processes.buffer_directories' used for getdents64()
 const BUF_SIZE: usize = 1024 * 1024;
@@ -51,6 +51,8 @@ pub struct Processes {
 
     // If all_processes isn't enabled, ignore the PIDs in this list
     ignored: AHashSet<u32>,
+
+    uring: Uring,
 }
 
 impl Processes {
@@ -81,6 +83,7 @@ impl Processes {
             buffer_vector: Vec::with_capacity(1000),
             ignored: AHashSet::default(),
             sorted: Vec::new(),
+            uring: Uring::new().expect("Can't make a io_uring"),
         })
     }
 
@@ -254,11 +257,8 @@ impl Processes {
         let topmode = config.topmode.load(atomic::Ordering::Relaxed);
         let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
-        // Needed because of unique captures in closures
-        let buf = &mut self.buffer_vector;
-
         // Used to check if any of the process.update() calls returned an error
-        let mut ret: Result<bool> = Ok(false);
+        /*let mut ret: Result<bool> = Ok(false);
 
         self.processes.retain(|_,process| {
             let res = process.update(buf, smaps);
@@ -290,7 +290,92 @@ impl Processes {
         });
 
         // Check if any errors occured
-        ret.context("process.update() returned with a failure state!")?;
+        ret.context("process.update() returned with a failure state!")?;*/
+
+
+        self.uring.reset();
+
+        let mut jobs = Vec::new();
+
+        for (idx, val) in self.processes.values_mut().enumerate() {
+            if idx % 100 >= 99 {
+                let ret = self.uring.submit().expect("Can't submit io_uring jobs to the kernel!");
+
+                loop {
+                    match self.uring.spin_next() {
+                        Ok(completion) => {
+                            jobs.push(completion);
+                        },
+                        Err(UringError::JobComplete) => {
+                            break;
+                        },
+                        _ => {
+                            bail!("I dunno");
+                        },
+                    }
+                }
+                self.uring.reset();
+            }
+
+            self.uring.add_to_queue(val.pid as u64, val.buffer.as_mut(), val.stat_fd, IORING_OP_READ);
+        }
+
+
+        let ret = self.uring.submit().expect("Can't submit io_uring jobs to the kernel!");
+
+        loop {
+            match self.uring.spin_next() {
+                Ok(completion) => {
+                    jobs.push(completion);
+                },
+                Err(UringError::JobComplete) => {
+                    break;
+                },
+                _ => {
+                    bail!("I dunno");
+                },
+            }
+        }
+
+
+        for completion in &jobs {
+            if let Entry::Occupied(mut entry) = self.processes.entry(completion.1 as u32) {
+                if completion.0.is_negative() {
+                    entry.remove_entry();
+                } else {
+                    let mut process = entry.get_mut();
+                    unsafe {
+                        process.buffer.set_len(completion.0 as usize);
+                    }
+
+                    let res = process.update(smaps);
+
+                    if let Ok(val) = res {
+                        // If val is false it means that /proc/[pid]/stat couldn't be opened
+                        // So the entry should be removed
+                        if val {
+                            // Calculate CPU % usage
+                            if topmode {
+                                if process.work > totald {
+                                    process.cpu_avg = 100.0 * cpu_count;
+                                } else {
+                                    process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
+                                }
+                            } else if process.work > totald {
+                                process.cpu_avg = 100.0;
+                            } else {
+                                process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
+                            }
+                        } else {
+                            entry.remove_entry();
+                        }
+                    } else {
+                        entry.remove_entry();
+                        res.context("process.update() returned with a failure state!")?;
+                    }
+                }
+            }
+        }
 
         //eprintln!("{}", now.elapsed().as_nanos());
         Ok(())

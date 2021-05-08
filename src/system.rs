@@ -12,6 +12,7 @@ mod gpu;
 mod hostinfo;
 mod time;
 mod events;
+mod uring;
 
 // Holds all the commandline options.
 #[derive(Default)]

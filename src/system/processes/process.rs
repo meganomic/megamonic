@@ -28,45 +28,68 @@ pub struct Process {
     //pub tasks : std::collections::HashSet<u32>,
 
     pub not_executable: bool,
-    stat_fd: i32,
-    smaps_fd: i32,
+
+    pub stat_fd: i32,
+    pub smaps_fd: i32,
+
+    pub buffer: Vec::<u8>,
 }
 
 impl Process {
     pub fn new(pid: u32, executable: String, cmdline: String, not_executable: bool) -> Self {
+        let stat_file = unsafe { CString::from_vec_unchecked(format!("/proc/{}/stat", pid).into_bytes()) };
+
+        // Open file
+        let fd: i32;
+        unsafe {
+            asm!("syscall",
+                in("rax") 2, // SYS_OPEN
+                in("rdi") stat_file.as_ptr(),
+                in("rsi") 0, // O_RDONLY
+                //in("rdx") 0, // This is the mode. It is not used in this case
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") fd,
+            );
+        }
+
+        assert!(!fd.is_negative());
+
         Self {
             pid,
             executable,
             cmdline,
-            stat_file: unsafe { CString::from_vec_unchecked(format!("/proc/{}/stat", pid).into_bytes()) },
+            stat_file,
             smaps_file: unsafe { CString::from_vec_unchecked(format!("/proc/{}/smaps_rollup", pid).into_bytes()) },
             not_executable,
+            buffer: Vec::<u8>::with_capacity(500),
+            stat_fd: fd,
             ..Default::default()
         }
     }
 
-    pub fn update(&mut self, buffer: &mut Vec::<u8>, smaps: bool) -> Result<bool> {
+    pub fn update(&mut self, smaps: bool) -> Result<bool> {
         //let now = std::time::Instant::now();
 
         // If open_and_read returns 'false' it means the stat file couldn't be opened
         // Which means the process has terminated
         // Returning false means the process will be removed from the list
-        if !self.open_and_read(buffer, false) {
+        /*if !self.open_and_read(buffer, false) {
             return Ok(false);
-        }
+        }*/
 
         // Need to keep the old total so we have something to compare to
         let old_total = self.total;
 
         // Find position of first ')' character
-        let pos = memchr::memchr(41, buffer.as_slice()).context("The stat_file is funky! It has no ')' character!")?;
+        let pos = memchr::memchr(41, self.buffer.as_slice()).context("The stat_file is funky! It has no ')' character!")?;
 
         //let mut shoe = buffer.split(|v| *v == 41).last().unwrap();
         //eprintln!("SHOE: {:?}", shoe);
 
 
         // Split on ')' then on ' '
-        let mut split = buffer.split_at(pos).1.split(|v| *v == 32);
+        let mut split = self.buffer.split_at(pos).1.split(|v| *v == 32);
         //eprintln!("{:?}", split.nth(1).unwrap());
 
             //eprintln!("KORV: {:?}", korv);
@@ -99,7 +122,7 @@ impl Process {
             0
         };
 
-        if smaps {
+        /*if smaps {
             // If open_and_read returns false it means we don't have
             // permission to open the smaps file
             if self.open_and_read(buffer, true) {
@@ -130,7 +153,7 @@ impl Process {
                     );
                 }
             }
-        }
+        }*/
 
         // Returning true means the process will not be removed from the list
         Ok(true)
