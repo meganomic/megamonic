@@ -286,7 +286,7 @@ impl Processes {
 
         for data in self.processes.values_mut() {
             self.uring.add_to_queue((data.pid, 0), &mut data.buffer_stat, data.stat_fd, IORING_OP_READ);
-            if csmaps {
+            if smaps {
                 let fd = data.get_smaps_fd();
                 if !fd.is_negative() {
                     self.uring.add_to_queue((data.pid, 1), &mut data.buffer_smaps, fd, IORING_OP_READ);
@@ -309,36 +309,32 @@ impl Processes {
                                 process.update_smaps()?;
                             }
                             continue;
-
                         }
 
+                        // If res is negative it means there was an error reading stat_file
+                        // This is most likely caused by the process terminating
                         if res.is_negative() {
                             entry.remove_entry();
                         } else {
                             let process = entry.get_mut();
+
                             unsafe {
                                 process.buffer_stat.set_len(res as usize);
                             }
 
-                            let res = process.update_stat();
+                            process.update_stat().context("process.update() returned with a failure state!")?;
 
-                            if res.is_ok() {
-                                // Calculate CPU % usage
-                                if topmode {
-                                    if process.work > totald {
-                                        process.cpu_avg = 100.0 * cpu_count;
-                                    } else {
-                                        process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
-                                    }
-                                } else if process.work > totald {
-                                    process.cpu_avg = 100.0;
+                            // Calculate CPU % usage
+                            if topmode {
+                                if process.work > totald {
+                                    process.cpu_avg = 100.0 * cpu_count;
                                 } else {
-                                    process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
+                                    process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
                                 }
-
+                            } else if process.work > totald {
+                                process.cpu_avg = 100.0;
                             } else {
-                                entry.remove_entry();
-                                res.context("process.update() returned with a failure state!")?;
+                                process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
                             }
                         }
                     }
