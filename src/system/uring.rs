@@ -147,7 +147,7 @@ struct io_uring_params {
     cq_off: io_cqring_offsets
 }
 
-const QUEUE_DEPTH: usize = 200;
+const QUEUE_DEPTH: usize = 500;
 
 const PROT_READ: u32 = 0x1;
 const PROT_WRITE: u32 = 0x2;
@@ -194,6 +194,9 @@ macro_rules! checkerr {
 }
 
 pub struct Uring {
+    // How many entries the ring buffer has
+    pub entries: usize,
+
     /** Keep track of submissions/completions **/
 
     // Total amount of CQEs read
@@ -230,8 +233,12 @@ pub struct Uring {
 unsafe impl Send for Uring {}
 
 impl Uring {
-    pub fn new() -> Result<Self, UringError> {
+    pub fn new(mut queue_depth: usize) -> Result<Self, UringError> {
         let mut io_params = io_uring_params::default();
+
+        if queue_depth == 0 {
+            queue_depth = QUEUE_DEPTH
+        }
 
         let ring_fd: i32;
         unsafe {
@@ -317,6 +324,7 @@ impl Uring {
 
 
         Ok(Self {
+            entries: queue_depth,
             read_total: 0,
             submit: 0,
             submit_total: 0,
@@ -370,7 +378,7 @@ impl Uring {
     /*
     * Submit a read or a write request to the submission queue.
     * */
-    pub fn add_to_queue(&mut self, user_data: u64, buffer: &mut Vec::<u8>, fd: i32, op: IOOPS)  {
+    pub fn add_to_queue(&mut self, user_data: u64, buffer: u64, fd: i32, op: IOOPS)  {
         // Load current tail
         let mut tail: u32 = unsafe { &*self.sring_tail }.load(Ordering::Acquire);
 
@@ -383,8 +391,8 @@ impl Uring {
         // Set the options for our request
         sqe.opcode = op as u8;
         sqe.fd = fd;
-        sqe.addr = buffer.as_mut_ptr() as u64;
-        sqe.len = buffer.capacity() as u32;
+        sqe.addr = buffer;
+        sqe.len = 500;
         sqe.user_data = user_data;
 
         // Update array
@@ -480,5 +488,19 @@ impl Uring {
         self.read_total = 0;
         self.submit_total = 0;
         self.submit = 0;
+    }
+}
+
+impl Drop for Uring {
+    fn drop(&mut self) {
+        unsafe {
+            asm!("syscall",
+                in("rax") 3, // SYS_CLOSE
+                in("rdi") self.ring_fd,
+                out("rcx") _,
+                out("r11") _,
+                lateout("rax") _,
+            );
+        }
     }
 }
