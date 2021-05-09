@@ -266,22 +266,30 @@ impl Processes {
         let topmode = config.topmode.load(atomic::Ordering::Relaxed);
         let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
-        if !smaps {
-            for process in self.processes.values_mut() {
-                process.disable_smaps();
-            }
-        }
-
         //let now = std::time::Instant::now();
 
         // Reset counting variables
         self.uring.reset();
 
-        // If the io_uring ringbuffer is too small make a new instance with a bigger one
-        if smaps && (self.processes.len() * 2) > self.uring.entries {
-            self.uring = Uring::new((self.processes.len() * 2) + 100)?;
-        } else if self.processes.len() > self.uring.entries {
-            self.uring = Uring::new(self.processes.len() + 100)?;
+        // Adjust io_uring ringbuffer according to how many processes are running
+        // Double the size if smaps are enabled
+        // Add 50 to allow for growth, 100 if smaps are enabled
+        if smaps {
+            if (self.processes.len() * 2) > self.uring.entries {
+                self.uring = Uring::new((self.processes.len() * 2) + 100)?;
+            }
+        } else {
+            if self.processes.len() > self.uring.entries {
+                self.uring = Uring::new(self.processes.len() + 50)?;
+
+            // If we have more than 100 free entries shrink the buffer
+            } else if (self.processes.len() + 100) < self.uring.entries {
+                self.uring = Uring::new(self.processes.len() + 50)?;
+            }
+
+            for process in self.processes.values_mut() {
+                process.disable_smaps();
+            }
         }
 
         // Add files to io_uring queue
