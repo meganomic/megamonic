@@ -257,46 +257,10 @@ impl Processes {
         let topmode = config.topmode.load(atomic::Ordering::Relaxed);
         let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
-        // Used to check if any of the process.update() calls returned an error
-        /*let mut ret: Result<bool> = Ok(false);
-
-        self.processes.retain(|_,process| {
-            let res = process.update(buf, smaps);
-            if let Ok(val) = res {
-                // If val is false it means that /proc/[pid]/stat couldn't be opened
-                // So the entry should be removed
-                if val {
-                    // Calculate CPU % usage
-                    if topmode {
-                        if process.work > totald {
-                            process.cpu_avg = 100.0 * cpu_count;
-                        } else {
-                            process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
-                        }
-                    } else if process.work > totald {
-                        process.cpu_avg = 100.0;
-                    } else {
-                        process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
-                    }
-
-                    true
-                } else {
-                    false
-                }
-            } else {
-                ret = res;
-                false
-            }
-        });
-
-        // Check if any errors occured
-        ret.context("process.update() returned with a failure state!")?;*/
-
         //let now = std::time::Instant::now();
+
         // Reset counting variables
         self.uring.reset();
-
-
 
         // If the io_uring ringbuffer is too small make a new instance with a bigger one
         if self.processes.len() > self.uring.entries {
