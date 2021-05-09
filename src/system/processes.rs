@@ -257,18 +257,9 @@ impl Processes {
             }
         }
 
-
-
-        let (cpu_count, totald) = if let Ok(val) = cpuinfo.lock() {
-            (val.cpu_count as f32, val.totald)
-        } else {
-            bail!("Cpuinfo lock is poisoned!");
-        };
-
-        let topmode = config.topmode.load(atomic::Ordering::Relaxed);
         let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
-        // If smaps option is disabled close the smaps files
+        // If smaps option is toggled off, close the smaps files
         if smaps != self.smaps {
             self.smaps = smaps;
 
@@ -284,6 +275,7 @@ impl Processes {
         // Reset counting variables
         self.uring.reset();
 
+        // Slightly different behaviour if smaps is enabled
         if smaps {
             // Adjust io_uring ringbuffer according to how many processes are running
             // Double the size if smaps are enabled
@@ -322,6 +314,14 @@ impl Processes {
 
         // Submit queue to kernel
         self.uring.submit_all().context("Can't submit io_uring jobs to the kernel!")?;
+
+        let (cpu_count, totald) = if let Ok(val) = cpuinfo.lock() {
+            (val.cpu_count as f32, val.totald)
+        } else {
+            bail!("Cpuinfo lock is poisoned!");
+        };
+
+        let topmode = config.topmode.load(atomic::Ordering::Relaxed);
 
         loop {
             let completion = self.uring.spin_next();
