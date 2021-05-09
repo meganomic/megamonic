@@ -268,6 +268,7 @@ impl Processes {
         let topmode = config.topmode.load(atomic::Ordering::Relaxed);
         let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
+        // If smaps option is disabled close the smaps files
         if smaps != self.smaps {
             self.smaps = smaps;
 
@@ -283,25 +284,15 @@ impl Processes {
         // Reset counting variables
         self.uring.reset();
 
-        // Adjust io_uring ringbuffer according to how many processes are running
-        // Double the size if smaps are enabled
-        // Add 50 to allow for growth, 100 if smaps are enabled
         if smaps {
+            // Adjust io_uring ringbuffer according to how many processes are running
+            // Double the size if smaps are enabled
+            // Add 50 to allow for growth, 100 if smaps are enabled
             if (self.processes.len() * 2) > self.uring.entries {
                 self.uring = Uring::new((self.processes.len() * 2) + 100)?;
             }
-        } else {
-            if self.processes.len() > self.uring.entries {
-                self.uring = Uring::new(self.processes.len() + 50)?;
 
-            // If we have more than 100 free entries shrink the buffer
-            } else if (self.processes.len() + 100) < self.uring.entries {
-                self.uring = Uring::new(self.processes.len() + 50)?;
-            }
-        }
-
-        // Add files to io_uring queue
-        if smaps {
+            // Add files to io_uring queue
             for process in self.processes.values_mut() {
                 self.uring.add_to_queue((process.pid, 0), &mut process.buffer_stat, process.stat_fd, IORING_OP_READ);
 
@@ -310,9 +301,20 @@ impl Processes {
                 if !fd.is_negative() {
                     self.uring.add_to_queue((process.pid, 1), &mut process.buffer_smaps, fd, IORING_OP_READ);
                 }
-
             }
         } else {
+            // Adjust io_uring ringbuffer according to how many processes are running
+            // Double the size if smaps are enabled
+            // Add 50 to allow for growth, 100 if smaps are enabled
+            if self.processes.len() > self.uring.entries {
+                self.uring = Uring::new(self.processes.len() + 50)?;
+
+            // If we have more than 100 free entries shrink the buffer
+            } else if (self.processes.len() + 100) < self.uring.entries {
+                self.uring = Uring::new(self.processes.len() + 50)?;
+            }
+
+            // Add files to io_uring queue
             for process in self.processes.values_mut() {
                 self.uring.add_to_queue((process.pid, 0), &mut process.buffer_stat, process.stat_fd, IORING_OP_READ);
             }
