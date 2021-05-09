@@ -297,55 +297,53 @@ impl Processes {
         self.uring.submit_all().context("Can't submit io_uring jobs to the kernel!")?;
 
         loop {
-            match self.uring.spin_next() {
-                Ok((res, pid, smap)) => {
-                    if let Entry::Occupied(mut entry) = self.processes.entry(pid as u32) {
-                        if smap == 1 {
-                            if !res.is_negative() {
-                                let process = entry.into_mut();
-                                unsafe {
-                                    process.buffer_smaps.set_len(res as usize);
-                                }
-                                process.update_smaps()?;
+            let completion = self.uring.spin_next();
+            if let Ok((res, pid, smap)) = completion {
+                if let Entry::Occupied(mut entry) = self.processes.entry(pid as u32) {
+                    if smap == 1 {
+                        if !res.is_negative() {
+                            let process = entry.into_mut();
+                            unsafe {
+                                process.buffer_smaps.set_len(res as usize);
                             }
-                            continue;
+                            process.update_smaps()?;
+                        }
+                        continue;
+                    }
+
+                    // If res is negative it means there was an error reading stat_file
+                    // This is most likely caused by the process terminating
+                    if res.is_negative() {
+                        entry.remove_entry();
+                    } else {
+                        let process = entry.get_mut();
+
+                        unsafe {
+                            process.buffer_stat.set_len(res as usize);
                         }
 
-                        // If res is negative it means there was an error reading stat_file
-                        // This is most likely caused by the process terminating
-                        if res.is_negative() {
-                            entry.remove_entry();
-                        } else {
-                            let process = entry.get_mut();
+                        process.update_stat().context("process.update() returned with a failure state!")?;
 
-                            unsafe {
-                                process.buffer_stat.set_len(res as usize);
-                            }
-
-                            process.update_stat().context("process.update() returned with a failure state!")?;
-
-                            // Calculate CPU % usage
-                            if topmode {
-                                if process.work > totald {
-                                    process.cpu_avg = 100.0 * cpu_count;
-                                } else {
-                                    process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
-                                }
-                            } else if process.work > totald {
-                                process.cpu_avg = 100.0;
+                        // Calculate CPU % usage
+                        if topmode {
+                            if process.work > totald {
+                                process.cpu_avg = 100.0 * cpu_count;
                             } else {
-                                process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
+                                process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
                             }
+                        } else if process.work > totald {
+                            process.cpu_avg = 100.0;
+                        } else {
+                            process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
                         }
                     }
-                },
-                Err(UringError::JobComplete) => {
-                    break;
-                },
-                _ => {
-                    bail!("I dunno");
-                },
+                }
+            } else if let Err(UringError::JobComplete) = completion {
+                break;
+            } else {
+                bail!("I dunno");
             }
+
         }
 
 
