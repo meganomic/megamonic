@@ -424,18 +424,12 @@ impl Uring {
         loop {
             let result = self.read_from_cq();
 
-            match result {
-                Ok(_) => {
-                    return result;
-                },
+            if result.is_ok() {
+                return result;
+            }
 
-                Err(UringError::ReadFromCqEmptyBuffer) => {
-                    if self.read_total == self.submit_total {
-                        return Err(UringError::JobComplete);
-                    }
-                },
-
-                _ => return result,
+            if self.read_total == self.submit_total {
+                return Err(UringError::JobComplete);
             }
         }
     }
