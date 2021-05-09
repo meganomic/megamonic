@@ -193,6 +193,7 @@ impl Processes {
                                 let cmdline: String = split.intersperse(" ").collect();
 
                                 // If it's not Ok() then the stat_file couldn't be opened
+                                // which means the process has terminated
                                 if let Ok(process) =
                                     process::Process::new(
                                         pid,
@@ -224,6 +225,7 @@ impl Processes {
                                     };
 
                                     // If it's not Ok() then the stat_file couldn't be opened
+                                    // which means the process has terminated
                                     if let Ok(process) =
                                         process::Process::new(
                                             pid,
