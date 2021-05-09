@@ -301,15 +301,20 @@ impl Processes {
         }
 
         // Add files to io_uring queue
-        for process in self.processes.values_mut() {
-            self.uring.add_to_queue((process.pid, 0), &mut process.buffer_stat, process.stat_fd, IORING_OP_READ);
+        if smaps {
+            for process in self.processes.values_mut() {
+                self.uring.add_to_queue((process.pid, 0), &mut process.buffer_stat, process.stat_fd, IORING_OP_READ);
 
-            if smaps {
                 let fd = process.get_smaps_fd();
 
                 if !fd.is_negative() {
                     self.uring.add_to_queue((process.pid, 1), &mut process.buffer_smaps, fd, IORING_OP_READ);
                 }
+
+            }
+        } else {
+            for process in self.processes.values_mut() {
+                self.uring.add_to_queue((process.pid, 0), &mut process.buffer_stat, process.stat_fd, IORING_OP_READ);
             }
         }
 
