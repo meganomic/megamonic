@@ -378,7 +378,7 @@ impl Uring {
     /*
     * Submit a read or a write request to the submission queue.
     * */
-    pub fn add_to_queue(&mut self, user_data: u64, buffer: u64, fd: i32, op: IOOPS)  {
+    pub fn add_to_queue(&mut self, user_data: u64, buffer: &mut Vec::<u8>, fd: i32, op: IOOPS)  {
         // Load current tail
         let mut tail: u32 = unsafe { &*self.sring_tail }.load(Ordering::Acquire);
 
@@ -391,8 +391,8 @@ impl Uring {
         // Set the options for our request
         sqe.opcode = op as u8;
         sqe.fd = fd;
-        sqe.addr = buffer;
-        sqe.len = 500;
+        sqe.addr = buffer.as_mut_ptr() as u64;
+        sqe.len = buffer.capacity() as u32;
         sqe.user_data = user_data;
 
         // Update array

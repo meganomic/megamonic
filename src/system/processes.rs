@@ -292,23 +292,19 @@ impl Processes {
         // Check if any errors occured
         ret.context("process.update() returned with a failure state!")?;*/
 
-
+        //let now = std::time::Instant::now();
         // Reset counting variables
         self.uring.reset();
 
-        let procdata: Vec::<(u32, i32, u64)> = self.processes.iter()
-            .map(|v|
-                (*v.0, v.1.stat_fd, v.1.buffer.as_ptr() as u64)
-            ).collect();
 
 
         // If the io_uring ringbuffer is too small make a new instance with a bigger one
-        if procdata.len() > self.uring.entries {
-            self.uring = Uring::new(procdata.len() + 100)?;
+        if self.processes.len() > self.uring.entries {
+            self.uring = Uring::new(self.processes.len() + 100)?;
         }
 
-        for data in procdata {
-            self.uring.add_to_queue(data.0 as u64, data.2, data.1, IORING_OP_READ);
+        for data in self.processes.values_mut() {
+            self.uring.add_to_queue(data.pid as u64, &mut data.buffer, data.stat_fd, IORING_OP_READ);
         }
 
         let ret = self.uring.submit().expect("Can't submit io_uring jobs to the kernel!");
