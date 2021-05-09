@@ -284,28 +284,36 @@ impl Processes {
             self.uring = Uring::new(self.processes.len() + 100)?;
         }
 
+        // Add files to io_uring queue
         for data in self.processes.values_mut() {
             self.uring.add_to_queue((data.pid, 0), &mut data.buffer_stat, data.stat_fd, IORING_OP_READ);
+
             if smaps {
                 let fd = data.get_smaps_fd();
+
                 if !fd.is_negative() {
                     self.uring.add_to_queue((data.pid, 1), &mut data.buffer_smaps, fd, IORING_OP_READ);
                 }
             }
         }
 
+        // Submit queue to kernel
         self.uring.submit_all().context("Can't submit io_uring jobs to the kernel!")?;
 
         loop {
             let completion = self.uring.spin_next();
+
             if let Ok((res, pid, smap)) = completion {
-                if let Entry::Occupied(mut entry) = self.processes.entry(pid as u32) {
+                if let Entry::Occupied(entry) = self.processes.entry(pid) {
+                    // Is the completion about a smaps file?
                     if smap == 1 {
                         if !res.is_negative() {
                             let process = entry.into_mut();
+
                             unsafe {
                                 process.buffer_smaps.set_len(res as usize);
                             }
+
                             process.update_smaps()?;
                         }
                         continue;
@@ -316,7 +324,7 @@ impl Processes {
                     if res.is_negative() {
                         entry.remove_entry();
                     } else {
-                        let process = entry.get_mut();
+                        let process = entry.into_mut();
 
                         unsafe {
                             process.buffer_stat.set_len(res as usize);
