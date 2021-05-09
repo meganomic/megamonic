@@ -197,68 +197,6 @@ impl Process {
             self.smaps_fd = 0;
         }
     }
-
-    // Open file 'path' and read it into 'buffer'
-    /*fn open_and_read(&mut self, buffer: &mut Vec::<u8>, smaps: bool) -> bool {
-        // Clear the buffer
-        buffer.clear();
-
-        let (fd_ref, path) = if !smaps {
-            (&mut self.stat_fd, self.stat_file.as_ptr())
-        } else {
-            (&mut self.smaps_fd, self.smaps_file.as_ptr())
-        };
-
-        // Only need to open it once
-        if *fd_ref == 0 {
-            // Open file
-            let fd: i32;
-            unsafe {
-                asm!("syscall",
-                    in("rax") 2, // SYS_OPEN
-                    in("rdi") path,
-                    in("rsi") 0, // O_RDONLY
-                    //in("rdx") 0, // This is the mode. It is not used in this case
-                    out("rcx") _,
-                    out("r11") _,
-                    lateout("rax") fd,
-                );
-            }
-
-            // If there's an error it's 99.999% certain it's because the process has terminated
-            if fd.is_negative() {
-                return false;
-            }
-
-            *fd_ref = fd;
-        }
-
-        // Read file from position 0
-        let n_read: i32;
-        unsafe {
-            asm!("syscall",
-                in("rax") 17, // SYS_PREAD64
-                in("rdi") *fd_ref,
-                in("rsi") buffer.as_mut_ptr(),
-                in("rdx") buffer.capacity(),
-                in("r10") 0, // offset
-                out("rcx") _,
-                out("r11") _,
-                lateout("rax") n_read,
-            );
-        }
-
-        if n_read.is_negative()  {
-            return false;
-        }
-
-        // Set buffer length to however many bytes was read
-        unsafe {
-            buffer.set_len(n_read as usize);
-        }
-
-        true
-    }*/
 }
 
 impl Drop for Process {
