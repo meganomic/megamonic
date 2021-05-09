@@ -322,7 +322,7 @@ impl Processes {
                                 process.buffer_smaps.set_len(res as usize);
                             }
 
-                            process.update_smaps()?;
+                            process.update_smaps().context("process.update_smaps() returned with a failure state!")?;
                         }
                         continue;
                     }
@@ -338,7 +338,7 @@ impl Processes {
                             process.buffer_stat.set_len(res as usize);
                         }
 
-                        process.update_stat().context("process.update() returned with a failure state!")?;
+                        process.update_stat().context("process.update_stat() returned with a failure state!")?;
 
                         // Calculate CPU % usage
                         if topmode {
@@ -359,7 +359,6 @@ impl Processes {
             } else {
                 bail!("I dunno");
             }
-
         }
 
 
