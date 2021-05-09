@@ -264,9 +264,9 @@ impl Processes {
         };
 
         let topmode = config.topmode.load(atomic::Ordering::Relaxed);
-        let csmaps = config.smaps.load(atomic::Ordering::Relaxed);
+        let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
-        if !csmaps {
+        if !smaps {
             for process in self.processes.values_mut() {
                 process.disable_smaps();
             }
@@ -278,7 +278,7 @@ impl Processes {
         self.uring.reset();
 
         // If the io_uring ringbuffer is too small make a new instance with a bigger one
-        if csmaps && (self.processes.len() * 2) > self.uring.entries {
+        if smaps && (self.processes.len() * 2) > self.uring.entries {
             self.uring = Uring::new((self.processes.len() * 2) + 100)?;
         } else if self.processes.len() > self.uring.entries {
             self.uring = Uring::new(self.processes.len() + 100)?;
@@ -298,9 +298,9 @@ impl Processes {
 
         loop {
             match self.uring.spin_next() {
-                Ok((res, pid, smaps)) => {
+                Ok((res, pid, smap)) => {
                     if let Entry::Occupied(mut entry) = self.processes.entry(pid as u32) {
-                        if smaps == 1 {
+                        if smap == 1 {
                             if !res.is_negative() {
                                 let process = entry.into_mut();
                                 unsafe {
