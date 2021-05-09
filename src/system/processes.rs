@@ -6,7 +6,7 @@ use ahash::{ AHashMap, AHashSet };
 use std::collections::hash_map::Entry;
 
 pub mod process;
-use super::{ cpu, Config, uring::{ Uring, UringError, IOOPS::* } };
+use super::{ cpu, Config, uring::{ Uring, IOOPS::* } };
 
 // Size of 'Processes.buffer_directories' used for getdents64()
 const BUF_SIZE: usize = 1024 * 1024;
@@ -354,7 +354,7 @@ impl Processes {
                         }
                     }
                 }
-            } else if let Err(UringError::JobComplete) = completion {
+            } else {
                 break;
             }
         }
