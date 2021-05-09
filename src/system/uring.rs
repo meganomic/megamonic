@@ -156,7 +156,7 @@ struct io_uring_params {
     cq_off: io_cqring_offsets
 }
 
-// Default queue depth
+// Default queue size
 const QUEUE_DEPTH: usize = 500;
 
 // MMAP settings
