@@ -73,9 +73,7 @@ struct io_uring_sqe {
                 fadvise_advice: u32,
                 splice_flags: u32,
         },*/
-        //user_data: u64,      /* data to be passed back at completion time */
-        user_pid: u32,
-        user_smaps: u32,
+        user_data: u64,      /* data to be passed back at completion time */
         union2: [u64; 3]
         /*union {
                 struct {
@@ -98,9 +96,7 @@ struct io_uring_sqe {
 #[derive(Default,Debug)]
 #[allow(non_camel_case_types)]
 struct io_uring_cqe {
-    //user_data: u64,  /* sqe->data submission passed back */
-    user_pid: u32,
-    user_smaps: u32,
+    user_data: u64,  /* sqe->data submission passed back */
     res: i32,        /* result code for this event */
     flags: u32,
 }
@@ -168,6 +164,9 @@ const MAP_POPULATE: u32 = 0x008000;
 // Magic offsets
 const IORING_OFF_SQES: u64 = 0x10000000;
 const IORING_OFF_SQ_RING: u64 = 0;
+
+
+pub const SMAPS_BIT: u64 = 1<<63;
 
 
 #[derive(Error, Debug)]
@@ -361,7 +360,7 @@ impl Uring {
     }
 
     // Read next item from the completion queue
-    pub fn read_from_cq(&mut self) -> Result<(i32, u32, u32), UringError> {
+    pub fn read_from_cq(&mut self) -> Result<(i32, u64), UringError> {
         // Load current head
         let mut head = unsafe { &*self.cring_head }.load(Ordering::Acquire);
 
@@ -373,8 +372,7 @@ impl Uring {
 
         // Save data so we can return it
         let res = cqe.res;
-        let user_pid = cqe.user_pid;
-        let user_smaps = cqe.user_smaps;
+        let user_data = cqe.user_data;
 
         // Increase head and save it
         head += 1;
@@ -385,11 +383,12 @@ impl Uring {
         self.read_total += 1;
 
         // Result, user_data
-        Ok((res, user_pid, user_smaps))
+        //Ok((res, user_pid, user_smaps))
+        Ok((res, user_data))
     }
 
     // Add a IO operation to the queue. *** THERE ARE NO CHECKS! ***
-    pub fn add_to_queue(&mut self, user_data: (u32, u32), buffer: &mut Vec::<u8>, fd: i32, op: IOOPS)  {
+    pub fn add_to_queue(&mut self, user_data: u64, buffer: &mut Vec::<u8>, fd: i32, op: IOOPS)  {
         // Load current tail
         let mut tail: u32 = unsafe { &*self.sring_tail }.load(Ordering::Acquire);
 
@@ -404,9 +403,7 @@ impl Uring {
         sqe.fd = fd;
         sqe.addr = buffer.as_mut_ptr() as u64;
         sqe.len = buffer.capacity() as u32;
-        //sqe.user_data = user_data;
-        sqe.user_pid = user_data.0;
-        sqe.user_smaps = user_data.1;
+        sqe.user_data = user_data;
 
         // Update array
         unsafe { *self.sring_array.offset(index as isize) = index};
@@ -420,7 +417,7 @@ impl Uring {
     }
 
     // Spin until the next result is available, in my case it should be instantly
-    pub fn spin_next(&mut self) -> Result<(i32, u32, u32), UringError> {
+    pub fn spin_next(&mut self) -> Result<(i32, u64), UringError> {
         loop {
             let result = self.read_from_cq();
 

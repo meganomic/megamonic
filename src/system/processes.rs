@@ -6,7 +6,7 @@ use ahash::{ AHashMap, AHashSet };
 use std::collections::hash_map::Entry;
 
 pub mod process;
-use super::{ cpu, Config, uring::{ Uring, IOOPS::* } };
+use super::{ cpu, Config, uring::{ Uring, IOOPS::*, SMAPS_BIT } };
 
 // Size of 'Processes.buffer_directories' used for getdents64()
 const BUF_SIZE: usize = 1024 * 1024;
@@ -286,12 +286,12 @@ impl Processes {
 
             // Add files to io_uring queue
             for process in self.processes.values_mut() {
-                self.uring.add_to_queue((process.pid, 0), &mut process.buffer_stat, process.stat_fd, IORING_OP_READ);
+                self.uring.add_to_queue(process.pid as u64, &mut process.buffer_stat, process.stat_fd, IORING_OP_READ);
 
                 let fd = process.get_smaps_fd();
 
                 if !fd.is_negative() {
-                    self.uring.add_to_queue((process.pid, 1), &mut process.buffer_smaps, fd, IORING_OP_READ);
+                    self.uring.add_to_queue(process.pid as u64 | SMAPS_BIT, &mut process.buffer_smaps, fd, IORING_OP_READ);
                 }
             }
         } else {
@@ -308,7 +308,7 @@ impl Processes {
 
             // Add files to io_uring queue
             for process in self.processes.values_mut() {
-                self.uring.add_to_queue((process.pid, 0), &mut process.buffer_stat, process.stat_fd, IORING_OP_READ);
+                self.uring.add_to_queue(process.pid as u64, &mut process.buffer_stat, process.stat_fd, IORING_OP_READ);
             }
         }
 
@@ -326,10 +326,10 @@ impl Processes {
         loop {
             let completion = self.uring.spin_next();
 
-            if let Ok((res, pid, smap)) = completion {
-                if let Entry::Occupied(entry) = self.processes.entry(pid) {
+            if let Ok((res, user_data)) = completion {
+                if let Entry::Occupied(entry) = self.processes.entry(user_data as u32) {
                     // Is the completion about a smaps file?
-                    if smap == 1 {
+                    if (user_data & SMAPS_BIT) != 0 {
                         let process = entry.into_mut();
 
                         if !res.is_negative() {
