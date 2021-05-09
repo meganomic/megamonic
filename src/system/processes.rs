@@ -311,14 +311,14 @@ impl Processes {
 
         loop {
             match self.uring.spin_next() {
-                Ok(completion) => {
-                    if let Entry::Occupied(mut entry) = self.processes.entry(completion.1 as u32) {
-                        if completion.0.is_negative() {
+                Ok((res, pid)) => {
+                    if let Entry::Occupied(mut entry) = self.processes.entry(pid as u32) {
+                        if res.is_negative() {
                             entry.remove_entry();
                         } else {
                             let mut process = entry.get_mut();
                             unsafe {
-                                process.buffer.set_len(completion.0 as usize);
+                                process.buffer.set_len(res as usize);
                             }
 
                             let res = process.update(smaps);
