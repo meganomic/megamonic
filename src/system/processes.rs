@@ -356,8 +356,6 @@ impl Processes {
                 }
             } else if let Err(UringError::JobComplete) = completion {
                 break;
-            } else {
-                bail!("I dunno");
             }
         }
 
