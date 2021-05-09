@@ -351,9 +351,7 @@ impl Processes {
 
                     // If res is negative it means there was an error reading stat_file
                     // This is most likely caused by the process terminating
-                    if res.is_negative() {
-                        entry.remove_entry();
-                    } else {
+                    if !res.is_negative() {
                         let process = entry.into_mut();
 
                         unsafe {
@@ -374,6 +372,8 @@ impl Processes {
                         } else {
                             process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
                         }
+                    } else {
+                        entry.remove_entry();
                     }
                 }
             } else {
