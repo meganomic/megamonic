@@ -97,13 +97,6 @@ impl Process {
     pub fn update_stat(&mut self) -> Result<()> {
         //let now = std::time::Instant::now();
 
-        // If open_and_read returns 'false' it means the stat file couldn't be opened
-        // Which means the process has terminated
-        // Returning false means the process will be removed from the list
-        /*if !self.open_and_read(buffer, false) {
-            return Ok(false);
-        }*/
-
         // Need to keep the old total so we have something to compare to
         let old_total = self.total;
 
@@ -174,8 +167,6 @@ impl Process {
             self.pss = -1;
         }
 
-
-        // Returning true means the process will not be removed from the list
         Ok(())
 
         //eprintln!("{}", now.elapsed().as_nanos());
@@ -202,7 +193,7 @@ impl Process {
 impl Drop for Process {
     fn drop(&mut self) {
         // Close any open FDs when it's dropped
-        if self.stat_fd != 0 {
+        if self.stat_fd > 0 {
             unsafe {
                 asm!("syscall",
                     in("rax") 3, // SYS_CLOSE
