@@ -193,6 +193,7 @@ macro_rules! checkerr {
     }
 }
 
+#[allow(dead_code)]
 pub struct Uring {
     // How many entries the ring buffer has
     pub entries: usize,

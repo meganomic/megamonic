@@ -167,7 +167,7 @@ impl Processes {
                         if let Entry::Vacant(process_entry) = self.processes.entry(pid) {
                             // Avoiding allocations is cool kids!
                             self.buffer.clear();
-                            write!(&mut self.buffer, "/proc/{}/cmdline", pid).context("Error writing to buffer")?;
+                            let _ = write!(&mut self.buffer, "/proc/{}/cmdline", pid);
 
                             // If cmdline can't be opened it probably means that the process has terminated, skip it.
                             if let Ok(mut f) = std::fs::File::open(&self.buffer) {
@@ -192,20 +192,23 @@ impl Processes {
 
                                 let cmdline: String = split.intersperse(" ").collect();
 
-                                process_entry.insert(
+                                // If it's not Ok() then the stat_file couldn't be opened
+                                if let Ok(process) =
                                     process::Process::new(
                                         pid,
                                         executable,
                                         cmdline,
                                         false
                                     )
-                                );
+                                {
+                                    process_entry.insert(process);
+                                }
                             } else {
                                 // If 'all-processes' is enabled add everything
                                 if all_processes {
                                     // If stat can't be opened it means the process has terminated, skip it.
                                     self.buffer.clear();
-                                    write!(&mut self.buffer, "/proc/{}/stat", pid).context("Error writing to buffer")?;
+                                    let _ = write!(&mut self.buffer, "/proc/{}/stat", pid);
 
                                     let executable = if let Ok(mut f) = std::fs::File::open(&self.buffer) {
                                         self.buffer.clear();
@@ -220,14 +223,17 @@ impl Processes {
                                         continue;
                                     };
 
-                                    process_entry.insert(
+                                    // If it's not Ok() then the stat_file couldn't be opened
+                                    if let Ok(process) =
                                         process::Process::new(
                                             pid,
                                             executable,
                                             String::new(),
                                             true
                                         )
-                                    );
+                                    {
+                                        process_entry.insert(process);
+                                    }
                                 } else {
                                     // Otherwise add it to the ignore list
                                     self.ignored.insert(pid);

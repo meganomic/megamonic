@@ -1,4 +1,4 @@
-use anyhow::{ Context, Result };
+use anyhow::{ ensure, Context, Result };
 use std::ffi::CString;
 
 #[derive(Default)]
@@ -36,7 +36,7 @@ pub struct Process {
 }
 
 impl Process {
-    pub fn new(pid: u32, executable: String, cmdline: String, not_executable: bool) -> Self {
+    pub fn new(pid: u32, executable: String, cmdline: String, not_executable: bool) -> Result<Self> {
         let stat_file = unsafe { CString::from_vec_unchecked(format!("/proc/{}/stat", pid).into_bytes()) };
 
         // Open file
@@ -53,9 +53,9 @@ impl Process {
             );
         }
 
-        assert!(!fd.is_negative());
+        ensure!(!fd.is_negative());
 
-        Self {
+        Ok(Self {
             pid,
             executable,
             cmdline,
@@ -65,7 +65,7 @@ impl Process {
             buffer: Vec::<u8>::with_capacity(500),
             stat_fd: fd,
             ..Default::default()
-        }
+        })
     }
 
     pub fn update(&mut self, smaps: bool) -> Result<bool> {
