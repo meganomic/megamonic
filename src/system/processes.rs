@@ -316,7 +316,7 @@ impl Processes {
                         if res.is_negative() {
                             entry.remove_entry();
                         } else {
-                            let mut process = entry.get_mut();
+                            let process = entry.get_mut();
                             unsafe {
                                 process.buffer.set_len(res as usize);
                             }
