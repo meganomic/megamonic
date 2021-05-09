@@ -311,6 +311,7 @@ impl Processes {
                             continue;
 
                         }
+
                         if res.is_negative() {
                             entry.remove_entry();
                         } else {
