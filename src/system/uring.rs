@@ -407,10 +407,6 @@ impl Uring {
     }
 
     pub fn spin_next(&mut self) -> Result<(i32, u64), UringError> {
-        if self.read_total == self.submit_total {
-            return Err(UringError::JobComplete);
-        }
-
         //eprintln!("r: {} s: {}", self.read_total, self.submit_total);
 
         loop {
