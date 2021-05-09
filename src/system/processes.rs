@@ -38,7 +38,8 @@ pub struct Processes {
     pub maxpidlen: usize,
 
     // Used to clear self.processes if modes are changed
-    pub rebuild: bool,
+    rebuild: bool,
+    smaps: bool,
 
     fd: i32,
 
@@ -77,6 +78,7 @@ impl Processes {
             processes: AHashMap::default(),
             maxpidlen: 0,
             rebuild: false,
+            smaps: false,
             fd: ret,
             buffer: String::new(),
             buffer_vector_dirs: Vec::with_capacity(BUF_SIZE),
@@ -266,6 +268,16 @@ impl Processes {
         let topmode = config.topmode.load(atomic::Ordering::Relaxed);
         let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
+        if smaps != self.smaps {
+            self.smaps = smaps;
+
+            if !smaps {
+                for process in self.processes.values_mut() {
+                    process.disable_smaps();
+                }
+            }
+        }
+
         //let now = std::time::Instant::now();
 
         // Reset counting variables
@@ -298,8 +310,6 @@ impl Processes {
                 if !fd.is_negative() {
                     self.uring.add_to_queue((process.pid, 1), &mut process.buffer_smaps, fd, IORING_OP_READ);
                 }
-            } else {
-                process.disable_smaps();
             }
         }
 
