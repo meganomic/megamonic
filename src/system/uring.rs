@@ -151,8 +151,10 @@ struct io_uring_params {
     cq_off: io_cqring_offsets
 }
 
+// Default queue depth
 const QUEUE_DEPTH: usize = 500;
 
+// MMAP settings
 const PROT_READ: u32 = 0x1;
 const PROT_WRITE: u32 = 0x2;
 const MAP_SHARED: u32 = 0x01;
@@ -202,13 +204,13 @@ pub struct Uring {
     /** Keep track of submissions/completions **/
 
     // Total amount of CQEs read
-    pub read_total: u64,
+    read_total: u64,
 
     // Amount of SQEs to submit when submit() is called
     submit: u32,
 
     // Total amount of SQEs submitted
-    pub submit_total: u64,
+    submit_total: u64,
 
 
     /** low level io_uring stuff **/
@@ -350,7 +352,7 @@ impl Uring {
         })
     }
 
-
+    // Read next item from the completion queue
     pub fn read_from_cq(&mut self) -> Result<(i32, u32, u32), UringError> {
         // Load current head
         let mut head = unsafe { &*self.cring_head }.load(Ordering::Acquire);
@@ -378,9 +380,7 @@ impl Uring {
         Ok((res, user_pid, user_smaps))
     }
 
-    /*
-    * Submit a read or a write request to the submission queue.
-    * */
+    // Add a IO operation to the queue. *** THERE ARE NO CHECKS! ***
     pub fn add_to_queue(&mut self, user_data: (u32, u32), buffer: &mut Vec::<u8>, fd: i32, op: IOOPS)  {
         // Load current tail
         let mut tail: u32 = unsafe { &*self.sring_tail }.load(Ordering::Acquire);
@@ -411,9 +411,8 @@ impl Uring {
         self.submit += 1;
     }
 
+    // Spin until the next result is available, in my case it should be instantly
     pub fn spin_next(&mut self) -> Result<(i32, u32, u32), UringError> {
-        //eprintln!("r: {} s: {}", self.read_total, self.submit_total);
-
         loop {
             let result = self.read_from_cq();
 
@@ -430,14 +429,11 @@ impl Uring {
 
                 _ => return result,
             }
-
-
-
-            //unsafe { println!("buffer: {:?}", std::str::from_utf8_unchecked(buffers.get_unchecked_mut(x).as_slice())) };
         }
     }
 
-    pub fn submit(&mut self) -> Result<i32, UringError> {
+    // Submit all queued operations to the kernel
+    pub fn submit_all(&mut self) -> Result<i32, UringError> {
         let ret: i32;
         unsafe {
             asm!("syscall",
@@ -455,6 +451,8 @@ impl Uring {
 
         checkerr!(ret.is_negative(), UringError::SubmitToSqResult(ret));
 
+        checkerr!(ret as u32 != self.submit, UringError::SubmitToSqResult(ret));
+
         // Reset amount to submit to zero
         self.submit = 0;
 
@@ -464,6 +462,7 @@ impl Uring {
         Ok(ret)
     }
 
+    // Wait for all operations to complete
     pub fn _wait_for_all(&mut self) -> Result<i32, UringError> {
         let ret: i32;
         unsafe {
@@ -485,6 +484,7 @@ impl Uring {
         Ok(ret)
     }
 
+    // Reset counts to zero
     pub fn reset(&mut self) {
         self.read_total = 0;
         self.submit_total = 0;
@@ -492,6 +492,8 @@ impl Uring {
     }
 }
 
+// Close the io_uring fd when it goes out of scope
+// The memory mmap is freed automatically
 impl Drop for Uring {
     fn drop(&mut self) {
         if self.ring_fd > 0 {

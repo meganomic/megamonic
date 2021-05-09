@@ -45,13 +45,13 @@ pub struct Processes {
     // Buffers to avoid allocations
     buffer: String,
     buffer_vector_dirs: Vec::<u8>,
-    buffer_vector: Vec::<u8>,
 
     sorted: Vec::<usize>,
 
     // If all_processes isn't enabled, ignore the PIDs in this list
     ignored: AHashSet<u32>,
 
+    // io_uring
     uring: Uring,
 }
 
@@ -80,9 +80,10 @@ impl Processes {
             fd: ret,
             buffer: String::new(),
             buffer_vector_dirs: Vec::with_capacity(BUF_SIZE),
-            buffer_vector: Vec::with_capacity(1000),
             ignored: AHashSet::default(),
             sorted: Vec::new(),
+
+            // Create io_uring with default size (500)
             uring: Uring::new(0).expect("Can't make a io_uring"),
         })
     }
@@ -293,7 +294,7 @@ impl Processes {
             }
         }
 
-        let ret = self.uring.submit().expect("Can't submit io_uring jobs to the kernel!");
+        let ret = self.uring.submit_all().expect("Can't submit io_uring jobs to the kernel!");
 
         loop {
             match self.uring.spin_next() {
