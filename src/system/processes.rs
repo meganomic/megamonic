@@ -286,22 +286,20 @@ impl Processes {
             } else if (self.processes.len() + 100) < self.uring.entries {
                 self.uring = Uring::new(self.processes.len() + 50)?;
             }
-
-            for process in self.processes.values_mut() {
-                process.disable_smaps();
-            }
         }
 
         // Add files to io_uring queue
-        for data in self.processes.values_mut() {
-            self.uring.add_to_queue((data.pid, 0), &mut data.buffer_stat, data.stat_fd, IORING_OP_READ);
+        for process in self.processes.values_mut() {
+            self.uring.add_to_queue((process.pid, 0), &mut process.buffer_stat, process.stat_fd, IORING_OP_READ);
 
             if smaps {
-                let fd = data.get_smaps_fd();
+                let fd = process.get_smaps_fd();
 
                 if !fd.is_negative() {
-                    self.uring.add_to_queue((data.pid, 1), &mut data.buffer_smaps, fd, IORING_OP_READ);
+                    self.uring.add_to_queue((process.pid, 1), &mut process.buffer_smaps, fd, IORING_OP_READ);
                 }
+            } else {
+                process.disable_smaps();
             }
         }
 
