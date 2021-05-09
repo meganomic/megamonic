@@ -323,15 +323,22 @@ impl Processes {
                 if let Entry::Occupied(entry) = self.processes.entry(pid) {
                     // Is the completion about a smaps file?
                     if smap == 1 {
-                        if !res.is_negative() {
-                            let process = entry.into_mut();
+                        let process = entry.into_mut();
 
+                        if !res.is_negative() {
                             unsafe {
                                 process.buffer_smaps.set_len(res as usize);
                             }
 
                             process.update_smaps().context("process.update_smaps() returned with a failure state!")?;
+                        } else {
+                            // If res is negative it means we couldn't read the smaps file
+                            // Most likely because we lack permissions
+                            // Disable smaps for this process and set fd to -1 so it's not opened again
+                            process.disable_smaps();
+                            process.smaps_fd = -1;
                         }
+
                         continue;
                     }
 
