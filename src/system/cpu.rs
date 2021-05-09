@@ -116,7 +116,7 @@ impl Cpuinfo {
 impl Drop for Cpuinfo {
     fn drop(&mut self) {
         // Close any open FDs when it's dropped
-        if self.cpu_fd != 0 {
+        if self.cpu_fd > 0 {
             unsafe {
                 asm!("syscall",
                     in("rax") 3, // SYS_CLOSE
@@ -128,7 +128,7 @@ impl Drop for Cpuinfo {
             }
         }
 
-        if self.gov_fd != 0 {
+        if self.gov_fd > 0 {
             unsafe {
                 asm!("syscall",
                     in("rax") 3, // SYS_CLOSE

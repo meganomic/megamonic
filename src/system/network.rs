@@ -72,7 +72,7 @@ impl Network {
 impl Drop for Network {
     fn drop(&mut self) {
         // Close file
-        if self.fd != 0 {
+        if self.fd > 0 {
             unsafe {
                 asm!("syscall",
                     in("rax") 3, // SYS_CLOSE
