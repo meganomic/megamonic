@@ -436,7 +436,7 @@ impl Uring {
     }
 
     // Submit all queued operations to the kernel
-    pub fn submit_all(&mut self) -> Result<i32, UringError> {
+    pub fn submit_all(&mut self) -> Result<(), UringError> {
         let ret: i32;
         unsafe {
             asm!("syscall",
@@ -464,7 +464,7 @@ impl Uring {
         // Save total amount submitted
         self.submit_total += ret as u64;
 
-        Ok(ret)
+        Ok(())
     }
 
     // Wait for all operations to complete

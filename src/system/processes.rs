@@ -294,7 +294,7 @@ impl Processes {
             }
         }
 
-        let ret = self.uring.submit_all().expect("Can't submit io_uring jobs to the kernel!");
+        self.uring.submit_all().context("Can't submit io_uring jobs to the kernel!")?;
 
         loop {
             match self.uring.spin_next() {
@@ -321,7 +321,7 @@ impl Processes {
 
                             let res = process.update_stat();
 
-                            if let Ok(val) = res {
+                            if res.is_ok() {
                                 // Calculate CPU % usage
                                 if topmode {
                                     if process.work > totald {
