@@ -159,7 +159,10 @@ const PROT_READ: u32 = 0x1;
 const PROT_WRITE: u32 = 0x2;
 const MAP_SHARED: u32 = 0x01;
 const MAP_POPULATE: u32 = 0x008000;
+
+// Magic offsets
 const IORING_OFF_SQES: u64 = 0x10000000;
+const IORING_OFF_SQ_RING: u64 = 0;
 
 
 #[derive(Error, Debug)]
@@ -273,12 +276,12 @@ impl Uring {
         unsafe {
             asm!("syscall",
                 in("rax") 9, // SYS_MMAP
-                in("rdi") 0,
-                in("rsi") sring_sz,
-                in("rdx") PROT_READ | PROT_WRITE,
-                in("r10") MAP_SHARED | MAP_POPULATE,
-                in("r8") ring_fd,
-                in("r9") 0, //IORING_OFF_SQ_RING,
+                in("rdi") 0, // address
+                in("rsi") sring_sz, // length
+                in("rdx") PROT_READ | PROT_WRITE, // prot
+                in("r10") MAP_SHARED | MAP_POPULATE, // flags
+                in("r8") ring_fd, // fd
+                in("r9") IORING_OFF_SQ_RING, // offset
                 out("rcx") _,
                 out("r11") _,
                 lateout("rax") ret,
@@ -302,12 +305,12 @@ impl Uring {
         unsafe {
             asm!("syscall",
                 in("rax") 9, // SYS_MMAP
-                in("rdi") 0,
-                in("rsi") io_params.sq_entries * std::mem::size_of::<io_uring_sqe>() as u32,
-                in("rdx") PROT_READ | PROT_WRITE,
-                in("r10") MAP_SHARED | MAP_POPULATE,
-                in("r8") ring_fd,
-                in("r9") IORING_OFF_SQES,
+                in("rdi") 0, // address
+                in("rsi") io_params.sq_entries * std::mem::size_of::<io_uring_sqe>() as u32, // length
+                in("rdx") PROT_READ | PROT_WRITE, // prot
+                in("r10") MAP_SHARED | MAP_POPULATE, // flags
+                in("r8") ring_fd, // fd
+                in("r9") IORING_OFF_SQES, // offset
                 out("rcx") _,
                 out("r11") _,
                 lateout("rax") ret,
@@ -438,19 +441,21 @@ impl Uring {
         unsafe {
             asm!("syscall",
                 in("rax") 426, // SYS_IO_URING_ENTER
-                in("rdi") self.ring_fd,
-                in("rsi") self.submit,
-                in("rdx") 0,
-                in("r10") 1u64 << 0,
-                in("r8") 0,
+                in("rdi") self.ring_fd, // io_uring fd
+                in("rsi") self.submit, // to_submit
+                in("rdx") 0, // min_complete
+                in("r10") 0, // flags
+                in("r8") 0, // sigset_t
                 out("rcx") _,
                 out("r11") _,
                 lateout("rax") ret,
             );
         }
 
+        // If it's negative something has gone horrible wrong
         checkerr!(ret.is_negative(), UringError::SubmitToSqResult(ret));
 
+        // It should return the same number as we submitted
         checkerr!(ret as u32 != self.submit, UringError::SubmitToSqResult(ret));
 
         // Reset amount to submit to zero
@@ -468,11 +473,11 @@ impl Uring {
         unsafe {
             asm!("syscall",
                 in("rax") 426, // SYS_IO_URING_ENTER
-                in("rdi") self.ring_fd,
-                in("rsi") 0,
-                in("rdx") self.submit_total - self.read_total,
-                in("r10") 1u64 << 0,
-                in("r8") 0,
+                in("rdi") self.ring_fd, // io_uring fd
+                in("rsi") 0, // to_submit
+                in("rdx") self.submit_total - self.read_total, // min_complete
+                in("r10") 1u32 << 0, // flags, 1u32 << 0 == IORING_ENTER_GETEVENTS
+                in("r8") 0, // sigset_t
                 out("rcx") _,
                 out("r11") _,
                 lateout("rax") ret,
