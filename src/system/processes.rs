@@ -263,7 +263,13 @@ impl Processes {
         };
 
         let topmode = config.topmode.load(atomic::Ordering::Relaxed);
-        let smaps = config.smaps.load(atomic::Ordering::Relaxed);
+        let csmaps = config.smaps.load(atomic::Ordering::Relaxed);
+
+        if !csmaps {
+            for process in self.processes.values_mut() {
+                process.disable_smaps();
+            }
+        }
 
         //let now = std::time::Instant::now();
 
@@ -271,49 +277,63 @@ impl Processes {
         self.uring.reset();
 
         // If the io_uring ringbuffer is too small make a new instance with a bigger one
-        if self.processes.len() > self.uring.entries {
+        if csmaps && (self.processes.len() * 2) > self.uring.entries {
+            self.uring = Uring::new((self.processes.len() * 2) + 100)?;
+        } else if self.processes.len() > self.uring.entries {
             self.uring = Uring::new(self.processes.len() + 100)?;
         }
 
         for data in self.processes.values_mut() {
-            self.uring.add_to_queue(data.pid as u64, &mut data.buffer, data.stat_fd, IORING_OP_READ);
+            self.uring.add_to_queue((data.pid, 0), &mut data.buffer_stat, data.stat_fd, IORING_OP_READ);
+            if csmaps {
+                let fd = data.get_smaps_fd();
+                if !fd.is_negative() {
+                    self.uring.add_to_queue((data.pid, 1), &mut data.buffer_smaps, fd, IORING_OP_READ);
+                }
+            }
         }
 
         let ret = self.uring.submit().expect("Can't submit io_uring jobs to the kernel!");
 
         loop {
             match self.uring.spin_next() {
-                Ok((res, pid)) => {
+                Ok((res, pid, smaps)) => {
                     if let Entry::Occupied(mut entry) = self.processes.entry(pid as u32) {
+                        if smaps == 1 {
+                            if !res.is_negative() {
+                                let process = entry.into_mut();
+                                unsafe {
+                                    process.buffer_smaps.set_len(res as usize);
+                                }
+                                process.update_smaps()?;
+                            }
+                            continue;
+
+                        }
                         if res.is_negative() {
                             entry.remove_entry();
                         } else {
                             let process = entry.get_mut();
                             unsafe {
-                                process.buffer.set_len(res as usize);
+                                process.buffer_stat.set_len(res as usize);
                             }
 
-                            let res = process.update(smaps);
+                            let res = process.update_stat();
 
                             if let Ok(val) = res {
-                                // If val is false it means that /proc/[pid]/stat couldn't be opened
-                                // So the entry should be removed
-                                if val {
-                                    // Calculate CPU % usage
-                                    if topmode {
-                                        if process.work > totald {
-                                            process.cpu_avg = 100.0 * cpu_count;
-                                        } else {
-                                            process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
-                                        }
-                                    } else if process.work > totald {
-                                        process.cpu_avg = 100.0;
+                                // Calculate CPU % usage
+                                if topmode {
+                                    if process.work > totald {
+                                        process.cpu_avg = 100.0 * cpu_count;
                                     } else {
-                                        process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
+                                        process.cpu_avg = (process.work as f32 / totald as f32) * 100.0 *  cpu_count;
                                     }
+                                } else if process.work > totald {
+                                    process.cpu_avg = 100.0;
                                 } else {
-                                    entry.remove_entry();
+                                    process.cpu_avg = (process.work as f32 / totald as f32) * 100.0;
                                 }
+
                             } else {
                                 entry.remove_entry();
                                 res.context("process.update() returned with a failure state!")?;
@@ -329,7 +349,6 @@ impl Processes {
                 },
             }
         }
-
 
 
         //eprintln!("{}", now.elapsed().as_nanos());

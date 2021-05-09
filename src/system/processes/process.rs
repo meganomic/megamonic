@@ -8,7 +8,7 @@ pub struct Process {
     pub cmdline: String,
     pub executable: String,
 
-    stat_file: CString,
+    //stat_file: CString,
     smaps_file: CString,
 
     // /proc/stat
@@ -32,7 +32,8 @@ pub struct Process {
     pub stat_fd: i32,
     pub smaps_fd: i32,
 
-    pub buffer: Vec::<u8>,
+    pub buffer_stat: Vec::<u8>,
+    pub buffer_smaps: Vec::<u8>,
 }
 
 impl Process {
@@ -59,16 +60,41 @@ impl Process {
             pid,
             executable,
             cmdline,
-            stat_file,
+            //stat_file,
             smaps_file: unsafe { CString::from_vec_unchecked(format!("/proc/{}/smaps_rollup", pid).into_bytes()) },
             not_executable,
-            buffer: Vec::<u8>::with_capacity(500),
+            buffer_stat: Vec::<u8>::with_capacity(500),
+            buffer_smaps: Vec::<u8>::with_capacity(1000),
+            pss: -1,
             stat_fd: fd,
             ..Default::default()
         })
     }
 
-    pub fn update(&mut self, smaps: bool) -> Result<bool> {
+    pub fn get_smaps_fd(&mut self) -> i32 {
+        // Only need to open it once
+        if self.smaps_fd == 0 {
+            // Open file
+            let fd: i32;
+            unsafe {
+                asm!("syscall",
+                    in("rax") 2, // SYS_OPEN
+                    in("rdi") self.smaps_file.as_ptr(),
+                    in("rsi") 0, // O_RDONLY
+                    //in("rdx") 0, // This is the mode. It is not used in this case
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") fd,
+                );
+            }
+
+            self.smaps_fd = fd;
+        }
+
+        self.smaps_fd
+    }
+
+    pub fn update_stat(&mut self) -> Result<()> {
         //let now = std::time::Instant::now();
 
         // If open_and_read returns 'false' it means the stat file couldn't be opened
@@ -82,14 +108,14 @@ impl Process {
         let old_total = self.total;
 
         // Find position of first ')' character
-        let pos = memchr::memchr(41, self.buffer.as_slice()).context("The stat_file is funky! It has no ')' character!")?;
+        let pos = memchr::memchr(41, self.buffer_stat.as_slice()).context("The stat_file is funky! It has no ')' character!")?;
 
         //let mut shoe = buffer.split(|v| *v == 41).last().unwrap();
         //eprintln!("SHOE: {:?}", shoe);
 
 
         // Split on ')' then on ' '
-        let mut split = self.buffer.split_at(pos).1.split(|v| *v == 32);
+        let mut split = self.buffer_stat.split_at(pos).1.split(|v| *v == 32);
         //eprintln!("{:?}", split.nth(1).unwrap());
 
             //eprintln!("KORV: {:?}", korv);
@@ -122,47 +148,58 @@ impl Process {
             0
         };
 
-        /*if smaps {
-            // If open_and_read returns false it means we don't have
-            // permission to open the smaps file
-            if self.open_and_read(buffer, true) {
-                // Should maybe skip converting to str. I'll have to benchmark it
-                let data = unsafe { std::str::from_utf8_unchecked(&buffer) };
-                self.pss = btoi::btou::<i64>(data.lines()
-                    .nth(2)
-                    .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, before whitespace")?
-                    .split_ascii_whitespace()
-                    .nth(1)
-                    .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, after whitespace")?.as_bytes())
-                    .context("Can't convert 'pss' to a number")?
-                    * 1024;
-            } else {
-                self.pss = -1;
-            }
-
-        } else {
-            // If smaps is turned On and then Off we should close the file
-            if self.smaps_fd != 0 {
-                unsafe {
-                    asm!("syscall",
-                        in("rax") 3, // SYS_CLOSE
-                        in("rdi") self.smaps_fd,
-                        out("rcx") _,
-                        out("r11") _,
-                        lateout("rax") _,
-                    );
-                }
-            }
-        }*/
-
         // Returning true means the process will not be removed from the list
-        Ok(true)
+        Ok(())
 
         //eprintln!("{}", now.elapsed().as_nanos());
     }
 
+    pub fn update_smaps(&mut self) -> Result<()> {
+        //let now = std::time::Instant::now();
+
+
+        // If smaps_fd isn't above 0 it means we couldn't open it so set pss == -1
+        if self.smaps_fd > 0 {
+            // Should maybe skip converting to str. I'll have to benchmark it
+            let data = unsafe { std::str::from_utf8_unchecked(&self.buffer_smaps) };
+            self.pss = btoi::btou::<i64>(data.lines()
+                .nth(2)
+                .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, before whitespace")?
+                .split_ascii_whitespace()
+                .nth(1)
+                .context("Can't parse 'pss' from /proc/[pid]/smaps_rollup, after whitespace")?.as_bytes())
+                .context("Can't convert 'pss' to a number")?
+                * 1024;
+        } else {
+            self.pss = -1;
+        }
+
+
+        // Returning true means the process will not be removed from the list
+        Ok(())
+
+        //eprintln!("{}", now.elapsed().as_nanos());
+    }
+
+    pub fn disable_smaps(&mut self) {
+        // If smaps is turned On and then Off we should close the file
+        if self.smaps_fd > 0 {
+            unsafe {
+                asm!("syscall",
+                    in("rax") 3, // SYS_CLOSE
+                    in("rdi") self.smaps_fd,
+                    out("rcx") _,
+                    out("r11") _,
+                    lateout("rax") _,
+                );
+            }
+
+            self.smaps_fd = 0;
+        }
+    }
+
     // Open file 'path' and read it into 'buffer'
-    fn open_and_read(&mut self, buffer: &mut Vec::<u8>, smaps: bool) -> bool {
+    /*fn open_and_read(&mut self, buffer: &mut Vec::<u8>, smaps: bool) -> bool {
         // Clear the buffer
         buffer.clear();
 
@@ -221,7 +258,7 @@ impl Process {
         }
 
         true
-    }
+    }*/
 }
 
 impl Drop for Process {
@@ -239,7 +276,7 @@ impl Drop for Process {
             }
         }
 
-        if self.smaps_fd != 0 {
+        if self.smaps_fd > 0 {
             unsafe {
                 asm!("syscall",
                     in("rax") 3, // SYS_CLOSE
