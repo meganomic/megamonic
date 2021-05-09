@@ -47,6 +47,7 @@ pub enum IOOPS {
 
 #[repr(C)]
 #[derive(Default,Debug)]
+#[allow(non_camel_case_types)]
 struct io_uring_sqe {
         opcode: u8,         /* type of operation for this sqe */
         flags: u8,          /* IOSQE_ flags */
@@ -95,6 +96,7 @@ struct io_uring_sqe {
 
 #[repr(C)]
 #[derive(Default,Debug)]
+#[allow(non_camel_case_types)]
 struct io_uring_cqe {
     //user_data: u64,  /* sqe->data submission passed back */
     user_pid: u32,
@@ -106,8 +108,9 @@ struct io_uring_cqe {
 /*
  * Filled with the offset for mmap(2)
  */
- #[repr(C)]
- #[derive(Default,Debug)]
+#[repr(C)]
+#[derive(Default,Debug)]
+#[allow(non_camel_case_types)]
 struct io_sqring_offsets {
         head: u32,
         tail: u32,
@@ -125,6 +128,7 @@ struct io_sqring_offsets {
  */
 #[repr(C)]
 #[derive(Default,Debug)]
+#[allow(non_camel_case_types)]
 struct io_cqring_offsets {
         head: u32,
         tail: u32,
@@ -139,6 +143,7 @@ struct io_cqring_offsets {
 
 #[repr(C)]
 #[derive(Default,Debug)]
+#[allow(non_camel_case_types)]
 struct io_uring_params {
     sq_entries: u32,
     cq_entries: u32,
