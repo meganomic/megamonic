@@ -413,7 +413,7 @@ impl Uring {
             let result = self.read_from_cq();
 
             match result {
-                Ok(completion) => {
+                Ok(_) => {
                     return result;
                 },
 
