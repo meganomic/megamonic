@@ -260,6 +260,13 @@ impl Processes {
             }
         }
 
+        self.update_processes(cpuinfo, config)?;
+
+        //eprintln!("{}", now.elapsed().as_nanos());
+        Ok(())
+    }
+
+    fn update_processes(&mut self, cpuinfo: &Arc<Mutex<cpu::Cpuinfo>>, config: &Arc<Config>) -> Result<()> {
         let smaps = config.smaps.load(atomic::Ordering::Relaxed);
 
         // If smaps option is toggled off, close the smaps files
@@ -293,6 +300,8 @@ impl Processes {
 
                 let fd = process.get_smaps_fd();
 
+                // If fd is negative it means we either couldn't open the smaps file
+                // or we've tried to read it in the past but failed
                 if !fd.is_negative() {
                     self.uring.add_to_queue(process.pid as u64 | SMAPS_BIT, &mut process.buffer_smaps, fd, IORING_OP_READ);
                 }
@@ -386,8 +395,6 @@ impl Processes {
             }
         }
 
-
-        //eprintln!("{}", now.elapsed().as_nanos());
         Ok(())
     }
 
