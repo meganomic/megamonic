@@ -60,6 +60,9 @@ impl <'a> Processes <'a> {
         let smaps = self.system.config.smaps.load(atomic::Ordering::Relaxed);
 
         if let Ok(mut processinfo) = self.system.processinfo.lock() {
+            // Remove processes from the cache that don't exist anymore
+            self.cache2.retain(|k, _| processinfo.processes.contains_key(k) );
+
             let (pidlen, list) = processinfo.cpu_sort();
 
             // Update cache if the length of PID increases
