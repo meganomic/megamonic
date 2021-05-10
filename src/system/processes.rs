@@ -119,6 +119,9 @@ impl Processes {
         ensure!(!ret.is_negative(), "SYS_SEEK return code: {}", ret);
 
         loop {
+            // The getdents code is taken from the documention of https://github.com/xushaohua/nc
+            // and adapted to suit my needs
+
             // getdents64 system call
             let nread: i32;
             unsafe {
