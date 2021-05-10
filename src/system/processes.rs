@@ -290,7 +290,7 @@ impl Processes {
             // Adjust io_uring ringbuffer according to how many processes are running
             // Double the size if smaps are enabled
             // Add 50 to allow for growth, 100 if smaps are enabled
-            if (self.processes.len() * 2) > self.uring.entries || (self.processes.len() * 2 + 200) < self.uring.entries{
+            if (self.processes.len() * 2) > self.uring.entries || (self.processes.len() * 2 + 200) < self.uring.entries {
                 self.uring = Uring::new((self.processes.len() * 2) + 100)?;
             }
 
