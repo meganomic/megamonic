@@ -324,6 +324,7 @@ impl Processes {
         let topmode = config.topmode.load(atomic::Ordering::Relaxed);
 
         loop {
+            // Get next completed IO, returns Err() when all have been read
             let completion = self.uring.spin_next();
 
             if let Ok((res, user_data)) = completion {
@@ -377,6 +378,7 @@ impl Processes {
                     }
                 }
             } else {
+                // Everything has been updated, end loop
                 break;
             }
         }

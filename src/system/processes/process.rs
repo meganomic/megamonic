@@ -148,10 +148,7 @@ impl Process {
     }
 
     pub fn update_smaps(&mut self) -> Result<()> {
-        //let now = std::time::Instant::now();
-
-
-        // If smaps_fd isn't above 0 it means we couldn't open it so set pss == -1
+         // If smaps_fd isn't above 0 it means we couldn't open/read it so set pss == -1
         if self.smaps_fd > 0 {
             // Should maybe skip converting to str. I'll have to benchmark it
             let data = unsafe { std::str::from_utf8_unchecked(&self.buffer_smaps) };
@@ -168,8 +165,6 @@ impl Process {
         }
 
         Ok(())
-
-        //eprintln!("{}", now.elapsed().as_nanos());
     }
 
     pub fn disable_smaps(&mut self) {
