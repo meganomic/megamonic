@@ -416,7 +416,7 @@ impl Uring {
         self.submit += 1;
     }
 
-    // Spin until the next result is available, in my case it should be instantly
+    // Get next item in completion queue or wait until some are done
     pub fn get_next(&mut self) -> Result<(i32, u64), UringError> {
         loop {
             let result = self.read_from_cq();
