@@ -6,7 +6,7 @@ use ahash::{ AHashMap, AHashSet };
 use std::collections::hash_map::Entry;
 
 pub mod process;
-use super::{ cpu, Config, uring::{ Uring, IOOPS::*, SMAPS_BIT } };
+use super::{ cpu, Config, uring::{ Uring, UringError, IOOPS::*, SMAPS_BIT } };
 
 // Size of 'Processes.buffer_directories' used for getdents64()
 const BUF_SIZE: usize = 1024 * 1024;
@@ -386,6 +386,8 @@ impl Processes {
                         entry.remove_entry();
                     }
                 }
+            } else if let Err(UringError::SubmitToSqResult(_)) = completion {
+                completion?;
             } else {
                 // Everything has been updated, end loop
                 break;

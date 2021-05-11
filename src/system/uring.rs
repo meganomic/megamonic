@@ -428,6 +428,8 @@ impl Uring {
             if self.read_total == self.submit_total {
                 return Err(UringError::JobComplete);
             }
+
+            self.wait_for_x(25.min(self.submit_total - self.read_total))?;
         }
     }
 
@@ -464,14 +466,14 @@ impl Uring {
     }
 
     // Wait for all operations to complete
-    pub fn _wait_for_all(&mut self) -> Result<i32, UringError> {
+    pub fn wait_for_x(&mut self, amount: u64) -> Result<i32, UringError> {
         let ret: i32;
         unsafe {
             asm!("syscall",
                 in("rax") 426, // SYS_IO_URING_ENTER
                 in("rdi") self.ring_fd, // io_uring fd
                 in("rsi") 0, // to_submit
-                in("rdx") self.submit_total - self.read_total, // min_complete
+                in("rdx") amount, // min_complete
                 in("r10") 1u32 << 0, // flags, 1u32 << 0 == IORING_ENTER_GETEVENTS
                 in("r8") 0, // sigset_t
                 out("rcx") _,
