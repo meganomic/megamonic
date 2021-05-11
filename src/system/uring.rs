@@ -417,7 +417,7 @@ impl Uring {
     }
 
     // Spin until the next result is available, in my case it should be instantly
-    pub fn spin_next(&mut self) -> Result<(i32, u64), UringError> {
+    pub fn get_next(&mut self) -> Result<(i32, u64), UringError> {
         loop {
             let result = self.read_from_cq();
 

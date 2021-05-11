@@ -334,7 +334,7 @@ impl Processes {
 
         loop {
             // Get next completed IO, returns Err() when all have been read
-            let completion = self.uring.spin_next();
+            let completion = self.uring.get_next();
 
             if let Ok((res, user_data)) = completion {
                 if let Entry::Occupied(entry) = self.processes.entry(user_data as u32) {
