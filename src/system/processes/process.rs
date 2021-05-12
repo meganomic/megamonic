@@ -267,7 +267,7 @@ unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
             // Compare and save mask
             mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, a)) as u32;
 
-            // If the previous load, loaded things outside our allocated memory, break
+            // If the previous load, loaded things outside len(), break
             if ptr.add(32) > end_ptr {
                 break;
             }
