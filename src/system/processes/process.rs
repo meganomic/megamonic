@@ -37,7 +37,6 @@ pub struct Process {
     pub buffer_stat: Vec::<u8>,
     pub buffer_smaps: Vec::<u8>,
 
-    index: Vec::<usize>
 }
 
 impl Process {
@@ -78,7 +77,6 @@ impl Process {
             buffer_smaps: Vec::<u8>::with_capacity(1024),
             pss: -1,
             stat_fd: fd,
-            index: Vec::with_capacity(128),
             ..Default::default()
         })
     }
@@ -106,21 +104,21 @@ impl Process {
         self.smaps_fd
     }
 
-    pub unsafe fn update_stat(&mut self) -> Result<()> {
+    pub unsafe fn update_stat(&mut self, index: &mut Vec::<usize>) -> Result<()> {
         //let now = std::time::Instant::now();
 
         // Need to keep the old total so we have something to compare to
         let old_total = self.total;
 
-        find_all(&mut self.index, self.buffer_stat.as_slice());
+        find_all(index, self.buffer_stat.as_slice());
 
 
 
-        let idx = if self.index.len() == 51 {
-            self.index.as_slice()
+        let idx = if index.len() == 51 {
+            index.as_slice()
         } else {
-            let idx_adjust = self.index.len().checked_sub(51).context("Index is too small!")?;
-            self.index.split_at(idx_adjust).1
+            let idx_adjust = index.len().checked_sub(51).context("Index is too small!")?;
+            index.split_at(idx_adjust).1
         };
 
 //         eprintln!("\npid: {}", self.pid);

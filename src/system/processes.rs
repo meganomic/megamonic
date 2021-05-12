@@ -54,6 +54,9 @@ pub struct Processes {
 
     // io_uring
     uring: Uring,
+
+    // Buffer for use with find_all. It's here to save memory
+    index: Vec::<usize>
 }
 
 impl Processes {
@@ -84,6 +87,7 @@ impl Processes {
             buffer_vector_dirs: Vec::with_capacity(BUF_SIZE),
             ignored: AHashSet::default(),
             sorted: Vec::new(),
+            index: Vec::<usize>::with_capacity(128),
 
             // Create io_uring with default size (500)
             uring: Uring::new(0).expect("Can't make a io_uring"),
@@ -369,7 +373,7 @@ impl Processes {
                         }
 
                         unsafe {
-                            process.update_stat().context("process.update_stat() returned with a failure state!")?;
+                            process.update_stat(&mut self.index).context("process.update_stat() returned with a failure state!")?;
                         }
 
                         // Calculate CPU % usage
