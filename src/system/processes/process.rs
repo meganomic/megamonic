@@ -72,7 +72,7 @@ impl Process {
             smaps_file: unsafe { CString::from_vec_unchecked(format!("/proc/{}/smaps_rollup", pid).into_bytes()) },
             not_executable,
             buffer_stat: unsafe { Vec::from_raw_parts(ptr as *mut u8, 0, 512) },
-            buffer_smaps: Vec::<u8>::with_capacity(1000),
+            buffer_smaps: Vec::<u8>::with_capacity(1024),
             pss: -1,
             stat_fd: fd,
             index: Vec::with_capacity(128),
@@ -230,33 +230,43 @@ impl Drop for Process {
     }
 }
 
+// Code stolen from https://github.com/BurntSushi/memchr and adapted to my needs
 unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
-    let slice = positions.as_mut_slice();
-
     let start_ptr = haystack.as_ptr();
     let end_ptr = start_ptr.add(haystack.len());
     let mut ptr = start_ptr;
 
+    // Set all bytes in register to 32, aka [space]
     let vn1 = _mm256_set1_epi8(32);
 
+    // Load 32 bytes from buffer
     let a = _mm256_load_si256(ptr as *const __m256i);
+
+    // Compare against vn1 and save the mask
     let mut mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, a)) as u32;
 
+    // The index of the current item in positions
     let mut idx = 0;
 
     loop {
+        // If mask is zero it means there are no matches
         if mask != 0 {
-            *slice.get_unchecked_mut(idx) = ptr as usize + mask.trailing_zeros() as usize - start_ptr as usize;
+            // Saved index of match in buffer in positions
+            *positions.get_unchecked_mut(idx) = ptr as usize + mask.trailing_zeros() as usize - start_ptr as usize;
             idx += 1;
+
+            // Zero lowest set bit in the mask
             mask = _blsr_u32(mask);
         } else {
             ptr = ptr.add(32);
 
-
-
+            // Load the next 32 bytes from buffer
             let a = _mm256_load_si256(ptr as *const __m256i);
+
+            // Compare and save mask
             mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, a)) as u32;
 
+            // If the previous load, loaded things outside our allocated memory, break
             if ptr.add(32) > end_ptr {
                 break;
             }
@@ -264,10 +274,11 @@ unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
         }
     }
 
+    // Deal with any remaining bytes
     let mut byte_ptr = ptr as usize + mask.trailing_zeros() as usize;
 
     while byte_ptr < end_ptr as usize && mask != 0 {
-        *slice.get_unchecked_mut(idx) = byte_ptr - start_ptr as usize;
+        *positions.get_unchecked_mut(idx) = byte_ptr - start_ptr as usize;
         idx += 1;
 
         mask = _blsr_u32(mask);
