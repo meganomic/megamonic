@@ -233,6 +233,8 @@ impl Drop for Process {
 
 // Code stolen from https://github.com/BurntSushi/memchr and adapted to my needs
 unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
+    let slice = positions.as_mut_slice();
+
     let start_ptr = haystack.as_ptr();
     let end_ptr = start_ptr.add(haystack.len());
     let mut ptr = start_ptr;
@@ -253,7 +255,7 @@ unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
         // If mask is zero it means there are no matches
         if mask != 0 {
             // Saved index of match in buffer in positions
-            *positions.get_unchecked_mut(idx) = ptr as usize + mask.trailing_zeros() as usize - start_ptr as usize;
+            *slice.get_unchecked_mut(idx) = ptr as usize + mask.trailing_zeros() as usize - start_ptr as usize;
             idx += 1;
 
             // Zero lowest set bit in the mask
@@ -279,7 +281,7 @@ unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
     let mut byte_ptr = ptr as usize + mask.trailing_zeros() as usize;
 
     while byte_ptr < end_ptr as usize && mask != 0 {
-        *positions.get_unchecked_mut(idx) = byte_ptr - start_ptr as usize;
+        *slice.get_unchecked_mut(idx) = byte_ptr - start_ptr as usize;
         idx += 1;
 
         mask = _blsr_u32(mask);
