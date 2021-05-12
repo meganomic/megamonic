@@ -112,14 +112,14 @@ impl Process {
 
         find_all(index, self.buffer_stat.as_slice());
 
+        let idx = index.split_at(index.len().checked_sub(51).context("Index is too small!")?).1;
 
-
-        let idx = if index.len() == 51 {
+        /*let idx = if index.len() == 51 {
             index.as_slice()
         } else {
             let idx_adjust = index.len().checked_sub(51).context("Index is too small!")?;
             index.split_at(idx_adjust).1
-        };
+        };*/
 
 //         eprintln!("\npid: {}", self.pid);
 //         unsafe { eprintln!("buffer: {}", std::str::from_utf8_unchecked(self.buffer_stat.as_slice())); }
