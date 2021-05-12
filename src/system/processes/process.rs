@@ -36,6 +36,8 @@ pub struct Process {
 
     pub buffer_stat: Vec::<u8>,
     pub buffer_smaps: Vec::<u8>,
+
+    index: Vec::<usize>
 }
 
 impl Process {
@@ -73,6 +75,7 @@ impl Process {
             buffer_smaps: Vec::<u8>::with_capacity(1000),
             pss: -1,
             stat_fd: fd,
+            index: Vec::with_capacity(128),
             ..Default::default()
         })
     }
@@ -106,15 +109,15 @@ impl Process {
         // Need to keep the old total so we have something to compare to
         let old_total = self.total;
 
-        let index = find_all(self.buffer_stat.as_slice());
+        find_all(&mut self.index, self.buffer_stat.as_slice());
 
 
 
-        let idx = if index.len() == 51 {
-            index.as_slice()
+        let idx = if self.index.len() == 51 {
+            self.index.as_slice()
         } else {
-            let idx_adjust = index.len().checked_sub(51).context("Index is too small!")?;
-            index.split_at(idx_adjust).1
+            let idx_adjust = self.index.len().checked_sub(51).context("Index is too small!")?;
+            self.index.split_at(idx_adjust).1
         };
 
 //         eprintln!("\npid: {}", self.pid);
@@ -227,42 +230,51 @@ impl Drop for Process {
     }
 }
 
-unsafe fn find_all(haystack: &[u8]) -> Vec::<usize> {
-    let mut positions = Vec::<usize>::with_capacity(64);
+unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
+    let slice = positions.as_mut_slice();
 
     let start_ptr = haystack.as_ptr();
     let end_ptr = start_ptr.add(haystack.len());
     let mut ptr = start_ptr;
-
-    let mut index = 0;
 
     let vn1 = _mm256_set1_epi8(32);
 
     let a = _mm256_load_si256(ptr as *const __m256i);
     let mut mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, a)) as u32;
 
+    let mut idx = 0;
+
     loop {
         if mask != 0 {
-            let cur_ptr = ptr as usize + mask.trailing_zeros() as usize;
-            if cur_ptr >= end_ptr as usize {
-                break;
-            }
-            index = cur_ptr - start_ptr as usize;
-            positions.push(index as usize);
+            *slice.get_unchecked_mut(idx) = ptr as usize + mask.trailing_zeros() as usize - start_ptr as usize;
+            idx += 1;
             mask = _blsr_u32(mask);
         } else {
             ptr = ptr.add(32);
-
-            if ptr >= end_ptr {
-                break;
-            }
 
 
 
             let a = _mm256_load_si256(ptr as *const __m256i);
             mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, a)) as u32;
+
+            if ptr.add(32) > end_ptr {
+                break;
+            }
+
         }
     }
 
-    positions
+    let mut byte_ptr = ptr as usize + mask.trailing_zeros() as usize;
+
+    while byte_ptr < end_ptr as usize && mask != 0 {
+        *slice.get_unchecked_mut(idx) = byte_ptr - start_ptr as usize;
+        idx += 1;
+
+        mask = _blsr_u32(mask);
+        byte_ptr = ptr as usize + mask.trailing_zeros() as usize;
+    }
+
+    assert!(idx < positions.capacity(), "Index too large");
+
+    positions.set_len(idx);
 }
