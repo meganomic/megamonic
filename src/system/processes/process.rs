@@ -60,9 +60,12 @@ impl Process {
 
         ensure!(!fd.is_negative());
 
-        let layout = alloc::Layout::from_size_align(512, 32).unwrap();
+        // This is to ensure that the vector is aligned to 32 bytes for my asm
+        let layout = alloc::Layout::from_size_align(512, 32).expect("Can't create aligned layout!");
 
         let ptr = unsafe { alloc::alloc_zeroed(layout) };
+
+        let buffer_stat = unsafe { Vec::from_raw_parts(ptr as *mut u8, 0, 512) };
 
         Ok(Self {
             pid,
@@ -71,7 +74,7 @@ impl Process {
             //stat_file,
             smaps_file: unsafe { CString::from_vec_unchecked(format!("/proc/{}/smaps_rollup", pid).into_bytes()) },
             not_executable,
-            buffer_stat: unsafe { Vec::from_raw_parts(ptr as *mut u8, 0, 512) },
+            buffer_stat,
             buffer_smaps: Vec::<u8>::with_capacity(1024),
             pss: -1,
             stat_fd: fd,
