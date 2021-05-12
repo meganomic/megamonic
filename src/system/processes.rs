@@ -368,7 +368,9 @@ impl Processes {
                             process.buffer_stat.set_len(res as usize);
                         }
 
-                        process.update_stat().context("process.update_stat() returned with a failure state!")?;
+                        unsafe {
+                            process.update_stat().context("process.update_stat() returned with a failure state!")?;
+                        }
 
                         // Calculate CPU % usage
                         if topmode {

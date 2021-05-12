@@ -1,5 +1,7 @@
 use anyhow::{ ensure, Context, Result };
 use std::ffi::CString;
+use core::arch::x86_64::*;
+use std::alloc;
 
 #[derive(Default)]
 pub struct Process {
@@ -56,6 +58,10 @@ impl Process {
 
         ensure!(!fd.is_negative());
 
+        let layout = alloc::Layout::from_size_align(512, 32).unwrap();
+
+        let ptr = unsafe { alloc::alloc_zeroed(layout) };
+
         Ok(Self {
             pid,
             executable,
@@ -63,7 +69,7 @@ impl Process {
             //stat_file,
             smaps_file: unsafe { CString::from_vec_unchecked(format!("/proc/{}/smaps_rollup", pid).into_bytes()) },
             not_executable,
-            buffer_stat: Vec::<u8>::with_capacity(500),
+            buffer_stat: unsafe { Vec::from_raw_parts(ptr as *mut u8, 0, 512) },
             buffer_smaps: Vec::<u8>::with_capacity(1000),
             pss: -1,
             stat_fd: fd,
@@ -94,47 +100,54 @@ impl Process {
         self.smaps_fd
     }
 
-    pub fn update_stat(&mut self) -> Result<()> {
+    pub unsafe fn update_stat(&mut self) -> Result<()> {
         //let now = std::time::Instant::now();
 
         // Need to keep the old total so we have something to compare to
         let old_total = self.total;
 
-        // Find position of first ')' character
-        let pos = memchr::memchr(41, self.buffer_stat.as_slice()).context("The stat_file is funky! It has no ')' character!")?;
-
-        //let mut shoe = buffer.split(|v| *v == 41).last().unwrap();
-        //eprintln!("SHOE: {:?}", shoe);
+        let index = find_all(self.buffer_stat.as_slice());
 
 
-        // Split on ')' then on ' '
-        let mut split = self.buffer_stat.split_at(pos).1.split(|v| *v == 32);
-        //eprintln!("{:?}", split.nth(1).unwrap());
 
-            //eprintln!("KORV: {:?}", korv);
-        self.utime = btoi::btou(split.nth(11).context("Can't parse 'utime' from /proc/[pid]/stat")?).context("Can't convert utime to a number!")?;
+        let idx = if index.len() == 51 {
+            index.as_slice()
+        } else {
+            let idx_adjust = index.len().checked_sub(51).context("Index is too small!")?;
+            index.split_at(idx_adjust).1
+        };
 
-        //eprintln!("utime: {:?}", self.utime);
+//         eprintln!("\npid: {}", self.pid);
+//         unsafe { eprintln!("buffer: {}", std::str::from_utf8_unchecked(self.buffer_stat.as_slice())); }
+//         eprintln!("index: {:?}", idx);
+//         eprintln!("index_len: {:?}", index.len());
 
-        self.stime = btoi::btou(split.next().context("Can't parse 'stime' from /proc/[pid]/stat")?).context("Can't convert stime to a number!")?;
+        self.utime = btoi::btou(&self.buffer_stat[*idx.get_unchecked(11)+1..*idx.get_unchecked(12)]).context("Can't convert utime to a number!").with_context(||format!("pid: {}", self.pid))?;
 
-            //eprintln!("stime: {:?}", self.stime);
+//             eprintln!("utime: {:?}", self.utime);
 
-        self.cutime = btoi::btou(split.next().context("Can't parse 'cutime' from /proc/[pid]/stat")?).context("Can't convert cutime to a number!")?;
+        self.stime = btoi::btou(&self.buffer_stat[*idx.get_unchecked(12)+1..*idx.get_unchecked(13)]).context("Can't convert stime to a number!").with_context(||format!("pid: {}", self.pid))?;
 
-            //eprintln!("cutime: {:?}", self.cutime);
+//             eprintln!("stime: {:?}", self.stime);
 
-        self.cstime = btoi::btou(split.next().context("Can't parse 'cstime' from /proc/[pid]/stat")?).context("Can't convert cstime to a number!")?;
+        self.cutime = btoi::btou(&self.buffer_stat[*idx.get_unchecked(13)+1..*idx.get_unchecked(14)]).context("Can't convert cutime to a number!").with_context(||format!("pid: {}", self.pid))?;
 
-            //eprintln!("cstime: {:?}", self.cstime);
+//             eprintln!("cutime: {:?}", self.cutime);
 
-        self.rss = btoi::btou::<i64>(split.nth(7).context("Can't parse 'rss' from /proc/[pid]/stat")?).context("Can't convert rss to a number!")? * 4096;
+        self.cstime = btoi::btou(&self.buffer_stat[*idx.get_unchecked(14)+1..*idx.get_unchecked(15)]).context("Can't convert cstime to a number!").with_context(||format!("pid: {}", self.pid))?;
 
-            //eprintln!("rss: {:?}", self.rss);
+//             eprintln!("cstime: {:?}", self.cstime);
+
+        self.rss = btoi::btou::<i64>(&self.buffer_stat[*idx.get_unchecked(22)+1..*idx.get_unchecked(23)]).context("Can't convert rss to a number!").with_context(||format!("pid: {}", self.pid))? * 4096;
+
+//             eprintln!("rss: {:?}", self.rss);
 
         self.total = self.utime + self.stime + self.cutime + self.cstime;
 
+        //eprintln!("total: {:?}, old_total: {:?}", self.total, old_total);
+
         // If old_total is 0 it means we don't have anything to compare to. So work is 0.
+        //self.work = self.total.saturating_sub(old_total);
         self.work = if old_total != 0 {
             self.total - old_total
         } else {
@@ -212,4 +225,44 @@ impl Drop for Process {
             }
         }
     }
+}
+
+unsafe fn find_all(haystack: &[u8]) -> Vec::<usize> {
+    let mut positions = Vec::<usize>::with_capacity(64);
+
+    let start_ptr = haystack.as_ptr();
+    let end_ptr = start_ptr.add(haystack.len());
+    let mut ptr = start_ptr;
+
+    let mut index = 0;
+
+    let vn1 = _mm256_set1_epi8(32);
+
+    let a = _mm256_load_si256(ptr as *const __m256i);
+    let mut mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, a)) as u32;
+
+    loop {
+        if mask != 0 {
+            let cur_ptr = ptr as usize + mask.trailing_zeros() as usize;
+            if cur_ptr >= end_ptr as usize {
+                break;
+            }
+            index = cur_ptr - start_ptr as usize;
+            positions.push(index as usize);
+            mask = _blsr_u32(mask);
+        } else {
+            ptr = ptr.add(32);
+
+            if ptr >= end_ptr {
+                break;
+            }
+
+
+
+            let a = _mm256_load_si256(ptr as *const __m256i);
+            mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, a)) as u32;
+        }
+    }
+
+    positions
 }
