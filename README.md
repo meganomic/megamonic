@@ -7,7 +7,8 @@ A badly designed multithreaded system monitor for 64bit linux for my personal us
 I think this is what is needed but I'm not sure.
 
 If your `ulimit -n` is low you might have to increase it or you will get "Too many opened files" error.  
-You also probably need to increase your max locked memory limit, `ulimit -l`.
+You also probably need to increase your max locked memory limit, `ulimit -l`.  
+And you need AVX2.
 
 Other than Rust-nightly you need these packages.  
 Requirements: `glibc`, `gcc-libs` and`lm_sensors`  
