@@ -110,8 +110,10 @@ impl Process {
         // Need to keep the old total so we have something to compare to
         let old_total = self.total;
 
+        // Find all instances of [space] and record their index in index
         find_all(index, self.buffer_stat.as_slice());
 
+        // Adjust the indexes so they are always the same
         let idx = index.split_at(index.len().checked_sub(51).context("Index is too small!")?).1;
 
         /*let idx = if index.len() == 51 {
@@ -243,38 +245,37 @@ unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
     let vn1 = _mm256_set1_epi8(32);
 
     // Load 32 bytes from buffer
-    let a = _mm256_load_si256(ptr as *const __m256i);
+    let data = _mm256_load_si256(ptr as *const __m256i);
 
     // Compare against vn1 and save the mask
-    let mut mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, a)) as u32;
+    let mut mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, data)) as u32;
 
     // The index of the current item in positions
     let mut idx = 0;
 
-    loop {
+    let mut idx_ptr: usize = 0;
+
+    while ptr.add(32) < end_ptr {
         // If mask is zero it means there are no matches
-        if mask != 0 {
-            // Saved index of match in buffer in positions
-            *slice.get_unchecked_mut(idx) = ptr as usize + mask.trailing_zeros() as usize - start_ptr as usize;
+        while mask != 0 {
+            // Save index of match in positions buffer
+            *slice.get_unchecked_mut(idx) = idx_ptr as usize + mask.trailing_zeros() as usize;
+
             idx += 1;
 
             // Zero lowest set bit in the mask
             mask = _blsr_u32(mask);
-        } else {
-            ptr = ptr.add(32);
-
-            // Load the next 32 bytes from buffer
-            let a = _mm256_load_si256(ptr as *const __m256i);
-
-            // Compare and save mask
-            mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, a)) as u32;
-
-            // If the previous load, loaded things outside len(), break
-            if ptr.add(32) > end_ptr {
-                break;
-            }
-
         }
+
+        ptr = ptr.add(32);
+
+        idx_ptr = ptr as usize - start_ptr as usize;
+
+        // Load the next 32 bytes from buffer
+        let data = _mm256_load_si256(ptr as *const __m256i);
+
+        // Compare and save mask
+        mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, data)) as u32;
     }
 
     // Deal with any remaining bytes
