@@ -116,18 +116,6 @@ impl Process {
         // Adjust the indexes so they are always the same
         let idx = index.split_at(index.len().checked_sub(51).context("Index is too small!")?).1;
 
-        /*let idx = if index.len() == 51 {
-            index.as_slice()
-        } else {
-            let idx_adjust = index.len().checked_sub(51).context("Index is too small!")?;
-            index.split_at(idx_adjust).1
-        };*/
-
-//         eprintln!("\npid: {}", self.pid);
-//         unsafe { eprintln!("buffer: {}", std::str::from_utf8_unchecked(self.buffer_stat.as_slice())); }
-//         eprintln!("index: {:?}", idx);
-//         eprintln!("index_len: {:?}", index.len());
-
         self.utime = btoi::btou(&self.buffer_stat[*idx.get_unchecked(11)+1..*idx.get_unchecked(12)]).context("Can't convert utime to a number!").with_context(||format!("pid: {}", self.pid))?;
 
 //             eprintln!("utime: {:?}", self.utime);
@@ -153,14 +141,12 @@ impl Process {
         //eprintln!("total: {:?}, old_total: {:?}", self.total, old_total);
 
         // If old_total is 0 it means we don't have anything to compare to. So work is 0.
-        //self.work = self.total.saturating_sub(old_total);
         self.work = if old_total != 0 {
             self.total - old_total
         } else {
             0
         };
 
-        // Returning true means the process will not be removed from the list
         Ok(())
 
         //eprintln!("{}", now.elapsed().as_nanos());
@@ -233,7 +219,7 @@ impl Drop for Process {
     }
 }
 
-// Code stolen from https://github.com/BurntSushi/memchr and adapted to my needs
+// Find all instances of [space] and put their index in positions vector
 unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
     let slice = positions.as_mut_slice();
 
@@ -289,6 +275,7 @@ unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
         byte_ptr = ptr as usize + mask.trailing_zeros() as usize;
     }
 
+    // This should never happen but if it does something has gone horrible wrong
     assert!(idx < positions.capacity(), "Index too large");
 
     positions.set_len(idx);
