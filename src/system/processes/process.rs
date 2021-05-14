@@ -239,12 +239,12 @@ unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
     // The index of the current item in positions
     let mut idx = 0;
 
-    let mut idx_ptr: usize = 0;
+    let mut idx_ptr = 0;
 
     while ptr.add(32) < end_ptr {
         // If mask is zero it means there are no matches
         while mask != 0 {
-            // Save index of match in positions buffer
+            // Saved index of match in buffer in positions
             *slice.get_unchecked_mut(idx) = idx_ptr as usize + mask.trailing_zeros() as usize;
 
             idx += 1;
@@ -255,27 +255,27 @@ unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
 
         ptr = ptr.add(32);
 
-        idx_ptr = ptr as usize - start_ptr as usize;
+        idx_ptr = ptr.offset_from(start_ptr);
 
         // Load the next 32 bytes from buffer
         let data = _mm256_load_si256(ptr as *const __m256i);
 
         // Compare and save mask
         mask = _mm256_movemask_epi8(_mm256_cmpeq_epi8(vn1, data)) as u32;
+
     }
 
     // Deal with any remaining bytes
-    let mut byte_ptr = ptr as usize + mask.trailing_zeros() as usize;
+    let mut byte_ptr = ptr.add(mask.trailing_zeros() as usize);
 
-    while byte_ptr < end_ptr as usize && mask != 0 {
-        *slice.get_unchecked_mut(idx) = byte_ptr - start_ptr as usize;
+    while byte_ptr < end_ptr && mask != 0 {
+        *slice.get_unchecked_mut(idx) = byte_ptr.offset_from(start_ptr) as usize;
         idx += 1;
 
         mask = _blsr_u32(mask);
-        byte_ptr = ptr as usize + mask.trailing_zeros() as usize;
+        byte_ptr = ptr.add(mask.trailing_zeros() as usize);
     }
 
-    // This should never happen but if it does something has gone horrible wrong
     assert!(idx < positions.capacity(), "Index too large");
 
     positions.set_len(idx);
