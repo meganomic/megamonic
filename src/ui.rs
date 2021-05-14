@@ -116,7 +116,7 @@ fn custom_panic_hook() {
                 }
             }
             _ => {
-                println!("\n{:?}", backtrace::Backtrace::new());
+                println!("{}", std::backtrace::Backtrace::capture());
             },
         }
 

@@ -1,5 +1,6 @@
 #![feature(asm)]
 #![feature(iter_intersperse)]
+#![feature(backtrace)]
 
 use anyhow::{ bail, ensure, Context, Result };
 use clap::{ App, AppSettings, Arg, value_t };
