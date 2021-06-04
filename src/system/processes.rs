@@ -182,7 +182,11 @@ impl Processes {
                             // If cmdline can't be opened it probably means that the process has terminated, skip it.
                             if let Ok(mut f) = std::fs::File::open(&self.buffer) {
                                 self.buffer.clear();
-                                f.read_to_string(&mut self.buffer).with_context(|| format!("/proc/{}/cmdline", pid))?;
+
+                                // If the file can't be read it means the process has terminated
+                                if f.read_to_string(&mut self.buffer).is_err() {
+                                    continue;
+                                }
                             } else {
                                 continue;
                             };
