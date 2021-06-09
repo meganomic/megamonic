@@ -62,7 +62,6 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
 
 
                 if search {
-                    eprintln!("buf[0]: {}", buf[0]);
                     // Disable Search
                     if buf[0] == b'\r' {
                         search = false;
