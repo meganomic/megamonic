@@ -11,7 +11,7 @@ pub mod processes;
 mod gpu;
 mod hostinfo;
 mod time;
-mod events;
+pub mod events;
 mod uring;
 
 // Holds all the commandline options.

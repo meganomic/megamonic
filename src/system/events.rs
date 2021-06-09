@@ -3,6 +3,8 @@ use super::Config;
 
 mod epoll;
 
+pub static mut InputBuffer: String = String::new();
+
 pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread::JoinHandle<()> {
     // Set up the signals for the Event thread
     // This needs to be done in the MAIN thread BEFORE any child threads are spawned
@@ -12,6 +14,8 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
     std::thread::Builder::new().name("Events".to_string()).spawn(move || {
         // Buffer is 10 to make sure stuff fits
         let mut buf = Vec::<u8>::with_capacity(10);
+
+        let mut search = false;
 
         // Initialize epoll
         let mut epoll = epoll::Epoll::new();
@@ -56,78 +60,124 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                     buf.set_len(ret as usize);
                 }
 
-                // Do stuff depending on what button was pressed
-                // I only care about the first byte
-                match buf[0] {
-                    // Quit
-                    b'q' => {
-                        match tx.send(255) {
+
+                if search {
+                    eprintln!("buf[0]: {}", buf[0]);
+                    // Disable Search
+                    if buf[0] == b'\r' {
+                        search = false;
+
+                        unsafe {
+                            InputBuffer.clear();
+                        }
+
+                        // Disable search mode
+                        match tx.send(102) {
                             Ok(_) => (),
                             Err(_) => break,
                         }
-
-                        break;
-                    },
-
-                    // Pause UI
-                    b' ' => {
-                        match tx.send(101) {
-                            Ok(_) => (),
-                            Err(_) => break,
-                        }
-                    },
-
-                    // Toggle Topmode
-                    b't' => {
-                        if config.topmode.load(atomic::Ordering::Acquire) {
-                            config.topmode.store(false, atomic::Ordering::Release);
+                    } else {
+                        // Delete last char if you press backspace
+                        if buf[0] == 127 {
+                            unsafe {
+                                let _ = InputBuffer.pop();
+                            }
                         } else {
-                            config.topmode.store(true, atomic::Ordering::Release);
+                            unsafe {
+                                InputBuffer.push(buf[0] as char);
+                            }
                         }
 
-                        match tx.send(10) {
+                        // Notify UI that string has been updated
+                        match tx.send(103) {
                             Ok(_) => (),
                             Err(_) => break,
                         }
-                    },
+                    }
+                } else {
+                    // Do stuff depending on what button was pressed
+                    // I only care about the first byte
+                    match buf[0] {
+                        // Enable Search
+                        b'f' => {
+                            search = true;
 
-                    // Toggle smaps
-                    b's' => {
-                        if config.smaps.load(atomic::Ordering::Acquire) {
-                            config.smaps.store(false, atomic::Ordering::Release);
-                        } else {
-                            config.smaps.store(true, atomic::Ordering::Release);
+                            match tx.send(102) {
+                                Ok(_) => (),
+                                Err(_) => break,
+                            }
                         }
 
-                        match tx.send(11) {
-                            Ok(_) => (),
-                            Err(_) => break,
-                        }
-                    },
+                        // Quit
+                        b'q' => {
+                            match tx.send(255) {
+                                Ok(_) => (),
+                                Err(_) => break,
+                            }
 
-                    // Toggle All Processes
-                    b'a' => {
-                        if config.all.load(atomic::Ordering::Acquire) {
-                            config.all.store(false, atomic::Ordering::Release);
-                        } else {
-                            config.all.store(true, atomic::Ordering::Release);
-                        }
+                            break;
+                        },
 
-                        match tx.send(12) {
-                            Ok(_) => (),
-                            Err(_) => break,
-                        }
-                    },
+                        // Pause UI
+                        b' ' => {
+                            match tx.send(101) {
+                                Ok(_) => (),
+                                Err(_) => break,
+                            }
+                        },
 
-                    // Rebuild UI cache
-                    b'r' => {
-                        match tx.send(106) {
-                            Ok(_) => (),
-                            Err(_) => break,
-                        }
-                    },
+                        // Toggle Topmode
+                        b't' => {
+                            if config.topmode.load(atomic::Ordering::Acquire) {
+                                config.topmode.store(false, atomic::Ordering::Release);
+                            } else {
+                                config.topmode.store(true, atomic::Ordering::Release);
+                            }
 
-                    _ => (),
+                            match tx.send(10) {
+                                Ok(_) => (),
+                                Err(_) => break,
+                            }
+                        },
+
+                        // Toggle smaps
+                        b's' => {
+                            if config.smaps.load(atomic::Ordering::Acquire) {
+                                config.smaps.store(false, atomic::Ordering::Release);
+                            } else {
+                                config.smaps.store(true, atomic::Ordering::Release);
+                            }
+
+                            match tx.send(11) {
+                                Ok(_) => (),
+                                Err(_) => break,
+                            }
+                        },
+
+                        // Toggle All Processes
+                        b'a' => {
+                            if config.all.load(atomic::Ordering::Acquire) {
+                                config.all.store(false, atomic::Ordering::Release);
+                            } else {
+                                config.all.store(true, atomic::Ordering::Release);
+                            }
+
+                            match tx.send(12) {
+                                Ok(_) => (),
+                                Err(_) => break,
+                            }
+                        },
+
+                        // Rebuild UI cache
+                        b'r' => {
+                            match tx.send(106) {
+                                Ok(_) => (),
+                                Err(_) => break,
+                            }
+                        },
+
+                        _ => (),
+                    }
                 }
             } else if fd == signalfd.fd {
                 // Get what signal was recieved

@@ -56,14 +56,18 @@ impl <'a> Processes <'a> {
         }
     }
 
-    pub fn draw(&mut self, buffer: &mut Vec::<u8>, terminal_size: &XY) -> Result<()> {
+    pub fn draw(&mut self, buffer: &mut Vec::<u8>, terminal_size: &XY, search: Option<&str>) -> Result<()> {
         let smaps = self.system.config.smaps.load(atomic::Ordering::Relaxed);
 
         if let Ok(mut processinfo) = self.system.processinfo.lock() {
             // Remove processes from the cache that don't exist anymore
             self.cache2.retain(|k, _| processinfo.processes.contains_key(k) );
 
-            let (pidlen, list) = processinfo.cpu_sort();
+            let (pidlen, list) = if let Some(s) = search {
+                processinfo.name_filter(s)
+            } else {
+                processinfo.cpu_sort()
+            };
 
             // Update cache if the length of PID increases
             if pidlen > self.pidlen {

@@ -428,6 +428,30 @@ impl Processes {
 
         (self.maxpidlen, &self.sorted)
     }
+
+    // Make a list of all processes and filter by Executable name
+    // For use with displaying it in the terminal
+    pub fn name_filter(&mut self, findstr: &str ) -> (usize, &Vec::<usize>) {
+        // This pointer cancer is because I don't want to allocate
+        // a new vector every single time this function is called
+        self.sorted.clear();
+
+        for val in self.processes.values() {
+            if val.executable.contains(findstr) {
+                self.sorted.push(val as *const process::Process as usize);
+            }
+        }
+
+        // Sort by amount of Work, if equal sort by Total Work
+        self.sorted.sort_by(|a, b| {
+            let a = unsafe { &*(*a as *const process::Process) };
+            let b = unsafe { &*(*b as *const process::Process) };
+            b.work.cmp(&a.work)
+                .then(b.total.cmp(&a.total))
+        });
+
+        (self.maxpidlen, &self.sorted)
+    }
 }
 
 impl Drop for Processes {
