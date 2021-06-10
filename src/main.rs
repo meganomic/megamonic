@@ -108,6 +108,7 @@ fn main() -> Result<()> {
             102 => {
                 if ui.search {
                     ui.search = false;
+                    ui.rebuild()?;
                 } else {
                     ui.search = true;
                 }
