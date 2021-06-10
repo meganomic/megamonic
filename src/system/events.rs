@@ -63,7 +63,7 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
 
                 if search {
                     // Disable Search
-                    if buf[0] == b'\r' {
+                    if buf[0] == b'\r' || buf[0] == 27 {
                         search = false;
 
                         unsafe {
