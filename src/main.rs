@@ -49,7 +49,7 @@ fn main() -> Result<()> {
                 .help("Sample frequency in milliseconds. Min: 1000, Max: 3000")
                 .default_value("1000")
         )
-        .after_help("\x1b[91mEnabling both smaps and all processes is ultra slow.\nEspecially if running as root.\x1b[0m\n\nThese buttons do things:\nq => exit.\na => toggle all processes.\ns => toggle smaps.\nt => toggle \"Top mode\"\nr => rebuild the UI incase its broken\n[space] => pause the UI.")
+        .after_help("\x1b[91mEnabling both smaps and all processes is ultra slow.\nEspecially if running as root.\x1b[0m\n\nThese buttons do things:\nq => exit.\na => toggle all processes.\ns => toggle smaps.\nt => toggle \"Top mode\"\nr => rebuild the UI incase its broken\nf => filter process list. [enter] or [esc] exits filter mode.\n[space] => pause the UI.")
         .get_matches();
 
     let freq = value_t!(options, "frequency", u64).unwrap_or_else(|e| e.exit());
