@@ -43,6 +43,8 @@ pub struct System {
     // Options
     pub config: Arc<Config>,
 
+    pub inputbuffer: Arc<Mutex<String>>,
+
     // List of all thread handles
     pub threads: Vec<thread::JoinHandle<()>>,
 
@@ -73,6 +75,7 @@ impl System {
             exit: Arc::new((Mutex::new(false), Condvar::new())),
 
             config: Arc::new(config),
+            inputbuffer: Arc::new(Mutex::new(String::new())),
 
             threads: Vec::new(),
             error: Arc::new(Mutex::new(Vec::new())),
@@ -90,6 +93,7 @@ impl System {
         // so the rules for signal handling are inherited to all child threads
         self.threads.push(
             events::start_thread(
+                Arc::clone(&self.inputbuffer),
                 Arc::clone(&self.config),
                 mtx.clone(),
             )

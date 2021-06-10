@@ -32,8 +32,6 @@ use self::sensors::Sensors;
 mod gpu;
 use gpu::Gpu;
 
-use crate::system::events::InputBuffer;
-
 use crate::terminal;
 
 
@@ -136,7 +134,6 @@ pub struct Ui <'ui> {
     error: Option<anyhow::Error>,
 
     paused: bool,
-    pub search: bool,
 
     buffer: Vec::<u8>,
     system: &'ui super::system::System,
@@ -164,7 +161,6 @@ impl <'ui> Ui <'ui> {
 
         let mut ui = Self {
             paused: false,
-            search: false,
             buffer: Vec::new(),
             system,
             terminal_size: XY { x: tsizex, y: tsizey },
@@ -290,15 +286,7 @@ impl <'ui> Ui <'ui> {
                 8 => {
                     //let now = std::time::Instant::now();
                     if self.terminal_size.x > (self.processes.pos.x + 22) && self.terminal_size.y > (self.processes.pos.y + 3) {
-                        //self.processes.draw(&mut self.buffer, &self.terminal_size, None)?;
-
-                        if !self.search {
-                            self.processes.draw(&mut self.buffer, &self.terminal_size, None)?;
-                        } else {
-                            unsafe {
-                                self.processes.draw(&mut self.buffer, &self.terminal_size, Some(InputBuffer.as_str()))?;
-                            }
-                        }
+                        self.processes.draw(&mut self.buffer, &self.terminal_size)?;
                     }
                     //eprintln!("{}", now.elapsed().as_micros());
                     //_draw_benchmark!(self.stdout, now, self.terminal_size.x, self.terminal_size.y);

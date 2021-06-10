@@ -104,19 +104,6 @@ fn main() -> Result<()> {
             // Pause
             101 => ui.toggle_pause(),
 
-            // Toggle search
-            102 => {
-                if ui.search {
-                    ui.search = false;
-                    ui.rebuild()?;
-                } else {
-                    ui.search = true;
-                }
-            },
-
-            // Update search string
-            103 => ui.rebuild()?,
-
             // resize
             105 => {
                 let (x, y) = terminal::gettermsize();

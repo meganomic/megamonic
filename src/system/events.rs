@@ -1,11 +1,11 @@
-use std::sync::{ Arc, mpsc, atomic };
+use std::sync::{ Arc, mpsc, atomic, Mutex };
 use super::Config;
 
 mod epoll;
 
-pub static mut InputBuffer: String = String::new();
+// pub static mut InputBuffer: String = String::new();
 
-pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread::JoinHandle<()> {
+pub fn start_thread(inputbuffer: Arc<Mutex<String>>, config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread::JoinHandle<()> {
     // Set up the signals for the Event thread
     // This needs to be done in the MAIN thread BEFORE any child threads are spawned
     // so the rules are inherited to all child threads
@@ -62,33 +62,28 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
 
 
                 if search {
+                    let mut in_buf_lock = inputbuffer.lock().unwrap();
                     // Disable Search
                     if buf[0] == b'\r' || buf[0] == 27 {
                         search = false;
 
-                        unsafe {
-                            InputBuffer.clear();
-                        }
+                        in_buf_lock.clear();
 
-                        // Disable search mode
-                        match tx.send(102) {
+                        // Notify UI that string has been updated
+                        match tx.send(106) {
                             Ok(_) => (),
                             Err(_) => break,
                         }
                     } else {
                         // Delete last char if you press backspace
                         if buf[0] == 127 {
-                            unsafe {
-                                let _ = InputBuffer.pop();
-                            }
+                            let _ = in_buf_lock.pop();
                         } else {
-                            unsafe {
-                                InputBuffer.push(buf[0] as char);
-                            }
+                            in_buf_lock.push(buf[0] as char);
                         }
 
                         // Notify UI that string has been updated
-                        match tx.send(103) {
+                        match tx.send(106) {
                             Ok(_) => (),
                             Err(_) => break,
                         }
@@ -101,10 +96,10 @@ pub fn start_thread(config: Arc<Config>, tx: mpsc::Sender::<u8>) -> std::thread:
                         b'f' => {
                             search = true;
 
-                            match tx.send(102) {
-                                Ok(_) => (),
-                                Err(_) => break,
-                            }
+//                             match tx.send(106) {
+//                                 Ok(_) => (),
+//                                 Err(_) => break,
+//                             }
                         }
 
                         // Quit
