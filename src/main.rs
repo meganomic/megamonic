@@ -1,5 +1,4 @@
 #![feature(asm)]
-#![feature(iter_intersperse)]
 #![feature(backtrace)]
 
 use anyhow::{ bail, ensure, Context, Result };
