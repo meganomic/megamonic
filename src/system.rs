@@ -1,3 +1,5 @@
+use std::arch::asm;
+
 use std::sync::{Arc, Mutex, atomic, Condvar};
 use std::thread;
 use anyhow::{ Result, Context, bail };

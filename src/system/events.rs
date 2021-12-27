@@ -1,3 +1,5 @@
+use std::arch::asm;
+
 use std::sync::{ Arc, mpsc, atomic, Mutex };
 use super::Config;
 

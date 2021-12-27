@@ -1,3 +1,5 @@
+use std::arch::asm;
+
 #[repr(C)]
 #[derive(Default)]
 struct SignalfdSiginfo {

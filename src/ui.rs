@@ -1,3 +1,5 @@
+use std::arch::asm;
+
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ ensure, Context, Result };

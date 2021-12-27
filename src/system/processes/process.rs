@@ -1,3 +1,5 @@
+use std::arch::asm;
+
 use anyhow::{ ensure, Context, Result };
 use std::ffi::CString;
 use core::arch::x86_64::*;

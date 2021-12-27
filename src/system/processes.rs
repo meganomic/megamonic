@@ -1,3 +1,5 @@
+use std::arch::asm;
+
 use anyhow::{ bail, ensure, Context, Result };
 use std::sync::{ Arc, Mutex, mpsc, atomic };
 use std::io::Read;
