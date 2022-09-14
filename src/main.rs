@@ -15,7 +15,7 @@ fn main() -> Result<()> {
     let options = App::new("Megamonic")
         .setting(AppSettings::ColoredHelp)
         .about("A badly designed multithreaded system monitor")
-        .version(concat!("v0.1.", env!("MEGAMONIC_VER")))
+        .version(concat!("v1.0.", env!("MEGAMONIC_VER")))
         .arg(
             Arg::with_name("smaps")
                 .short("s")
