@@ -80,54 +80,63 @@ impl <'a> Processes <'a> {
             let max_length = (terminal_size.x - self.pos.x - 19) as usize;
 
             //let now = std::time::Instant::now();
-            for (idx, val_ptr) in list.iter().enumerate() {
 
-                // The list is a list of pointers.
-                // Yeah, I know. But I can't figure out how to do it any other way.
-                let val = unsafe { &*(*val_ptr as *const process::Process) };
-
-                // Break once we printed all the processes that fit on screen
-                if idx == self.size.y as usize {
-                    break;
-                }
-
-                // Check if there actually is a PSS value
-                // If there isn't it probably requires root access, use RSS instead
-                if smaps & (val.pss != -1) {
-                    convert_with_padding_proc(&mut self.memory_buffer, val.pss, "\x1b[94m");
-                } else {
-                    convert_with_padding_proc(&mut self.memory_buffer, val.rss, "\x1b[92m");
-                }
-
-                // This is needed because of rounding errors. There's probably a better way
-                self.cpu_buffer.clear();
-                if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
-                    let _ = write!(self.cpu_buffer, "\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
-                } else if val.cpu_avg >= 99.5 {
-                    let _ = write!(self.cpu_buffer, "\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
-                } else {
-                    let _ = write!(self.cpu_buffer, "\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
-                }
-
+            // list might be empty if searching. Just print the header in such a case.
+            if list.is_empty() {
                 let _ = buffer.write_vectored(&[
                     unsafe {
-                        std::io::IoSlice::new(self.cache1.get_unchecked(idx).as_bytes())
-                    },
-                    std::io::IoSlice::new(self.cpu_buffer.as_bytes()),
-                    std::io::IoSlice::new(self.memory_buffer.as_bytes()),
-                    std::io::IoSlice::new(
-                        self.cache2.entry(val.pid).or_insert_with(||
-                            maxstr(
-                                &val.executable,
-                                &val.cmdline,
-                                val.not_executable,
-                                val.pid,
-                                pidlen,
-                                max_length
-                            )
-                        ).as_bytes()
-                    )
-                ]);
+                        std::io::IoSlice::new(self.cache1.get_unchecked(0).as_bytes())
+                    }]);
+            } else {
+                for (idx, val_ptr) in list.iter().enumerate() {
+
+                    // The list is a list of pointers.
+                    // Yeah, I know. But I can't figure out how to do it any other way.
+                    let val = unsafe { &*(*val_ptr as *const process::Process) };
+
+                    // Break once we printed all the processes that fit on screen
+                    if idx == self.size.y as usize {
+                        break;
+                    }
+
+                    // Check if there actually is a PSS value
+                    // If there isn't it probably requires root access, use RSS instead
+                    if smaps & (val.pss != -1) {
+                        convert_with_padding_proc(&mut self.memory_buffer, val.pss, "\x1b[94m");
+                    } else {
+                        convert_with_padding_proc(&mut self.memory_buffer, val.rss, "\x1b[92m");
+                    }
+
+                    // This is needed because of rounding errors. There's probably a better way
+                    self.cpu_buffer.clear();
+                    if val.cpu_avg > 0.0 && val.cpu_avg < 99.5 {
+                        let _ = write!(self.cpu_buffer, "\x1b[91m[ \x1b[92m{:>4.1}%\x1b[91m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
+                    } else if val.cpu_avg >= 99.5 {
+                        let _ = write!(self.cpu_buffer, "\x1b[91m[ \x1b[92m{:>4.0}%\x1b[91m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
+                    } else {
+                        let _ = write!(self.cpu_buffer, "\x1b[38;5;244m[ \x1b[37m{:>4.1}%\x1b[38;5;244m ] \x1b[0m\x1b[91m[ ", val.cpu_avg);
+                    }
+
+                    let _ = buffer.write_vectored(&[
+                        unsafe {
+                            std::io::IoSlice::new(self.cache1.get_unchecked(idx).as_bytes())
+                        },
+                        std::io::IoSlice::new(self.cpu_buffer.as_bytes()),
+                        std::io::IoSlice::new(self.memory_buffer.as_bytes()),
+                        std::io::IoSlice::new(
+                            self.cache2.entry(val.pid).or_insert_with(||
+                                maxstr(
+                                    &val.executable,
+                                    &val.cmdline,
+                                    val.not_executable,
+                                    val.pid,
+                                    pidlen,
+                                    max_length
+                                )
+                            ).as_bytes()
+                        )
+                    ]);
+                }
             }
 
             //eprintln!("{}", now.elapsed().as_nanos());
