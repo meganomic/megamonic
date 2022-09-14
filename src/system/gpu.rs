@@ -12,7 +12,7 @@ pub struct Gpu {
 pub fn start_thread(internal: Arc<Mutex<Gpu>>, tx: mpsc::Sender::<u8>, exit: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>, sleepy: std::time::Duration) -> std::thread::JoinHandle<()> {
     std::thread::Builder::new().name("Gpu".to_string()).spawn(move || {
         // Setup device
-        if let Ok(nvml) = nvml_wrapper::NVML::init() {
+        if let Ok(nvml) = nvml_wrapper::Nvml::init() {
             if let Ok(device) = nvml.device_by_index(0) {
                 let (lock, cvar) = &*exit;
                 'outer: loop {
