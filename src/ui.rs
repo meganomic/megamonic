@@ -262,7 +262,7 @@ impl <'ui> Ui <'ui> {
 
                 // Sensors
                 6 => {
-                    if self.terminal_size.x > self.sensors.size.x && self.terminal_size.y > (self.network.size.y + self.sensors.size.y + self.overview.size.y) as u16 {
+                    if self.terminal_size.x > self.sensors.size.x && self.terminal_size.y > (self.network.size.y + self.sensors.size.y + self.overview.size.y) {
                         if self.sensors.draw(&mut self.buffer)? {
                             self.rebuild()?;
                         }
@@ -271,7 +271,7 @@ impl <'ui> Ui <'ui> {
 
                 // Network
                 7 => {
-                    if self.terminal_size.x > self.network.size.x  && self.terminal_size.y > (self.network.size.y + self.overview.size.y) as u16 {
+                    if self.terminal_size.x > self.network.size.x  && self.terminal_size.y > (self.network.size.y + self.overview.size.y) {
                         if self.network.draw(&mut self.buffer)? {
                             self.rebuild()?;
                         }
