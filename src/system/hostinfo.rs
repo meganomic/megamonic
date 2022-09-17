@@ -14,7 +14,7 @@ impl Default for Hostinfo {
                 if line.starts_with("NAME") {
                     if let Some(pos) = line.find('"') {
                         distname.clear();
-                        distname.push_str(&line[pos+1..line.len()-1].trim());
+                        distname.push_str(line[pos+1..line.len()-1].trim());
                     }
                 } else if line.starts_with("ANSI_COLOR") {
                     if let Some(pos) = line.find('"') {

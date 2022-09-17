@@ -87,12 +87,6 @@ macro_rules! write_to_stdout {
 // Customized version of https://github.com/sfackler/rust-log-panics
 fn custom_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
-        let backtrace_env = if std::env::var_os("RUST_BACKTRACE").is_some() {
-            1
-        } else {
-            0
-        };
-
         let thread = std::thread::current();
         let name = thread.name().unwrap_or("<unnamed>");
 
@@ -111,8 +105,8 @@ fn custom_panic_hook() {
 
         static FIRST_PANIC: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
-        match backtrace_env {
-            0 => {
+        match std::env::var_os("RUST_BACKTRACE").is_some() {
+            false => {
                 if FIRST_PANIC.swap(false, std::sync::atomic::Ordering::SeqCst) {
                     println!("note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n");
                 }

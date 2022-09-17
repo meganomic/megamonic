@@ -5,7 +5,7 @@ fn main() {
 
     let revision =
         Command::new("git")
-            .args(&["rev-list", "--count", "HEAD"])
+            .args(["rev-list", "--count", "HEAD"])
             .output()
             .unwrap()
             .stdout;
@@ -14,7 +14,7 @@ fn main() {
 
     let commit =
         Command::new("git")
-            .args(&["rev-parse", "--short", "HEAD"])
+            .args(["rev-parse", "--short", "HEAD"])
             .output()
             .unwrap()
             .stdout;
