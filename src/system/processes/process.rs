@@ -17,10 +17,10 @@ pub struct Process {
 
     // /proc/stat
     pub pid: u32,        // 1
-    utime: u64,      // 14
+    /*utime: u64,      // 14
     stime: u64,      // 15
     cutime: u64,     // 16
-    cstime: u64,     // 17
+    cstime: u64,     // 17*/
 
     // /proc/smaps_rollup
     pub rss: i64,
@@ -118,19 +118,19 @@ impl Process {
         // Adjust the indexes so they are always the same
         let idx = index.split_at(index.len().checked_sub(51).context("Index is too small!")?).1;
 
-        self.utime = btoi::btou(&self.buffer_stat[*idx.get_unchecked(11)+1..*idx.get_unchecked(12)]).context("Can't convert utime to a number!").with_context(||format!("pid: {}", self.pid))?;
+        let utime: u64 = btoi::btou(&self.buffer_stat[*idx.get_unchecked(11)+1..*idx.get_unchecked(12)]).context("Can't convert utime to a number!").with_context(||format!("pid: {}", self.pid))?;
 
 //             eprintln!("utime: {:?}", self.utime);
 
-        self.stime = btoi::btou(&self.buffer_stat[*idx.get_unchecked(12)+1..*idx.get_unchecked(13)]).context("Can't convert stime to a number!").with_context(||format!("pid: {}", self.pid))?;
+        let stime: u64 = btoi::btou(&self.buffer_stat[*idx.get_unchecked(12)+1..*idx.get_unchecked(13)]).context("Can't convert stime to a number!").with_context(||format!("pid: {}", self.pid))?;
 
 //             eprintln!("stime: {:?}", self.stime);
 
-        self.cutime = btoi::btou(&self.buffer_stat[*idx.get_unchecked(13)+1..*idx.get_unchecked(14)]).context("Can't convert cutime to a number!").with_context(||format!("pid: {}", self.pid))?;
+        let cutime: u64 = btoi::btou(&self.buffer_stat[*idx.get_unchecked(13)+1..*idx.get_unchecked(14)]).context("Can't convert cutime to a number!").with_context(||format!("pid: {}", self.pid))?;
 
 //             eprintln!("cutime: {:?}", self.cutime);
 
-        self.cstime = btoi::btou(&self.buffer_stat[*idx.get_unchecked(14)+1..*idx.get_unchecked(15)]).context("Can't convert cstime to a number!").with_context(||format!("pid: {}", self.pid))?;
+        let cstime: u64 = btoi::btou(&self.buffer_stat[*idx.get_unchecked(14)+1..*idx.get_unchecked(15)]).context("Can't convert cstime to a number!").with_context(||format!("pid: {}", self.pid))?;
 
 //             eprintln!("cstime: {:?}", self.cstime);
 
@@ -138,7 +138,7 @@ impl Process {
 
 //             eprintln!("rss: {:?}", self.rss);
 
-        self.total = self.utime + self.stime + self.cutime + self.cstime;
+        self.total = utime + stime + cutime + cstime;
 
         //eprintln!("total: {:?}, old_total: {:?}", self.total, old_total);
 
