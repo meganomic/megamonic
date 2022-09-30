@@ -63,12 +63,14 @@ impl <'a> Processes <'a> {
             // Remove processes from the cache that don't exist anymore
             self.cache2.retain(|k, _| processinfo.processes.contains_key(k) );
 
-            let in_buf_lock = self.system.inputbuffer.lock().unwrap();
-
-            let (pidlen, list) = if in_buf_lock.len() == 0 {
-                processinfo.cpu_sort()
+            let (pidlen, list) = if let Ok(in_buf_lock) = self.system.inputbuffer.lock() {
+                if in_buf_lock.len() == 0 {
+                    processinfo.cpu_sort()
+                } else {
+                    processinfo.name_filter(in_buf_lock.as_str())
+                }
             } else {
-                processinfo.name_filter(in_buf_lock.as_str())
+                bail!("Can't lock inputbuffer");
             };
 
             // Update cache if the length of PID increases
