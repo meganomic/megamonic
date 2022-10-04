@@ -1,7 +1,7 @@
 #![feature(iter_intersperse)]
 
-use anyhow::{ bail, ensure, Context, Result };
-use clap::{ App, AppSettings, Arg, value_t };
+use anyhow::{ bail, Context, Result };
+use clap::{ Command, Arg, value_parser };
 use std::sync::atomic;
 
 mod system;
@@ -12,54 +12,53 @@ use system::System;
 use ui::Ui;
 
 fn main() -> Result<()> {
-    let options = App::new("Megamonic")
-        .setting(AppSettings::ColoredHelp)
+    let options = Command::new("Megamonic")
         .about("A badly designed multithreaded system monitor")
         .version(concat!("v1.0.", env!("MEGAMONIC_VER")))
         .arg(
-            Arg::with_name("smaps")
-                .short("s")
-                .long("enable-smaps")
-                .help("Enable use of PSS value instead of RSS for memory reporting. Requires root for some processes (very slow)")
-        )
-        .arg(
-            Arg::with_name("strftime")
-                .long("strftime")
-                .help("Strftime format string")
-                .default_value("%c")
-        )
-        .arg(
-            Arg::with_name("topmode")
-                .short("t")
-                .long("enable-top-mode")
-                .help("Report CPU % the same way top does")
-        )
-        .arg(
-            Arg::with_name("all")
-                .short("a")
+            Arg::new("all")
+                .short('a')
                 .long("enable-all-processes")
                 .help("Shows all processes, including kernel threads and other stuff (slow)")
         )
         .arg(
-            Arg::with_name("frequency")
-                .short("f")
+            Arg::new("smaps")
+                .short('s')
+                .long("enable-smaps")
+                .help("Enable use of PSS value instead of RSS for memory reporting. Requires root for some processes (very slow)")
+        )
+        .arg(
+            Arg::new("topmode")
+                .short('t')
+                .long("enable-top-mode")
+                .help("Report CPU % the same way top does")
+        )
+        .arg(
+            Arg::new("strftime")
+                .long("strftime")
+                .help("Strftime format string")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
+                .default_value("%c")
+        )
+        .arg(
+            Arg::new("frequency")
+                .short('f')
                 .long("frequency")
                 .help("Sample frequency in milliseconds. Min: 1000, Max: 3000")
+                .value_parser(value_parser!(u64).range(1000..=3000))
                 .default_value("1000")
         )
         .after_help("\x1b[91mEnabling both smaps and all processes is ultra slow.\nEspecially if running as root.\x1b[0m\n\nThese buttons do things:\nq => exit.\na => toggle all processes.\ns => toggle smaps.\nt => toggle \"Top mode\"\nr => rebuild the UI incase its broken\nf => filter process list. [enter] or [esc] exits filter mode.\n[space] => pause the UI.")
         .get_matches();
 
-    let freq = value_t!(options, "frequency", u64).unwrap_or_else(|e| e.exit());
-
-    ensure!((1000..=3000).contains(&freq), "\x1b[32mFrequency\x1b[0m must in range 1000-3000");
+    let freq: u64 = *options.get_one("frequency").unwrap();
 
     let config = system::Config {
-        smaps: atomic::AtomicBool::new(options.is_present("smaps")),
-        topmode: atomic::AtomicBool::new(options.is_present("topmode")),
-        all: atomic::AtomicBool::new(options.is_present("all")),
+        smaps: atomic::AtomicBool::new(options.contains_id("smaps")),
+        topmode: atomic::AtomicBool::new(options.contains_id("topmode")),
+        all: atomic::AtomicBool::new(options.contains_id("all")),
         frequency: atomic::AtomicU64::new(freq),
-        strftime_format: value_t!(options, "strftime", String).unwrap_or_else(|e| e.exit()),
+        strftime_format: options.get_one::<String>("strftime").unwrap().clone()
     };
 
     // Event channel
