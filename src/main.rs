@@ -1,7 +1,7 @@
 #![feature(iter_intersperse)]
 
 use anyhow::{ bail, Context, Result };
-use clap::{ Command, Arg, value_parser };
+use clap::{ Command, Arg, value_parser, ArgAction };
 use std::sync::atomic;
 
 mod system;
@@ -20,18 +20,21 @@ fn main() -> Result<()> {
                 .short('a')
                 .long("enable-all-processes")
                 .help("Shows all processes, including kernel threads and other stuff (slow)")
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("smaps")
                 .short('s')
                 .long("enable-smaps")
                 .help("Enable use of PSS value instead of RSS for memory reporting. Requires root for some processes (very slow)")
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("topmode")
                 .short('t')
                 .long("enable-top-mode")
                 .help("Report CPU % the same way top does")
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("strftime")
@@ -54,9 +57,9 @@ fn main() -> Result<()> {
     let freq: u64 = *options.get_one("frequency").unwrap();
 
     let config = system::Config {
-        smaps: atomic::AtomicBool::new(options.contains_id("smaps")),
-        topmode: atomic::AtomicBool::new(options.contains_id("topmode")),
-        all: atomic::AtomicBool::new(options.contains_id("all")),
+        smaps: atomic::AtomicBool::new(options.get_flag("smaps")),
+        topmode: atomic::AtomicBool::new(options.get_flag("topmode")),
+        all: atomic::AtomicBool::new(options.get_flag("all")),
         frequency: atomic::AtomicU64::new(freq),
         strftime_format: options.get_one::<String>("strftime").unwrap().clone()
     };
