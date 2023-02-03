@@ -17,7 +17,7 @@ codegen-units = 1
 libc-strftime = "0.2"
 sensors = "0.2"
 clap = { version = "4", features = ["wrap_help"] }
-nvml-wrapper = "0.8"
+nvml-wrapper = "0.9"
 anyhow = "1"
 btoi = "0.4"
 ahash = "0.8"
