@@ -302,9 +302,9 @@ impl Uring {
         let cq_ptr = sq_ptr;
 
         /* Save useful fields for later easy reference */
-        let sring_tail = (sq_ptr as usize + io_params.sq_off.tail as usize) as *mut AtomicU32;
-        let sring_mask = (sq_ptr as usize + io_params.sq_off.ring_mask as usize) as *const u32;
-        let sring_array = (sq_ptr as usize + io_params.sq_off.array as usize) as *mut u32;
+        let sring_tail = (sq_ptr + io_params.sq_off.tail as usize) as *mut AtomicU32;
+        let sring_mask = (sq_ptr + io_params.sq_off.ring_mask as usize) as *const u32;
+        let sring_array = (sq_ptr + io_params.sq_off.array as usize) as *mut u32;
 
 
         // SQE array mmap
@@ -330,11 +330,11 @@ impl Uring {
 
 
         /* Save useful fields for later easy reference */
-        let cring_head = (cq_ptr as usize + io_params.cq_off.head as usize) as *mut AtomicU32;
-        let cring_tail = (cq_ptr as usize + io_params.cq_off.tail as usize) as *const u32;
-        let cring_mask = (cq_ptr as usize + io_params.cq_off.ring_mask as usize) as *const u32;
+        let cring_head = (cq_ptr + io_params.cq_off.head as usize) as *mut AtomicU32;
+        let cring_tail = (cq_ptr + io_params.cq_off.tail as usize) as *const u32;
+        let cring_mask = (cq_ptr + io_params.cq_off.ring_mask as usize) as *const u32;
 
-        let cqes = (cq_ptr as usize + io_params.cq_off.cqes as usize) as *const io_uring_cqe;
+        let cqes = (cq_ptr + io_params.cq_off.cqes as usize) as *const io_uring_cqe;
 
 
         Ok(Self {
