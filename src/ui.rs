@@ -180,11 +180,7 @@ impl <'ui> Ui <'ui> {
     }
 
     pub fn toggle_pause(&mut self) {
-        if self.paused {
-            self.paused = false;
-        } else {
-            self.paused = true;
-        }
+        self.paused = !self.paused;
     }
 
     pub fn rebuild_cache(&mut self) -> Result<()> {
