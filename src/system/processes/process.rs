@@ -66,7 +66,7 @@ impl Process {
 
         let ptr = unsafe { alloc::alloc_zeroed(layout) };
 
-        let buffer_stat = unsafe { Vec::from_raw_parts(ptr as *mut u8, 0, 512) };
+        let buffer_stat = unsafe { Vec::from_raw_parts(ptr, 0, 512) };
 
         Ok(Self {
             pid,
