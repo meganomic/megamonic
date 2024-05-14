@@ -1,6 +1,7 @@
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ bail, Result };
+use std::sync::atomic::Ordering;
 
 use crate::system::System;
 use super::XY;
@@ -55,7 +56,7 @@ impl <'a> Overview <'a> {
         };
 
         let (mem_use, swap_use) = if let Ok(memoryinfo) = self.system.memoryinfo.lock() {
-            ((memoryinfo.mem_used as f32 / memoryinfo.mem_total as f32) * 100.0,
+            ((memoryinfo.mem_used as f32 / memoryinfo.mem_total.load(Ordering::Relaxed) as f32) * 100.0,
             (memoryinfo.swap_used as f32 / memoryinfo.swap_total as f32) * 100.0)
         } else {
             bail!("memoryinfo lock is poisoned!");

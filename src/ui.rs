@@ -167,7 +167,7 @@ impl <'ui> Ui <'ui> {
             memory: Memory::new(system, XY { x: 18, y: 1 }),
             swap: Swap::new(system, XY { x: 38, y: 1 }),
             loadavg: Loadavg::new(system, XY { x: 58, y: 1 }),
-            hostinfo: Hostinfo::new(system, XY { x: 0, y: tsizey }),
+            hostinfo: Hostinfo::new(system),
             processes: Processes::new(system, XY { x: 27, y: 6 }),
             network: Network::new(system, XY { x: 1, y: 6 }),
             sensors: Sensors::new(system, XY { x: 1, y: 12 }),

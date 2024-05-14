@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use std::arch::asm;
+use std::ptr::addr_of;
 
 
 // ioctl stuff
@@ -114,7 +115,7 @@ fn init() {
             in("rax") 16, // SYS_IOCTL
             in("rdi") TTYFD,
             in("rsi") TCGETS,
-            in("rdx") &TTYTERMIOS as *const Termios,
+            in("rdx") addr_of!(TTYTERMIOS) as *const Termios,
             out("rcx") _,
             out("r11") _,
             lateout("rax") ret,
@@ -185,7 +186,7 @@ pub fn disable_custom_mode() {
             in("rax") 16, // SYS_IOCTL
             in("rdi") TTYFD,
             in("rsi") TCSETS,
-            in("rdx") &TTYTERMIOS as *const Termios,
+            in("rdx") addr_of!(TTYTERMIOS) as *const Termios,
             out("rcx") _,
             out("r11") _,
             lateout("rax") ret,

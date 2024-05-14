@@ -6,19 +6,17 @@ use super::XY;
 
 pub struct Hostinfo <'a> {
     pub system: &'a System,
-    pub pos: XY,
     pub size: XY,
 
     cache: String,
 }
 
 impl <'a> Hostinfo <'a> {
-    pub fn new(system: &'a System, pos: XY) -> Self {
+    pub fn new(system: &'a System) -> Self {
 
         Self {
             system,
             cache: String::new(),
-            pos,
             size: XY { x: 0, y: 1 }
         }
     }

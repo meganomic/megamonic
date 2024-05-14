@@ -1,6 +1,7 @@
 use std::io::Write as ioWrite;
 use std::fmt::Write as fmtWrite;
 use anyhow::{ bail, Result };
+use std::sync::atomic::Ordering;
 
 use crate::system::System;
 use super::{ XY, convert_with_padding };
@@ -56,9 +57,9 @@ impl <'a> Memory <'a> {
 
     pub fn draw (&mut self, buffer: &mut Vec::<u8>) -> Result<()> {
         if let Ok(val) = self.system.memoryinfo.lock() {
-            if self.total != val.mem_total {
-                self.total = val.mem_total;
-                convert_with_padding(&mut self.buffer.0, val.mem_total);
+            if self.total != val.mem_total.load(Ordering::Relaxed) {
+                self.total = val.mem_total.load(Ordering::Relaxed);
+                convert_with_padding(&mut self.buffer.0, val.mem_total.load(Ordering::Relaxed));
             }
 
             if self.free != val.mem_free {

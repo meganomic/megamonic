@@ -1,12 +1,13 @@
 use std::arch::asm;
 
 use anyhow::{ Context, Result };
-use std::sync::{ Arc, Mutex, mpsc };
+use std::sync::{ Arc, Mutex, mpsc, atomic, atomic::Ordering };
 
 use super::{ read_fd, open_file };
 
 pub struct Memory {
-    pub mem_total: u64,
+    // pub mem_total: u64,
+    pub mem_total: atomic::AtomicU64,
     pub mem_free: u64,
     pub mem_used: u64,
     pub swap_total: u64,
@@ -21,7 +22,7 @@ impl Memory {
         let fd = open_file("/proc/meminfo\0".as_ptr()).context("Can't open /proc/meminfo")?;
 
         Ok(Self {
-            mem_total: 0,
+            mem_total: atomic::AtomicU64::new(0),
             mem_free: 0,
             mem_used: 0,
             swap_total: 0,
@@ -44,14 +45,14 @@ impl Memory {
 
         let mut lines = self.buffer.lines();
 
-        self.mem_total = lines.next()
+        self.mem_total.store(lines.next()
             .context("Can't parse mem_total /proc/meminfo: 1")?
             .split_ascii_whitespace()
             .nth(1)
             .context("Can't parse mem_total /proc/meminfo: 2")?
             .parse::<u64>()
             .context("Can't parse mem_total /proc/meminfo: 3")?
-            * 1024;
+            * 1024, Ordering::Relaxed);
 
         self.mem_free = lines.nth(1)
             .context("Can't parse mem_free /proc/meminfo: 1")?
@@ -80,7 +81,7 @@ impl Memory {
             .context("Can't parse swap_free /proc/meminfo: 3")?
             * 1024;
 
-        self.mem_used = self.mem_total - self.mem_free;
+        self.mem_used = self.mem_total.load(Ordering::Relaxed) - self.mem_free;
 
         self.swap_used = self.swap_total - self.swap_free;
 
