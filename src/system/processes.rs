@@ -67,7 +67,7 @@ impl Processes {
         unsafe {
             asm!("syscall",
                 in("rax") 2, // SYS_OPEN
-                in("rdi") "/proc\0".as_ptr(),
+                in("rdi") c"/proc".as_ptr(),
                 in("rsi") 16, // O_DIRECTORY
                 //in("rdx") 0, // This is the mode. It is not used in this case
                 out("rcx") _,

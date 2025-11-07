@@ -19,7 +19,7 @@ pub struct Memory {
 
 impl Memory {
     pub fn new() -> Result<Self> {
-        let fd = open_file("/proc/meminfo\0".as_ptr()).context("Can't open /proc/meminfo")?;
+        let fd = open_file(c"/proc/meminfo".as_ptr()).context("Can't open /proc/meminfo")?;
 
         Ok(Self {
             mem_total: atomic::AtomicU64::new(0),

@@ -15,7 +15,7 @@ pub struct Loadavg {
 
 impl Loadavg {
     pub fn new() -> Result<Self> {
-        let fd = open_file("/proc/loadavg\0".as_ptr()).context("Can't open /proc/loadavg")?;
+        let fd = open_file(c"/proc/loadavg".as_ptr()).context("Can't open /proc/loadavg")?;
 
         Ok(Self {
             min1: String::new(),

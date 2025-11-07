@@ -227,7 +227,7 @@ impl Drop for System {
 
 // 'path' is a pointer to a null terminated string
 // Returns the fd of the open file
-fn open_file(path: *const u8) -> Result<i32> {
+fn open_file(path: *const i8) -> Result<i32> {
     // Open file
     let ret: i32;
     unsafe {

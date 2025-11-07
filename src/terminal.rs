@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 use std::arch::asm;
-use std::ptr::addr_of;
 
 
 // ioctl stuff
@@ -92,7 +91,7 @@ fn init() {
     unsafe {
         asm!("syscall",
             in("rax") 2, // SYS_OPEN
-            in("rdi") "/dev/tty\0".as_ptr(),
+            in("rdi") c"/dev/tty".as_ptr(),
             in("rsi") 2, // O_RDWR
             //in("rdx") 0, // This is the mode. It is not used in this case
             out("rcx") _,
@@ -115,7 +114,7 @@ fn init() {
             in("rax") 16, // SYS_IOCTL
             in("rdi") TTYFD,
             in("rsi") TCGETS,
-            in("rdx") addr_of!(TTYTERMIOS) as *const Termios,
+            in("rdx") &raw const TTYTERMIOS,
             out("rcx") _,
             out("r11") _,
             lateout("rax") ret,
@@ -186,7 +185,7 @@ pub fn disable_custom_mode() {
             in("rax") 16, // SYS_IOCTL
             in("rdi") TTYFD,
             in("rsi") TCSETS,
-            in("rdx") addr_of!(TTYTERMIOS) as *const Termios,
+            in("rdx") &raw const TTYTERMIOS,
             out("rcx") _,
             out("r11") _,
             lateout("rax") ret,

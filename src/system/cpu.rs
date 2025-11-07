@@ -32,7 +32,7 @@ pub struct Cpuinfo {
 
 impl Cpuinfo {
     pub fn new() -> Result<Self> {
-        let cpu_fd = open_file("/proc/stat\0".as_ptr()).context("Can't open /proc/stat")?;
+        let cpu_fd = open_file(c"/proc/stat".as_ptr()).context("Can't open /proc/stat")?;
 
         let mut buffer = String::with_capacity(5000);
 
@@ -49,7 +49,7 @@ impl Cpuinfo {
                 }
         }
 
-        let gov_fd = open_file("/sys/devices/system/cpu/cpufreq/policy0/scaling_governor\0".as_ptr()).context("Can't open /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?;
+        let gov_fd = open_file(c"/sys/devices/system/cpu/cpufreq/policy0/scaling_governor".as_ptr()).context("Can't open /sys/devices/system/cpu/cpufreq/policy0/scaling_governor")?;
 
         Ok(Self {
             cpu_avg: 0.0,

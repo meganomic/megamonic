@@ -64,7 +64,7 @@ impl <'a> Processes <'a> {
             self.cache2.retain(|k, _| processinfo.processes.contains_key(k) );
 
             let (pidlen, list) = if let Ok(in_buf_lock) = self.system.inputbuffer.lock() {
-                if in_buf_lock.len() == 0 {
+                if in_buf_lock.is_empty() {
                     processinfo.cpu_sort()
                 } else {
                     processinfo.name_filter(in_buf_lock.as_str())

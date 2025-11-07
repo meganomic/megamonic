@@ -21,7 +21,7 @@ pub struct Network {
 
 impl Network {
     pub fn new() -> Result<Self> {
-        let fd = open_file("/proc/net/dev\0".as_ptr()).context("Can't open /proc/net/dev")?;
+        let fd = open_file(c"/proc/net/dev".as_ptr()).context("Can't open /proc/net/dev")?;
 
         Ok(Self {
             stats: std::collections::BTreeMap::new(),
