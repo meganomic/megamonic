@@ -43,6 +43,8 @@ fn custom_panic_hook() {
             },
         }
 
+        std::process::exit(1);
+
     }));
 }
 

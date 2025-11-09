@@ -173,10 +173,22 @@ pub fn enable_custom_mode() {
 
 // Reset tty settings to original settings and close tty fd
 pub fn disable_custom_mode() {
+    let data = "\x1b[2J\x1b[?1049l\x1b[?25h";
+    unsafe {
+        asm!("syscall",
+            in("rax") 1, // SYS_WRITE
+            in("rdi") 1,
+            in("rsi") data.as_ptr(),
+            in("rdx") data.len(),
+            out("rcx") _,
+            out("r11") _,
+            lateout("rax") _,
+        );
+    }
+
     if unsafe { TTYFD } == 0 {
         return;
     }
-
 
     // Set tty settings to our saved original values
     let ret: i32;
@@ -210,19 +222,6 @@ pub fn disable_custom_mode() {
 
     unsafe {
         TTYFD = 0;
-    }
-
-    let data = "\x1b[2J\x1b[?1049l\x1b[?25h";
-    unsafe {
-        asm!("syscall",
-            in("rax") 1, // SYS_WRITE
-            in("rdi") 1,
-            in("rsi") data.as_ptr(),
-            in("rdx") data.len(),
-            out("rcx") _,
-            out("r11") _,
-            lateout("rax") _,
-        );
     }
 }
 

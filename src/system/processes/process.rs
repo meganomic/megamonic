@@ -223,6 +223,8 @@ impl Drop for Process {
 
 // Find all instances of [space] and put their index in positions vector
 unsafe fn find_all(positions: &mut Vec::<usize>, haystack: &[u8]) {
+    // Set buffer length to Capacity
+    positions.set_len(128);
     let slice = positions.as_mut_slice();
 
     let start_ptr = haystack.as_ptr();
