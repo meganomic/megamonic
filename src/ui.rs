@@ -84,41 +84,6 @@ macro_rules! write_to_stdout {
     };
 }
 
-// Customized version of https://github.com/sfackler/rust-log-panics
-fn custom_panic_hook() {
-    std::panic::set_hook(Box::new(|info| {
-        let thread = std::thread::current();
-        let name = thread.name().unwrap_or("<unnamed>");
-
-        // clear screen, disable Alternate screen, show cursor
-        terminal::disable_custom_mode();
-
-        let msg = match info.payload().downcast_ref::<&'static str>() {
-            Some(s) => *s,
-            None => match info.payload().downcast_ref::<String>() {
-                Some(s) => &s[..],
-                None => "Box<Any>",
-            },
-        };
-
-        println!("thread '{}' panicked at '{}', {}", name, msg, info.location().unwrap());
-
-        static FIRST_PANIC: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
-
-        match std::env::var_os("RUST_BACKTRACE").is_some() {
-            false => {
-                if FIRST_PANIC.swap(false, std::sync::atomic::Ordering::SeqCst) {
-                    println!("note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n");
-                }
-            }
-            _ => {
-                println!("{}", std::backtrace::Backtrace::capture());
-            },
-        }
-
-    }));
-}
-
 #[derive(Default)]
 pub struct XY {
     pub x: u16,
@@ -149,9 +114,6 @@ pub struct Ui <'ui> {
 impl <'ui> Ui <'ui> {
     pub fn new(system: &'ui super::system::System, terminal_size: (u16, u16)) -> Result<Self> {
         terminal::enable_custom_mode();
-
-        // Initialize custom panic hook
-        custom_panic_hook();
 
         let (tsizex, tsizey) = (terminal_size.0, terminal_size.1);
 
